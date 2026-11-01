@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+from datetime import date as date_type
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -121,3 +122,26 @@ class RollbackIn(BaseModel):
     """回滚入参：回滚到哪个版本号。"""
 
     target_version: int
+
+
+class CheckinIn(BaseModel):
+    date: date_type | None = None
+    weight_kg: float | None = None
+    sleep_hours: float | None = None
+    hunger_level: int | None = Field(default=None, ge=1, le=5)
+    soreness_level: int | None = Field(default=None, ge=1, le=5)
+    adherence_pct: int | None = Field(default=None, ge=0, le=100)
+    note: str = ""
+
+
+class CheckinOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    date: date_type
+    weight_kg: float | None
+    sleep_hours: float | None
+    hunger_level: int | None
+    soreness_level: int | None
+    adherence_pct: int | None
+    note: str

@@ -97,3 +97,25 @@ def test_docs_uses_local_swagger_assets(client: TestClient) -> None:
     assert "/static/swagger/swagger-ui.css" in html
     assert "cdn.jsdelivr.net" not in html
     assert client.get("/static/swagger/swagger-ui-bundle.js").status_code == 200
+
+
+def test_checkin_upsert_and_list(client: TestClient) -> None:
+    token = _login(client)
+    headers = {"Authorization": f"Bearer {token}"}
+    payload = {
+        "date": "2026-11-01",
+        "weight_kg": 77.4,
+        "sleep_hours": 7.5,
+        "hunger_level": 3,
+        "soreness_level": 2,
+        "adherence_pct": 85,
+        "note": "感觉不错",
+    }
+    first = client.post("/api/v1/checkins", headers=headers, json=payload)
+    assert first.status_code == 200, first.text
+    payload["weight_kg"] = 77.2
+    second = client.post("/api/v1/checkins", headers=headers, json=payload)
+    assert second.status_code == 200
+    rows = client.get("/api/v1/checkins", headers=headers).json()["data"]
+    assert len(rows) == 1
+    assert rows[0]["weight_kg"] == 77.2

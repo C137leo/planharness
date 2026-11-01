@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     # DeepSeek：P0 阶段 Key 只存服务器 .env，不写进代码、不经过聊天记录
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     deepseek_api_key: str = ""
-    deepseek_model: str = "deepseek-chat"
+    deepseek_model: str = "deepseek-flash"
     deepseek_timeout_s: float = 30.0
 
     @property

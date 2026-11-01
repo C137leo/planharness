@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -21,11 +23,14 @@ from app.domain.patches import (
     rollback_plan,
 )
 from app.domain.planning import PlanValidationError, generate_plan as generate_plan_service
-from app.models import Plan, PlanAction, PlanPatch, PlanVersion, Profile, User
+from app.llm.deepseek import DeepSeekExplainer
+from app.models import Checkin, Plan, PlanAction, PlanPatch, PlanVersion, Profile, User
 from app.schemas import (
     ActionOut,
     CurrentPlanOut,
     ApprovalIn,
+    CheckinIn,
+    CheckinOut,
     DemoLoginIn,
     PatchCreateIn,
     PatchOut,
@@ -189,12 +194,20 @@ def create_patch(
             detail=["MVP 只实现了 injury 补丁"],
         )
     try:
+        settings = request.app.state.settings
+        explainer = DeepSeekExplainer(
+            api_key=settings.deepseek_api_key,
+            base_url=settings.deepseek_base_url,
+            model=settings.deepseek_model,
+            timeout_s=8,
+        )
         patch = create_knee_patch(
             db,
             user,
             plan_id,
             available_days=payload.available_days,
             idempotency_key=payload.idempotency_key,
+            explainer=explainer.explain,
         )
     except PatchValidationError as exc:
         raise HTTPException(
@@ -276,3 +289,43 @@ def rollback(
         {"rolled_back_to": payload.target_version, "new_version": version.version, "plan": plan.model_dump()},
         message="rolled_back",
     )
+
+
+@router.post("/checkins")
+def create_checkin(
+    payload: CheckinIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    day = payload.date or date.today()
+    checkin = db.scalar(
+        select(Checkin).where(Checkin.user_id == user.id, Checkin.date == day)
+    )
+    if checkin is None:
+        checkin = Checkin(user_id=user.id, date=day)
+        db.add(checkin)
+    checkin.weight_kg = payload.weight_kg
+    checkin.sleep_hours = payload.sleep_hours
+    checkin.hunger_level = payload.hunger_level
+    checkin.soreness_level = payload.soreness_level
+    checkin.adherence_pct = payload.adherence_pct
+    checkin.note = payload.note
+    db.commit()
+    db.refresh(checkin)
+    return ok(request, CheckinOut.model_validate(checkin).model_dump(), message="saved")
+
+
+@router.get("/checkins")
+def list_checkins(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    rows = db.scalars(
+        select(Checkin)
+        .where(Checkin.user_id == user.id)
+        .order_by(Checkin.date.desc())
+        .limit(14)
+    ).all()
+    return ok(request, [CheckinOut.model_validate(item).model_dump() for item in rows])

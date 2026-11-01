@@ -60,10 +60,11 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/demo -H 'Content-Type: applicatio
 - `GET /api/v1/me/profile`
 - `GET /api/v1/plans/current`（seed 的 v1，12 个 action）
 - `POST /api/v1/plans/generate`（模板生成 + 热量/蛋白质计算 + validator，生成 v2）
-- `POST /api/v1/plans/{id}/patches`（膝痛补丁，3/12，churn 25%）
+- `POST /api/v1/plans/{id}/patches`（膝痛补丁，3/12，churn 25%，返回 `validation.explanation`）
 - `POST /api/v1/patches/{id}/approve|reject`（审批前不写库）
 - `POST /api/v1/plans/{id}/rollback`（回滚生成新版本）
-- 13 个 pytest
+- `POST/GET /api/v1/checkins`（打卡 upsert / 列表）
+- 20 个 pytest
 
 服务器部署（当前实际方案）：
 
@@ -73,6 +74,28 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/demo -H 'Content-Type: applicatio
 - **不使用** `docker-compose.example.yml`（会重复起 Postgres/Caddy）
 
 见 [deploy/README.md](deploy/README.md)。
+
+## Frontend quickstart
+
+```bash
+cd planharness/frontend
+npm install --registry=https://registry.npmmirror.com
+npm run dev:h5
+```
+
+- H5：`http://localhost:5173`，Vite 把 `/api` 代理到 `127.0.0.1:8000`
+- 构建：`npm run build:h5`，产物在 `frontend/dist/`
+- 小程序：`npm run dev:mp-weixin`（需要 AppID；当前用开发者工具模拟器）
+- 小程序请求域名必须是绝对地址：`VITE_API_BASE=https://www.agentworkout.online/api/v1`
+
+当前页面：
+
+- 今天：当前计划、12 个 action、生成膝痛补丁
+- 打卡：体重/睡眠/饥饿/酸痛/执行率
+- 审批：补丁 diff、通过/拒绝
+- Console：H5 骨架，下一轮接真实场景/Trace/指标
+
+> Uni-app 当前安装包提示 Node >=22；本机 Node 20 也能 build，但建议升级到 Node 22。
 
 ## 文档索引
 
@@ -86,6 +109,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/demo -H 'Content-Type: applicatio
 - [08 AI Key 安全与网关](docs/08-ai-gateway-security.md)：用 Worker/SCF 隔离 DeepSeek Key，服务器只持可撤销 token
 - [09 最简单网关操作](docs/09-simple-gateway-walkthrough.md)：Cloudflare Worker 逐步操作 + 最小代码 + 验证命令
 - [10 代码地图与流程图](docs/10-code-map-and-flows.md)：**给不熟 Python 的人**：目录结构、Python↔Java 对照、架构图、膝痛补丁全流程图
+- [11 进度复盘](docs/11-progress-review.md)：这两天做了什么、完整链路图、LangGraph 缺口与下一步
 - [生产部署模板](deploy/README.md)：systemd + Nginx + 现有 Postgres 容器（当前实际方案）
 
 ## 已锁定决策
