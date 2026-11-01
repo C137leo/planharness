@@ -1,9 +1,14 @@
 .env
+# 任何 .env.local / .env.prod 之类的变体都不进 Git；模板文件必须保留
+.env.*
+!.env.example
+
 backend/.venv/
 backend/.pytest_cache/
 backend/__pycache__/
 backend/**/__pycache__/
 backend/*.db
+backend/dist/
 frontend/node_modules/
 frontend/dist/assets/
 .DS_Store

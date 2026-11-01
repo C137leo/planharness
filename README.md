@@ -39,8 +39,11 @@
 ```bash
 cd planharness/backend
 uv sync
-uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
+
+接口文档：<http://127.0.0.1:8000/docs>（已内置 Swagger UI 静态资源，**不依赖外网 CDN**，
+断网也能打开；默认的 CDN 方案在国内会白屏，见 `backend/app/static/swagger/README.md`）
 
 验证：
 
@@ -56,18 +59,20 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/demo -H 'Content-Type: applicatio
 - `POST /api/v1/auth/wechat`（无 AppID，返回 501）
 - `GET /api/v1/me/profile`
 - `GET /api/v1/plans/current`（seed 的 v1，12 个 action）
-- 5 个 pytest
+- `POST /api/v1/plans/generate`（模板生成 + 热量/蛋白质计算 + validator，生成 v2）
+- `POST /api/v1/plans/{id}/patches`（膝痛补丁，3/12，churn 25%）
+- `POST /api/v1/patches/{id}/approve|reject`（审批前不写库）
+- `POST /api/v1/plans/{id}/rollback`（回滚生成新版本）
+- 13 个 pytest
 
-服务器部署：
+服务器部署（当前实际方案）：
 
-```bash
-cd planharness
-cp .env.example .env
-# 编辑 .env：POSTGRES_PASSWORD / SECRET_KEY / DEEPSEEK_API_KEY
-docker compose up -d --build
-```
+- API：宿主机 systemd + venv，监听 `127.0.0.1:9200`
+- Postgres：已有 `pg` 容器，映射 `127.0.0.1:5432`
+- Nginx：对外 80/443，反代到 9200
+- **不使用** `docker-compose.example.yml`（会重复起 Postgres/Caddy）
 
-> 没有 AppID 时小程序用模拟器；H5 由 Caddy 提供。
+见 [deploy/README.md](deploy/README.md)。
 
 ## 文档索引
 
@@ -80,6 +85,8 @@ docker compose up -d --build
 - [07 环境与部署](docs/07-environment-and-deploy.md)：域名、DeepSeek、Docker、HTTPS、无 AppID 的小程序策略
 - [08 AI Key 安全与网关](docs/08-ai-gateway-security.md)：用 Worker/SCF 隔离 DeepSeek Key，服务器只持可撤销 token
 - [09 最简单网关操作](docs/09-simple-gateway-walkthrough.md)：Cloudflare Worker 逐步操作 + 最小代码 + 验证命令
+- [10 代码地图与流程图](docs/10-code-map-and-flows.md)：**给不熟 Python 的人**：目录结构、Python↔Java 对照、架构图、膝痛补丁全流程图
+- [生产部署模板](deploy/README.md)：systemd + Nginx + 现有 Postgres 容器（当前实际方案）
 
 ## 已锁定决策
 

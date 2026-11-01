@@ -1,3 +1,9 @@
+"""演示种子数据。
+
+目的：让服务一启动就有一份可演示的"第 1 周计划"，前端与测试无需先注册/建档。
+所有 ID 固定，测试可以直接对 ID 与版本号做断言。
+"""
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -5,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Goal, Plan, PlanAction, PlanVersion, Profile, User
 
+# 固定 UUID：便于演示脚本与 pytest 直接引用，不依赖运行时生成
 DEMO_USER_ID = "00000000-0000-0000-0000-000000000001"
 DEMO_PLAN_ID = "00000000-0000-0000-0000-000000000101"
 DEMO_VERSION_ID = "00000000-0000-0000-0000-000000000201"
@@ -12,26 +19,31 @@ DEMO_GOAL_ID = "00000000-0000-0000-0000-000000000301"
 
 
 def _actions() -> list[dict]:
-    # day, slot, seq, action_type, action_ref, duration_min, sets, reps
+    """生成 seed 计划的 12 个槽位（含训练与餐食）。
+
+    每行含义：(day_index, slot, seq, action_type, action_ref, duration_min, sets, reps)。
+    这里刻意写成紧凑元组表，方便对照 docs 里的演示剧本核对。
+    """
     rows = [
         (1, "warmup", 1, "exercise", "dynamic_warmup", 10, None, None),
         (1, "strength", 1, "exercise", "goblet_squat", None, 3, 12),
-        (1, "cardio", 1, "exercise", "brisk_walk", 30, None, None),
         (1, "meal_lunch", 1, "meal", "chicken_rice_bowl", None, None, None),
         (2, "meal_breakfast", 1, "meal", "oats_eggs", None, None, None),
         (2, "meal_lunch", 1, "meal", "beef_salad", None, None, None),
         (2, "meal_dinner", 1, "meal", "fish_veggies", None, None, None),
-        (2, "mobility", 1, "exercise", "full_body_stretch", 15, None, None),
         (3, "strength", 1, "exercise", "pushup", None, 3, 10),
-        (3, "strength", 2, "exercise", "row", None, 3, 12),
         (3, "cardio", 1, "exercise", "brisk_walk", 25, None, None),
-        (3, "meal_dinner", 1, "meal", "tofu_veggies", None, None, None),
+        (4, "mobility", 1, "exercise", "full_body_stretch", 15, None, None),
+        (5, "strength", 1, "exercise", "row", None, 3, 12),
+        (5, "cardio", 1, "exercise", "brisk_walk", 25, None, None),
+        (6, "meal_dinner", 1, "meal", "tofu_veggies", None, None, None),
     ]
     return [
         {
             "day_index": day,
             "slot": slot,
             "seq": seq,
+            # slot_key 是全系统定位槽位的统一口径
             "slot_key": f"{day}:{slot}:{seq}",
             "action_type": action_type,
             "action_ref": action_ref,
@@ -47,11 +59,16 @@ def _actions() -> list[dict]:
 
 
 def seed_demo(session: Session) -> None:
+    """幂等地写入 demo 用户及其 v1 计划。
+
+    已存在 demo 用户时直接返回，所以可以放心地在每次应用启动时调用。
+    """
     if session.scalar(select(User).where(User.id == DEMO_USER_ID)) is not None:
         return
 
     user = User(id=DEMO_USER_ID, nickname="demo", role="user")
     session.add(user)
+    # flush 而非 commit：让后续外键引用能拿到同一事务内的数据
     session.flush()
 
     profile = Profile(
