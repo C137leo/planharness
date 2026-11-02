@@ -5,7 +5,10 @@ P0 采用无状态 HS256 JWT；demo 登录与（未来的）微信登录共用�
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-import base64, hashlib, hmac, os
+import base64
+import hashlib
+import hmac
+import os
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -30,20 +33,15 @@ bearer = HTTPBearer(auto_error=False)
 #     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
 
-def decode_access_token(token: str, settings: Settings) -> str:
+def decode_access_token(token: str, settings: Settings) -> dict:
     """解析 token 并返回 user_id；签名错误/过期/缺少 sub 一律 401。"""
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+        return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
     except jwt.PyJWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="invalid or expired token",
         ) from exc
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid token")
-    return str(user_id)
-
 
 def get_db(request: Request):
     """FastAPI 依赖：每个请求一个 Session，请求结束必定关闭。
@@ -68,10 +66,17 @@ def get_current_user(
     """
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing token")
-    user_id = decode_access_token(credentials.credentials, request.app.state.settings)
+    claims = decode_access_token(credentials.credentials, request.app.state.settings)
+    user_id = claims.get("sub")
+    if not user_id:
+        raise HTTPException(401, "invalid token")
+
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user not found")
+    # ★ 下半场：token 版本对不上 = 这个 token 已被吊销
+    if int(claims.get("ver", 0)) != user.token_version:
+        raise HTTPException(401, "token revoked, please login again")
     return user
 
 

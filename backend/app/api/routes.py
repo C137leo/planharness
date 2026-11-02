@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.auth import create_access_token, get_current_user, get_db, hash_password, issue_token, verify_password
+from app.auth import get_current_user, get_db, hash_password, issue_token, verify_password
 from app.domain.patches import (
     PatchValidationError,
     approve_patch,
