@@ -45,6 +45,11 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(16), default="user")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
+    phone: Mapped[str | None] = mapped_column(String(32), unique=True, nullable=True)
+    password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)  # 微信用户可为空
+    # 改密码后 +1，让所有旧 token 立即失效（有了它才谈得上"撤销"）
+    token_version: Mapped[int] = mapped_column(Integer, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 class Profile(Base):
     """用户身体画像与训练偏好，是目标计算与计划生成的唯一输入。"""

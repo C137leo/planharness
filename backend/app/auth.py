@@ -2,11 +2,10 @@
 
 P0 采用无状态 HS256 JWT；demo 登录与（未来的）微信登录共用同一套 token。
 """
-
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-
+import base64, hashlib, hmac, os
 import jwt
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -19,15 +18,16 @@ from app.models import User
 bearer = HTTPBearer(auto_error=False)
 
 
-def create_access_token(user_id: str, settings: Settings) -> str:
-    """签发 access token：sub 放用户 ID，iat/exp 用于过期校验。"""
-    now = datetime.now(timezone.utc)
-    payload = {
-        "sub": user_id,
-        "iat": now,
-        "exp": now + timedelta(minutes=settings.access_token_minutes),
-    }
-    return jwt.encode(payload, settings.secret_key, algorithm="HS256")
+# def create_access_token(user_id: str, settings: Settings) -> str:
+#     """签发 access token：sub 放用户 ID，iat/exp 用于过期校验。"""
+#     now = datetime.now(timezone.utc)
+#
+#     payload = {
+#         "sub": user_id,
+#         "iat": now,
+#         "exp": now + timedelta(minutes=settings.access_token_minutes),
+#     }
+#     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
 
 def decode_access_token(token: str, settings: Settings) -> str:
@@ -58,9 +58,9 @@ def get_db(request: Request):
 
 
 def get_current_user(
-    request: Request,
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
-    db: Session = Depends(get_db),
+        request: Request,
+        credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
+        db: Session = Depends(get_db),
 ) -> User:
     """FastAPI 依赖：从 Authorization 头解析出当前用户。
 
@@ -73,3 +73,42 @@ def get_current_user(
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user not found")
     return user
+
+
+def issue_token(user: User, settings: Settings) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": user.id,
+        "iat": now,
+        "exp": now + timedelta(minutes=settings.access_token_minutes),
+        "ver": user.token_version,  # 改密后 +1 → 旧 token 全废
+        "typ": "access",  # 将来有 refresh token 时用于区分
+    }
+    return jwt.encode(payload, settings.secret_key, algorithm="HS256")
+
+
+def hash_password(password: str, *, n: int = 2 ** 14, r: int = 8, p: int = 1) -> str:
+    """scrypt 加盐哈希；参数随结果一起存，将来提高强度也能兼容老数据。"""
+    salt = os.urandom(16)
+    dk = hashlib.scrypt(password.encode(), salt=salt, n=n, r=r, p=p, dklen=32)
+    return "scrypt${}${}${}${}${}".format(
+        n, r, p,
+        base64.b64encode(salt).decode(),
+        base64.b64encode(dk).decode(),
+    )
+
+
+def verify_password(password: str, stored: str) -> bool:
+    try:
+        algo, n, r, p, salt_b64, hash_b64 = stored.split("$")
+        if algo != "scrypt":
+            return False
+        dk = hashlib.scrypt(
+            password.encode(),
+            salt=base64.b64decode(salt_b64),
+            n=int(n), r=int(r), p=int(p),
+            dklen=len(base64.b64decode(hash_b64)),
+        )
+    except (ValueError, TypeError):
+        return False
+    return hmac.compare_digest(dk, base64.b64decode(hash_b64))

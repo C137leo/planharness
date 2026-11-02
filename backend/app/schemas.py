@@ -145,3 +145,12 @@ class CheckinOut(BaseModel):
     soreness_level: int | None
     adherence_pct: int | None
     note: str
+
+class RegisterIn(BaseModel):
+    phone: str = Field(min_length=6, max_length=32)
+    password: str = Field(min_length=8, max_length=72)
+    nickname: str = Field(default="新用户", max_length=64)
+
+class LoginIn(BaseModel):
+    phone: str
+    password: str

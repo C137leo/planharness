@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from app.auth import create_access_token, get_current_user, get_db
+from app.auth import create_access_token, get_current_user, get_db, hash_password, issue_token, verify_password
 from app.domain.patches import (
     PatchValidationError,
     approve_patch,
@@ -37,7 +37,7 @@ from app.schemas import (
     ProfileOut,
     RollbackIn,
     TokenOut,
-    WeChatLoginIn,
+    WeChatLoginIn, RegisterIn, LoginIn,
 )
 from app.seed import DEMO_USER_ID
 
@@ -68,7 +68,8 @@ def demo_login(payload: DemoLoginIn, request: Request, db: Session = Depends(get
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="demo user not found")
-    token = create_access_token(user.id, request.app.state.settings)
+    # token = create_access_token(user.id, request.app.state.settings)
+    token = issue_token(user, request.app.state.settings)
     return ok(request, TokenOut(access_token=token, user_id=user.id).model_dump())
 
 
@@ -329,3 +330,24 @@ def list_checkins(
         .limit(14)
     ).all()
     return ok(request, [CheckinOut.model_validate(item).model_dump() for item in rows])
+
+@router.post("/auth/register")
+def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db)):
+    if db.scalar(select(User).where(User.phone == payload.phone)):
+        raise HTTPException(409, "phone already registered")
+    user = User(phone=payload.phone, nickname=payload.nickname,
+                password_hash=hash_password(payload.password))
+    db.add(user)
+    db.flush()
+    db.add(Profile(user_id=user.id))     # ★ 必须同时建画像，否则 /me/profile 404
+    db.commit()
+    return ok(request, TokenOut(access_token=issue_token(user, request.app.state.settings),
+                                user_id=user.id).model_dump(), message="registered")
+
+@router.post("/auth/login")
+def login(payload: LoginIn, request: Request, db: Session = Depends(get_db)):
+    user = db.scalar(select(User).where(User.phone == payload.phone))
+    if user is None or not user.password_hash or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(401, "invalid credentials")   # 统一话术，别区分
+    return ok(request, TokenOut(access_token=issue_token(user, request.app.state.settings),
+                                user_id=user.id).model_dump())
