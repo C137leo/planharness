@@ -1,0 +1,37 @@
+{
+  "pages": [
+    {
+      "path": "pages/today/index",
+      "style": { "navigationBarTitleText": "今天" }
+    },
+    {
+      "path": "pages/checkin/index",
+      "style": { "navigationBarTitleText": "打卡" }
+    },
+    {
+      "path": "pages/approval/index",
+      "style": { "navigationBarTitleText": "审批补丁" }
+    },
+    {
+      "path": "pages/console/index",
+      "style": { "navigationBarTitleText": "Harness Console" }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "PlanHarness",
+    "navigationBarBackgroundColor": "#f5f7f8",
+    "backgroundColor": "#f5f7f8"
+  },
+  "tabBar": {
+    "color": "#6b7c85",
+    "selectedColor": "#176b52",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/today/index", "text": "今天" },
+      { "pagePath": "pages/checkin/index", "text": "打卡" },
+      { "pagePath": "pages/approval/index", "text": "审批" }
+    ]
+  }
+}

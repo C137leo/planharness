@@ -1,0 +1,17 @@
+{
+  "name": "PlanHarness",
+  "appid": "__UNI__PLANHARNESS",
+  "description": "Plan repair harness demo",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "h5": {
+    "router": { "mode": "hash" },
+    "title": "PlanHarness"
+  },
+  "mp-weixin": {
+    "appid": "",
+    "setting": { "urlCheck": false },
+    "usingComponents": true
+  }
+}

@@ -1,0 +1,43 @@
+[Unit]
+Description=PlanHarness API (FastAPI + uvicorn)
+After=network-online.target docker.service
+Wants=network-online.target
+# Postgres runs as a Docker container; if Docker restarts, API should come back.
+After=docker.service
+
+[Service]
+Type=simple
+User=planharness
+Group=planharness
+WorkingDirectory=/opt/planharness/backend
+EnvironmentFile=/etc/planharness/planharness.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+
+# Wait for the local Postgres port before starting the app.
+ExecStartPre=/bin/bash -c 'for i in {1..30}; do (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1 && exit 0; sleep 2; done; exit 1'
+
+ExecStart=/opt/planharness/backend/.venv/bin/uvicorn app.main:app \
+  --host 127.0.0.1 \
+  --port 9200 \
+  --workers 1 \
+  --proxy-headers \
+  --forwarded-allow-ips=127.0.0.1 \
+  --limit-concurrency 20
+
+Restart=always
+RestartSec=3
+TimeoutStopSec=20
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
