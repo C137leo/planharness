@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     deepseek_model: str = "deepseek-flash"
     deepseek_timeout_s: float = 30.0
 
+    # 上下文预算（token）。P0 材料只有几百 token，默认值远大于实际用量；
+    # 演示/测试时可用 CONTEXT_TOKEN_BUDGET 调小，观察裁剪行为。
+    context_token_budget: int = 2000
+
     @property
     def cors_origin_list(self) -> list[str]:
         """把逗号分隔的 CORS 白名单切成列表，直接喂给 CORSMiddleware。"""

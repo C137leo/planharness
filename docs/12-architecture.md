@@ -1,6 +1,6 @@
 # 12 架构总结（Architecture Summary）
 
-> 对应代码：`backend/` 工作区（13 个接口 / 12 张表 / 约 2700 行 / 20 个测试全绿）
+> 对应代码：`backend/` 工作区（15 个接口 / 13 张表 / 约 3800 行 / 37 个测试全绿）
 > 用途：面试讲解、新人接手、以及「这个改动该放哪一层」的判断依据。
 > 配套阅读：[10 代码地图与流程图](10-code-map-and-flows.md)（看代码怎么跑）、[03 领域模型与协议](03-domain-and-protocol.md)（看表结构与契约）。
 
@@ -16,6 +16,8 @@
 | **是否 DDD** | **否**。借用了聚合根、值对象、规格校验、显式状态机、领域异常 5 件工具，缺仓储抽象/充血实体/领域事件/防腐层 |
 | **一致性模型** | **版本化追加（append-only）**：当前版本指针 + 不可变历史，回滚是「再提交一个版本」 |
 | **事务边界** | 一个请求一个 Session，`db.commit()` 即事务边界；无 Unit of Work |
+| **身份体系** | 无状态 HS256 JWT；demo / 手机号密码（scrypt）/ 微信（未接入）；用 `token_version` 实现撤销 |
+| **上下文装配** | `ContextBuilder` 预算裁剪：required 永不丢 → 按优先级丢 → 高价值长段落优先截断；每次装配落 `context_snapshots` |
 | **LLM 角色** | 只生成**解释文本**，无写权限；超时/异常/未配置自动降级为模板文案 |
 | **部署形态** | 单进程 uvicorn，systemd 托管，Nginx 反代（生产 `127.0.0.1:9200`） |
 | **外部依赖** | 数据库（SQLite/Postgres）、DeepSeek API（可选）、微信开放平台（未接入，返回 501） |
@@ -156,17 +158,19 @@ curl -s localhost:8000/docs | grep -c "https://cdn"
 | `db.py` | 34 | Engine / Session 工厂 | `Base`、`make_engine()` |
 | `models.py` | 282 | 12 张表的 ORM 定义 | 各实体类 |
 | `schemas.py` | 147 | 接口出入参（Pydantic v2） | `*In` / `*Out` |
-| `auth.py` | 75 | JWT 签发解析、当前用户依赖 | `get_current_user()`、`get_db()` |
+| `auth.py` | 134 | JWT 签发/校验、token 撤销、scrypt 密码哈希 | `issue_token()`、`get_current_user()`、`hash_password()` |
 | `seed.py` | 130 | 演示数据（固定 ID，幂等） | `seed_demo()`、`DEMO_*` |
 | `openapi_docs.py` | 92 | 离线 `/docs` + `/static` 挂载 | `mount_api_docs()` |
 | `api/routes.py` | 331 | 13 个 HTTP 接口 | `router` |
 | `domain/planning.py` | 389 | 目标计算、计划组装、两道校验 | `generate_plan()` |
 | `domain/patches.py` | 461 | **补丁 / 安全门 / 审批 / 回滚（核心）** | `create_knee_patch()`、`approve_patch()` |
+| `llm/context.py` | 325 | **上下文装配**：优先级/顺序/预算裁剪/截断 | `ContextBuilder`、`ContextBundle`、`ContextBudgetError` |
 | `llm/prompts.py` | 68 | 构建解释用的 payload 与 messages | `build_explanation_payload()` |
 | `llm/deepseek.py` | 95 | DeepSeek 客户端 + 输出解析 | `DeepSeekExplainer` |
 | `llm/fallback.py` | 23 | 确定性兜底文案 | `fallback_explanation()` |
 | `static/swagger/` | 1.8MB | 离线 Swagger UI 资源 | — |
-| `tests/` | 447 | 20 个用例：api 7 / planning 4 / patches 3 / prompts 2 / fallback 2 / deepseek 2 | — |
+| `agent/patch_graph.py` | 116 | LangGraph 审批流程（挂起 → 恢复），与 REST 并存 | `build_patch_graph()` |
+| `tests/` | 800+ | 37 个用例：api 7 / auth 6 / **context 9** / planning 4 / patches 3 / **agent 2** / prompts 2 / fallback 2 / deepseek 2 | — |
 
 ---
 
@@ -313,8 +317,10 @@ stateDiagram-v2
 | **ADR-07** | 领域层直接持 `Session`，不做仓储 | 少一层抽象，SQLAlchemy 已足够 | 领域层与 ORM 绑死；业务测试要建库 |
 | **ADR-08** | Swagger UI 本地内置 | CDN 在国内被重置 → `/docs` 白屏 | 仓库 +1.8MB |
 | **ADR-09** | 密钥只走环境变量，`.env.example` 只放占位符 | 防止密钥进 Git；模板可提交 | 部署多一步配置 |
+| **ADR-10** | 无状态 JWT + `token_version` 撤销，密码用标准库 scrypt | 不引入会话存储；改密/强制下线能立刻生效；零新依赖 | 每次请求多查一次库；无 refresh token，7 天后需重新登录 |
+| **ADR-11** | 上下文显式装配：priority 决定丢谁、order 决定排哪；required 超预算抛错由调用方降级 | 上下文从「隐式拼字符串」变成可测、可复现、可解释 | 多一层抽象；token 是估算值，截断有信息损失 |
 
-### 需要展开的两条
+### 需要展开的四条
 
 **ADR-04 为什么不让 LLM 决定计划内容？**
 因为要证明的核心命题是「Agent 不可靠 + 确定性护栏能兜住」。如果让模型参与生成，安全门就成了「事后擦屁股」，churn 也不可控。当前设计里，模型的输出**只进 `validation.explanation` 一个字段**，无法影响 `plan_versions` —— 这是可以拿来讲的架构边界。
@@ -322,18 +328,52 @@ stateDiagram-v2
 **ADR-05 为什么值得多一个状态？**
 「审批前不写库」是这个项目最容易被追问的点。它把「Agent 能不能改用户的计划」这件事，从提示词约束变成了**数据模型约束**：没有 `approve`，就没有新版本。
 
+**ADR-10 无状态 JWT 怎么做到「能撤销」？**
+JWT 的卖点是服务端不存会话，代价是**签出去的 token 收不回来**——用户改密码、手机丢了想强制下线，旧 token 在有效期内依然通行。这里的解法是在 `users` 上存一个 `token_version`，签发时把当前值写进 `ver` claim，`get_current_user` 每次请求比对一次：
+
+```
+改密码 → users.token_version += 1
+       → 旧 token 里的 ver 还是旧值 → 对不上 → 401 token revoked
+       → 重新登录拿到的新 token 带新 ver → 继续可用
+```
+
+三个细节值得注意：
+
+1. **代价只有一次额外的查库**——而 `get_current_user` 本来就要查库（确认用户没被删），所以净成本为零。
+2. **`claims.get("ver", 0)` 的默认值 0 是故意的**：灰度期间老 token 没有该字段，配上 `token_version=0` 的用户仍可通过，不会一刀切把所有人踢下线。
+3. **密码哈希选标准库 `hashlib.scrypt`**：`scrypt$n$r$p$salt$hash` 自带参数，将来调高强度不影响老密码；不引入 `passlib`/`bcrypt` 依赖；比较用 `hmac.compare_digest` 防时序攻击。
+
+已知缺口：**没有 refresh token**，access token 有效期 7 天，泄露窗口偏大。真实产品应改为「access 30 分钟 + refresh 7 天（存库可撤销）」，属 P1。
+
+**ADR-11 为什么要把「上下文」做成一个显式的 builder？**
+模型答得不对时，光看输入输出复现不了 —— 因为上下文是动态裁剪过的。做法是把「喂给模型什么」变成一个可计算的对象：
+
+```
+7 段候选材料 → ContextBuilder(预算) → ContextBundle(messages + 统计)
+```
+
+三条规则支撑起它：
+
+1. **required 永不丢**（系统边界、约束、目标）。required 超预算时**抛 `ContextBudgetError`**，由 `create_knee_patch` 捕获并降级为模板文案 —— 宁可没有模型解释，也不能给「没看到膝盖疼」的解释。
+2. **priority 只决定丢谁，order 只决定排哪**。两者混用一个数字，会导致「调高重要性」顺手改变正文位置。
+3. **截断是概率赌注，所以要留痕**：优先级 ≥ 50 且剩余额度 ≥ 30 时，装不下的段落截断保留开头（按行边界，不切半个 JSON），并在末尾加「……（已截断）」防止模型把残文当全文。截断事实写进 `sections[].truncated` 与 `compression_method`。
+
+**代价**：token 是估算值（1 token ≈ 3.5 字符，留了余量）；截断丢信息且不可逆。缓解手段是「快照落库 + 将来用评分集对比截 vs 不截」，而不是继续拍脑袋调阈值。
+
 ---
 
 ## 9. 横切关注点
 
 | 关注点 | 实现位置 | 做法 |
 | --- | --- | --- |
-| 鉴权 | `auth.py` | HS256 JWT，`get_current_user` 依赖；token 无效/过期/用户不存在 → 401 |
+| 鉴权 | `auth.py` | HS256 JWT，`get_current_user` 依赖；四道校验：带了 token → 签名/未过期 → 用户存在 → `ver` 与 `token_version` 一致。任一失败 → 401 |
+| 账号 | `api/routes.py` + `auth.py` | `POST /auth/register`（scrypt 哈希 + 自动建 Profile）、`POST /auth/login`；失败话术统一，不泄露手机号是否存在 |
 | 可观测 | `main.py` 中间件 | 每请求一个 `trace_id`（可透传 `X-Trace-Id`），响应头回写 |
 | 错误映射 | `api/routes.py` | 领域异常 → 422；找不到/越权 → 404；未配置 → 501；其余 → 500 |
 | 越权防护 | `_owned_patch` / `_load_plan` | 不属于当前用户的资源一律 404，不泄露存在性 |
 | 配置 | `config.py` | 环境变量 > `.env` > 默认值；`lru_cache` 单例 |
 | 降级 | `llm/deepseek.py` + `fallback.py` | 未配置/超时/解析失败 → 模板文案 |
+| 上下文预算 | `llm/context.py` | `CONTEXT_TOKEN_BUDGET`（默认 2000）；required 超预算 → `ContextBudgetError` → 调用方降级 |
 | CORS | `main.py` | 白名单来自配置，逗号分隔 |
 | 文档 | `openapi_docs.py` | 离线 Swagger，`persistAuthorization` 免重复登录 |
 
@@ -350,9 +390,11 @@ stateDiagram-v2
 | **可审计** | `approvals` 表只追加（只记「谁在何时批准/驳回」） | 查询审批记录 |
 | **可回滚** | 版本化追加，回滚=新版本 | `test_rollback_creates_new_version` |
 | **低 churn** | diff 指标（changed/total、unnecessary_churn） | `test_knee_patch_is_pending_until_approved`（3/12 = 0.25） |
-| **可测试** | 领域层无 HTTP 依赖；注入式 explainer | 20 个 pytest，无网络 |
+| **可测试** | 领域层无 HTTP 依赖；注入式 explainer | 26 个 pytest，无网络 |
 | **可运维** | trace_id、健康检查真打库、systemd 重启 | `/api/v1/health` |
 | **离线可用** | 内置 Swagger + 模板兜底 | `test_docs_uses_local_swagger_assets` |
+| **可撤销** | `token_version` + `ver` claim 比对 | `test_token_is_revoked_after_version_bump` |
+| **上下文可解释** | 每次装配写 `context_snapshots`（保留了哪些、丢了哪些、是否截断） | `test_context.py` 9 个用例 |
 
 ---
 
@@ -361,13 +403,19 @@ stateDiagram-v2
 | # | 债 | 影响 | 修复成本 | 优先级 |
 | --- | --- | --- | --- | --- |
 | 1 | `operations` 是 `list[dict]`，契约不落在类型上 | 读代码要靠追构造点；脏数据只能运行时炸 | ~20 分钟（Pydantic 判别联合） | **高** |
-| 2 | `patches.py` 中 `reason_text = f"...",` 多一个逗号 → tuple | 发给 DeepSeek 的 `reason` 变成数组，数据库不受影响 | 1 分钟 | **高** |
+| 2 | ~~`patches.py` 中 `reason_text` 尾逗号 → tuple~~ | ~~发给 DeepSeek 的 `reason` 变成数组~~ **已修复** | — | ✅ |
 | 3 | 实体无行为，状态迁移散在函数里 | 「审批前不写库」只靠调用顺序保证 | ~30 分钟（`PlanVersion.supersede()` 等） | 中 |
 | 4 | `checkins` 无 domain 模块，路由直接 commit | 分层不一致，规则将来容易写两遍 | ~15 分钟（`domain/checkins.py`） | 中 |
 | 5 | 路由未声明 `response_model` | `/docs` 里响应结构为空，前端靠猜 | ~1 小时（信封泛型化，牵前端） | 中（等 API 冻结） |
 | 6 | `draft` 状态定义了但流程不经过 | 状态机图与实际不符 | 5 分钟（删默认值或补草稿阶段） | 低 |
 | 7 | 单测覆盖不足：`approve` 的 stale 分支、越权 404 未直接测 | 回归风险 | ~30 分钟 | 低 |
-| 8 | **预留表未使用**：`agent_runs`、`constraints`、`reviews` 建了表但没有任何写入 | 模型与实现不一致；面试被问「trace 存在哪」会尴尬 | 标注为预留，或补最小写入 | 中 |
+| 8 | 预留表：`constraints`、`reviews` 仍无写入；`agent_runs` 已开始写入（每次创建补丁一条） | 模型与实现部分对齐 | 继续补或明确标注为 P1 | 中 |
+| 9 | **`SECRET_KEY` 仍是公开占位符**（`CHANGE_ME_...`，两份 `.env` 都是） | 任何人可伪造任意 `user_id` 的 token；本地无害，上生产等于没有密钥 | 1 分钟（换成 `secrets.token_urlsafe(48)`） | **高** |
+| 10 | 无 refresh token，access 有效期 7 天 | token 泄露后窗口期偏长 | P1：access 30min + refresh 7d（存库可撤销） | 低（P1） |
+| 11 | 无登录限流、无失败次数锁定 | 密码可被暴力破解 | 加 Redis/内存计数 | 中 |
+| 12 | token 估算用字符数/3.5，不是真分词器 | 预算判断有偏差（故意估高留余量） | 换 tiktoken 或按实际响应 usage 校准 | 低 |
+| 13 | 截断阈值（优先级 50 / 最少 30 token）是拍的 | 可能截得过多或过少 | 用 evals 对比「截 vs 不截」质量后调参 | 中 |
+| 14 | LangGraph 用内存 checkpointer | 进程重启后挂起中的审批丢失 | 换 Postgres / SQLite saver | 中 |
 
 ### 最小演进路径（不推翻结构）
 

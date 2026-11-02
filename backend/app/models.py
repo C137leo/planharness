@@ -12,7 +12,18 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import JSON, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base
@@ -285,3 +296,35 @@ class AgentRun(Base):
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ContextSnapshot(Base):
+    """一次「上下文装配」的快照：说清楚这次到底喂给模型看了什么。
+
+    解决的问题：模型答得不对时，光看输入输出复现不了 —— 因为上下文是动态裁剪的。
+    把「保留了哪些 section、各占多少 token、哪些被挤掉、是否压缩过」落库，
+    才能事后回答「它当时是不是压根没看到膝盖疼这条约束」。
+
+    属于 P1 上下文 Harness 的记账表；P0 只建表，暂不写入。
+    """
+
+    __tablename__ = "context_snapshots"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    # 属于哪一次 Agent 运行；与 AgentRun.context_snapshot_id 互指（那边是后填的指针）
+    run_id: Mapped[str] = mapped_column(String(36), ForeignKey("agent_runs.id"), index=True)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+
+    # 这次装配服务于哪个任务：explain_patch / plan_generation（与 AgentRun.kind 对齐）
+    purpose: Mapped[str] = mapped_column(String(32))
+    # [{name, tokens, included}] —— 被纳入上下文的片段及其 token 开销
+    sections: Mapped[list] = mapped_column(JSON, default=list)
+    # 实际用量与预算上限；token_count > token_budget 说明发生了裁剪
+    token_count: Mapped[int] = mapped_column(Integer, default=0)
+    token_budget: Mapped[int] = mapped_column(Integer, default=0)
+    # [{name, tokens, reason}] —— 被预算挤掉的片段，reason 说明是超限还是无关
+    dropped: Mapped[list] = mapped_column(JSON, default=list)
+    compressed: Mapped[bool] = mapped_column(Boolean, default=False)
+    # compression_method: truncate / summarize / extract；未压缩时为 None
+    compression_method: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

@@ -1,28 +1,11 @@
 """接口层冒烟测试：响应包装、trace_id、鉴权、demo 数据可用性。
 
-每个用例都用临时 SQLite 库（tmp_path），互不干扰。
+`client` fixture 定义在 tests/conftest.py，每个用例一份临时 SQLite 库。
 """
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
-
-from app.config import Settings
-from app.main import create_app
-
-
-@pytest.fixture()
-def client(tmp_path):
-    """构造指向临时库的 TestClient；每个用例一份全新数据库。"""
-    settings = Settings(
-        database_url=f"sqlite:///{tmp_path}/test.db",
-        secret_key="test-secret-0123456789abcdef0123456789",
-        cors_origins="http://localhost:5173",
-    )
-    app = create_app(settings)
-    with TestClient(app) as test_client:
-        yield test_client
 
 
 def _login(client: TestClient) -> str:

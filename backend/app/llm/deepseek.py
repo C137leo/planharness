@@ -2,7 +2,6 @@ import httpx
 import json
 from app import config
 from app.llm.fallback import fallback_explanation
-from app.llm.prompts import build_messages
 
 
 class DeepSeekExplainer:
@@ -18,11 +17,15 @@ class DeepSeekExplainer:
     def available(self)-> bool:
         return bool(self.api_key and self.base_url)
 
-    def explain(self,payload:dict,operations:list[dict], diff:dict) -> str:
+    def explain(self, messages:list[dict], operations:list[dict], diff:dict) -> str:
+        """用装配好的 messages 调用模型；任何异常都降级为模板文案。
+
+        messages 由 ContextBuilder.build() 产出（已按预算裁剪），
+        所以这里不再自己拼 prompt —— 拼装与裁剪的职责全部留在上下文层。
+        """
         if not self.available():
             return fallback_explanation(operations, diff)
         try:
-            messages = build_messages(payload)
             body = {
                 "model": self.model,
                 "messages": messages,

@@ -17,9 +17,21 @@ from typing import Any, Callable
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.llm.context import ContextBudgetError, ContextBuilder, ContextBundle
 from app.llm.fallback import fallback_explanation
-from app.llm.prompts import build_explanation_payload
-from app.models import Approval, Plan, PlanAction, PlanPatch, PlanVersion, User
+from app.llm.prompts import SYSTEM_PROMPT, build_explanation_payload
+from app.models import (
+    AgentRun,
+    Approval,
+    Checkin,
+    ContextSnapshot,
+    Goal,
+    Plan,
+    PlanAction,
+    PlanPatch,
+    PlanVersion,
+    User,
+)
 
 # 膝痛场景的确定性禁忌动作集：出现即拒绝，不交给模型判断
 FORBIDDEN_KNEE_REFS = {"squat", "goblet_squat", "run", "jump", "lunge"}
@@ -173,14 +185,88 @@ def _safety_check(proposed: list[dict], available_days: int) -> list[str]:
     return errors
 
 
+def _goal_text(db: Session, plan: Plan) -> str:
+    """目标卡片：让模型知道"为什么要减脂、减多少"。"""
+    goal = db.get(Goal, plan.goal_id) if plan.goal_id else None
+    if goal is None:
+        return "目标：减脂（暂无明细）"
+    return (
+        f"目标类型：{goal.type}；目标体重：{goal.target_weight_kg} kg；"
+        f"每周下降：{goal.target_rate_kg_per_week} kg；优先级：{goal.priority}"
+    )
+
+
+def _recent_history_text(db: Session, user: User) -> str:
+    """最近 3 天打卡摘要；没有记录就返回空串（不占预算）。"""
+    rows = db.scalars(
+        select(Checkin)
+        .where(Checkin.user_id == user.id)
+        .order_by(Checkin.date.desc())
+        .limit(3)
+    ).all()
+    if not rows:
+        return ""
+    return "\n".join(
+        f"{row.date}：体重 {row.weight_kg}kg，睡眠 {row.sleep_hours}h，依从性 {row.adherence_pct}%"
+        for row in rows
+    )
+
+
+def _build_context(
+    db: Session,
+    user: User,
+    plan: Plan,
+    version: PlanVersion,
+    payload: dict,
+    reason_text: str,
+    available_days: int,
+    token_budget: int,
+) -> ContextBundle:
+    """登记 7 段候选材料，交给 ContextBuilder 裁剪。
+
+    priority 决定「预算不够时牺牲谁」，order 决定「模型读到的先后」——
+    两者故意分开：把 plan_summary 的优先级调高，不应该让它在正文里前移。
+    """
+    builder = ContextBuilder(budget=token_budget)
+
+    # required：安全边界与目标，任何情况下都不能丢
+    builder.add_section("system_policy", SYSTEM_PROMPT, priority=100, order=10, required=True)
+    builder.add_section(
+        "constraints",
+        f"用户诉求：{reason_text}\n本周可用训练天数：{available_days} 天",
+        priority=90,
+        order=20,
+        required=True,
+    )
+    builder.add_section("goal_card", _goal_text(db, plan), priority=80, order=30, required=True)
+
+    # 可选材料：从高到低，装不下就被裁掉
+    builder.add_section(
+        "patch_changes", {"changes": payload["changes"]}, priority=70, order=40
+    )
+    builder.add_section(
+        "safety_diff", {"safety": payload["safety"], "diff": payload["diff"]},
+        priority=60,
+        order=50,
+    )
+    builder.add_section("plan_summary", version.summary, priority=50, order=60)
+
+    history = _recent_history_text(db, user)
+    if history:
+        builder.add_section("recent_history", history, priority=30, order=70)
+
+    return builder.build()
+
+
 def create_knee_patch(
     db: Session,
     user: User,
-    plan_id: str,
+    plan_id: str | None=None,
     *,
     available_days: int = 2,
     idempotency_key: str | None = None,
-    explainer: Callable[[dict, list[dict], dict], str] | None = None,
+    explainer: Callable[[list[dict], list[dict], dict], str] | None = None,
+    token_budget: int = 2000,
 ) -> PlanPatch:
     """生成"膝痛 + 只能练 N 天"的最小补丁草稿。
 
@@ -258,22 +344,70 @@ def create_knee_patch(
     diff = _diff(base, proposed, required_changes=len(operations))
     # available_days 存进 diff，审批时会取出来重跑安全门
     diff["available_days"] = available_days
-    reason_text = f"右膝疼痛，本周只能练 {available_days} 天",
+    # 注意末尾不要留逗号：`x = f"...",` 得到的是 tuple，会把整段文本变成数组
+    reason_text = f"右膝疼痛，本周只能练 {available_days} 天"
     payload = build_explanation_payload(
         reason_text=reason_text,
-        base_version= plan.current_version,
+        base_version=plan.current_version,
         operations=operations,
         diff=diff,
         safety=safety,
     )
 
-    if explainer is not None:
+    # 一次运行 = 一条 AgentRun；ContextSnapshot 挂在它下面（run_id 非空外键）
+    run = AgentRun(
+        user_id=user.id,
+        kind="knee_patch",
+        mode="patch",
+        status="running",
+        input={"reason_code": "injury", "available_days": available_days},
+    )
+    db.add(run)
+    db.flush()
+
+    bundle: ContextBundle | None = None
+    context_error: str | None = None
+    try:
+        bundle = _build_context(
+            db, user, plan, version, payload, reason_text, available_days, token_budget
+        )
+    except ContextBudgetError as exc:
+        # 上下文配错了：计划照常生成，只把「解释」降级成模板文案
+        context_error = str(exc)
+
+    if explainer is not None and bundle is not None:
         try:
-            explanation =  explainer(payload, operations, diff)
+            explanation = explainer(bundle.messages, operations, diff)
         except Exception:
             explanation = fallback_explanation(operations, diff)
     else:
         explanation = fallback_explanation(operations, diff)
+
+    # 无论是否裁剪都写快照：否则你永远不知道「裁剪发生率」的分母是多少
+    snapshot_fields = (
+        bundle.to_snapshot_fields()
+        if bundle is not None
+        else {
+            "sections": [],
+            "token_count": 0,
+            "dropped": [
+                {"name": "context", "reason": "required_over_budget", "detail": context_error}
+            ],
+            "compressed": False,
+            "compression_method": None,
+        }
+    )
+    snapshot = ContextSnapshot(
+        run_id=run.id,
+        user_id=user.id,
+        purpose="explain_patch",
+        token_budget=token_budget,
+        **snapshot_fields,
+    )
+    db.add(snapshot)
+    db.flush()
+    run.context_snapshot_id = snapshot.id
+    run.status = "succeeded"
 
     patch = PlanPatch(
         plan_id=plan.id,
@@ -288,6 +422,13 @@ def create_knee_patch(
             "safety": safety,
             "proposed_actions": len(proposed),
             "explanation": explanation,
+            "context": {
+                "token_count": snapshot.token_count,
+                "token_budget": token_budget,
+                "dropped": [item.get("name") for item in snapshot.dropped],
+                "compressed": snapshot.compressed,
+                "error": context_error,
+            },
         },
         diff=diff,
         status="pending_approval",

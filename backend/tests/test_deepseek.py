@@ -12,7 +12,7 @@ def test_explain_without_key_uses_fallback():
         timeout_s=1,
     )
     text = explainer.explain(
-        payload={"reason": "膝痛", "changes": [], "diff": {}},
+        messages=[{"role": "system", "content": "你是教练"}, {"role": "user", "content": "膝痛"}],
         operations=[
             {
                 "op": "replace_action",
@@ -50,7 +50,7 @@ def test_explain_parses_json(monkeypatch):
         client=client,
     )
     text = explainer.explain(
-        payload={"reason": "膝痛"},
+        messages=[{"role": "user", "content": "膝痛"}],
         operations=[],
         diff={},
     )

@@ -209,6 +209,7 @@ def create_patch(
             available_days=payload.available_days,
             idempotency_key=payload.idempotency_key,
             explainer=explainer.explain,
+            token_budget=settings.context_token_budget,
         )
     except PatchValidationError as exc:
         raise HTTPException(
