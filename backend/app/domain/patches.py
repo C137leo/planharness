@@ -169,6 +169,29 @@ def _diff(base: list[dict], proposed: list[dict], required_changes: int) -> dict
     }
 
 
+# skill 生成的动作用的是 slug（goblet-squat），模板用的是 ref（goblet_squat），
+# 安全门要同时认得这两种写法，否则换了计划来源就静默漏检。
+KNEE_RISK_KEYWORDS = ("squat", "lunge", "run", "jump", "step-up", "split")
+KNEE_RISK_MOVEMENTS = {"knee_dominant"}
+
+
+def is_knee_risky(item: dict) -> bool:
+    """判断一个动作是否对膝痛不安全（ref 归一化 + skill 目录 + movement_mode）。"""
+    raw_ref = str(item.get("action_ref") or "")
+    ref = raw_ref.replace("-", "_").lower()
+    if ref in FORBIDDEN_KNEE_REFS:
+        return True
+    if any(keyword in ref for keyword in KNEE_RISK_KEYWORDS):
+        return True
+    # skill 目录里标注过的膝痛风险动作（按 slug 判断）
+    from app.domain.exercise_catalog import KNEE_RISKY_SLUGS
+
+    if raw_ref in KNEE_RISKY_SLUGS:
+        return True
+    meta = item.get("meta") or {}
+    return str(meta.get("movement_mode") or "") in KNEE_RISK_MOVEMENTS
+
+
 def _safety_check(proposed: list[dict], available_days: int) -> list[str]:
     """确定性安全门（第一道闸口）：膝痛禁忌动作 + 训练日不超过可用天数。
 
@@ -178,8 +201,9 @@ def _safety_check(proposed: list[dict], available_days: int) -> list[str]:
     for item in proposed:
         if item["action_type"] != "exercise":
             continue
-        if item["action_ref"] in FORBIDDEN_KNEE_REFS:
-            errors.append(f"膝痛禁忌动作: {item['action_ref']}")
+        if is_knee_risky(item):
+            name = (item.get("meta") or {}).get("name_zh") or item["action_ref"]
+            errors.append(f"膝痛禁忌动作: {name}")
     strength_days = {
         item["day_index"]
         for item in proposed

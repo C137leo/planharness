@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-11-03T17:33:29+00:00",
-  "duration_ms": 691.63,
+  "generated_at": "2026-11-03T18:52:15+00:00",
+  "duration_ms": 675.03,
   "python": "3.14.6",
   "summary": {
     "total": 8,
@@ -74,7 +74,7 @@
     },
     {
       "name": "p95_latency_ms",
-      "value": 98.74,
+      "value": 127.37,
       "target": "<= 2000",
       "ok": true,
       "detail": "8 个场景"
@@ -85,7 +85,7 @@
       "id": "E01",
       "title": "正常计划",
       "passed": true,
-      "latency_ms": 80.17,
+      "latency_ms": 65.19,
       "error": null,
       "checks": [
         {
@@ -134,7 +134,7 @@
       "id": "E02",
       "title": "膝痛补丁",
       "passed": true,
-      "latency_ms": 86.69,
+      "latency_ms": 82.4,
       "error": null,
       "checks": [
         {
@@ -188,7 +188,7 @@
       "id": "E03",
       "title": "审批拒绝",
       "passed": true,
-      "latency_ms": 78.37,
+      "latency_ms": 78.1,
       "error": null,
       "checks": [
         {
@@ -227,7 +227,7 @@
       "id": "E04",
       "title": "审批通过",
       "passed": true,
-      "latency_ms": 96.08,
+      "latency_ms": 88.66,
       "error": null,
       "checks": [
         {
@@ -281,7 +281,7 @@
       "id": "E05",
       "title": "上下文预算不足",
       "passed": true,
-      "latency_ms": 81.18,
+      "latency_ms": 69.68,
       "error": null,
       "checks": [
         {
@@ -320,7 +320,7 @@
       "id": "E06",
       "title": "LLM 超时 / 无 Key",
       "passed": true,
-      "latency_ms": 87.22,
+      "latency_ms": 69.43,
       "error": null,
       "checks": [
         {
@@ -354,7 +354,7 @@
       "id": "E07",
       "title": "非法补丁 → 自动回滚",
       "passed": true,
-      "latency_ms": 98.74,
+      "latency_ms": 127.37,
       "error": null,
       "checks": [
         {
@@ -403,7 +403,7 @@
       "id": "E08",
       "title": "重复审批",
       "passed": true,
-      "latency_ms": 83.15,
+      "latency_ms": 94.15,
       "error": null,
       "checks": [
         {
@@ -440,7 +440,7 @@
     }
   ],
   "trend": {
-    "previous_ts": "2026-11-03T17:29:22+00:00",
+    "previous_ts": "2026-11-03T17:33:30+00:00",
     "metrics": [
       {
         "name": "safety_violation_rate",
@@ -507,9 +507,9 @@
       },
       {
         "name": "p95_latency_ms",
-        "current": 98.74,
-        "previous": 82.62,
-        "delta": 16.12,
+        "current": 127.37,
+        "previous": 98.74,
+        "delta": 28.63,
         "status": "up"
       }
     ],

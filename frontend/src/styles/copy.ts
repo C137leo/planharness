@@ -45,17 +45,26 @@ export const KIND_LABELS: Record<string, string> = {
   diet: '饮食调整',
 }
 
-export const QUICK_ACTIONS: Array<{ key: string; label: string; text: string }> = [
-  { key: 'rest', label: '今天想休息', text: '今天想休息' },
-  { key: 'injury_swap', label: '受伤了，换动作', text: '膝盖疼，换成不伤膝的动作' },
-  { key: 'injury_stop', label: '先停练', text: '受伤了，先停止训练' },
-  { key: 'increase', label: '想加点强度', text: '想加点强度' },
-  { key: 'diet', label: '吃得清淡点', text: '晚餐想吃得清淡一点' },
+/** 兜底预设：接口拿不到时用它，保证抽屉不会空着。 */
+export const QUICK_ACTIONS: Array<{ key: string; label: string; text: string; hint?: string }> = [
+  { key: 'rest', label: '今天想休息', text: '今天想休息，把今天的训练挪到明天' },
+  { key: 'injury_stop', label: '受伤了，先停练', text: '膝盖受伤了，先停止所有腿部训练' },
+  { key: 'injury_swap', label: '换部位练', text: '膝盖疼，换成上肢训练' },
+  { key: 'increase', label: '加强度', text: '这周感觉轻松，想加一点强度' },
+  { key: 'diet', label: '调饮食', text: '晚餐想吃清淡一点，少油' },
+  { key: 'time', label: '这周没时间', text: '这周只能练两天，每次 30 分钟' },
 ]
 
 /** 动作名：查表失败就原样显示 ref，绝不显示空字符串。 */
 export function actionName(ref: string): string {
   return ACTION_NAMES[ref] || ref
+}
+
+/** 优先用计划里带的 meta.name_zh（skill 生成的动作名都在那里）。 */
+export function actionLabel(action: { action_ref: string; meta?: Record<string, unknown> }): string {
+  const named = (action.meta || {}).name_zh
+  if (typeof named === 'string' && named.trim()) return named
+  return actionName(action.action_ref)
 }
 
 export function slotLabel(slot: string): string {

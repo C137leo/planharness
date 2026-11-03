@@ -34,6 +34,7 @@ const error = ref('')
 const request = ref<PatchRequest | null>(null)
 const feedback = ref('')
 const confirming = ref(false)
+const presets = ref<Array<{ key: string; label: string; example: string; hint: string }>>([])
 
 const draft = computed(() => request.value?.draft || null)
 const canApply = computed(
@@ -41,10 +42,19 @@ const canApply = computed(
 )
 const roundsLeft = computed(() => Math.max(0, 3 - ((request.value?.round || 1) - 1)))
 
+async function loadPresets() {
+  try {
+    presets.value = await api.listPatchPresets()
+  } catch {
+    // 接口拿不到就用内置兜底，抽屉不会空着
+  }
+}
+
 watch(
   () => props.visible,
   (open) => {
     if (!open) return
+    if (!presets.value.length) loadPresets()
     text.value = props.presetText || ''
     quickAction.value = props.presetQuick || ''
     request.value = null
@@ -58,6 +68,13 @@ function pickQuick(key: string, sample: string) {
   quickAction.value = key
   text.value = sample
 }
+
+/** 服务端预设 → 界面上的同一套卡片；没有服务端数据时退回内置 quick actions。 */
+const quickActions = computed(() =>
+  presets.value.length
+    ? presets.value.map((item) => ({ key: item.key, label: item.label, text: item.example }))
+    : QUICK_ACTIONS,
+)
 
 async function submit() {
   if (busy.value || !text.value.trim()) return
@@ -141,7 +158,7 @@ function describeError(err: unknown): string {
 
         <view class="quick-row">
           <view
-            v-for="item in QUICK_ACTIONS"
+            v-for="item in quickActions"
             :key="item.key"
             class="chip"
             :class="{ active: quickAction === item.key }"
@@ -160,18 +177,18 @@ function describeError(err: unknown): string {
 
         <view v-if="error" class="error" style="margin-top: 12px">{{ error }}</view>
 
-        <button class="btn" :disabled="busy || !text.trim()" @click="submit">
-          {{ busy ? '处理中…' : '看看会怎么改' }}
-        </button>
+        <view class="btn-row">
+          <view class="btn-sm primary" @click="submit">{{ busy ? '处理中…' : '看看会怎么改' }}</view>
+        </view>
       </template>
 
       <!-- 2. 追问 -->
       <template v-else-if="request.status === 'clarifying' && !draft">
         <view class="sheet-title">还需要一点信息</view>
         <view class="notice" style="margin-top: 10px">{{ request.question }}</view>
-        <button class="btn secondary" style="margin-top: 14px" @click="request = null">
-          重新描述
-        </button>
+        <view class="btn-row">
+          <view class="btn-sm" @click="request = null">重新描述</view>
+        </view>
       </template>
 
       <!-- 3. 被安全门拦下 -->
@@ -181,9 +198,9 @@ function describeError(err: unknown): string {
         <view class="muted" style="margin-top: 10px">
           安全门是确定性规则（受伤部位 / 可用天数 / 过敏原），模型说了不算。
         </view>
-        <button class="btn secondary" style="margin-top: 14px" @click="request = null">
-          换个说法
-        </button>
+        <view class="btn-row">
+          <view class="btn-sm" @click="request = null">换个说法</view>
+        </view>
       </template>
 
       <!-- 4. 草案 -->
@@ -218,17 +235,16 @@ function describeError(err: unknown): string {
         <!-- 再改改：基于同一 base_version 重新规划 -->
         <view v-if="roundsLeft > 0" class="feedback">
           <input v-model="feedback" class="input" placeholder="不满意？说一句哪里不对" />
-          <button class="btn secondary small" :disabled="busy || !feedback.trim()" @click="revise">
-            再改改
-          </button>
+          <view class="btn-sm" @click="revise">{{ busy ? '…' : '再改改' }}</view>
         </view>
         <view v-else class="muted" style="margin-top: 12px">
           已经改了 3 轮，先按这版试一周，或者直接告诉我更具体的方向。
         </view>
 
-        <button class="btn" :disabled="busy || !canApply" @click="apply">
-          {{ confirming ? '提交中…' : '确认应用这一版' }}
-        </button>
+        <view class="btn-row">
+          <view class="btn-sm primary" @click="apply">{{ confirming ? '提交中…' : '确认应用这一版' }}</view>
+          <view class="btn-sm" @click="discard">取消</view>
+        </view>
         <view class="muted" style="margin-top: 8px; text-align: center">
           确认后才会生成新版本；不点确认，计划一个字节都不会变。
         </view>

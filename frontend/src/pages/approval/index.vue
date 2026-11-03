@@ -115,7 +115,7 @@ async function regenerate() {
   notice.value = ''
   try {
     const plan = await api.generatePlan()
-    notice.value = `已重新生成 v${plan.version}。现在可以再次生成膝痛补丁。`
+    notice.value = `已重新生成 v${plan.version}。可以回今天页再改。`
   } catch (err) {
     error.value = err instanceof Error ? err.message : '重新生成失败'
   } finally {
@@ -211,7 +211,7 @@ onShow(load)
           当前没有等待审批的补丁。审批按钮只会在有新补丁时出现。
         </view>
         <button class="btn" style="margin-top: 14px" @click="uni.switchTab({ url: '/pages/today/index' })">
-          去「今天」页生成膝痛补丁
+          去今天页修改计划
         </button>
         <button class="btn secondary" style="margin-top: 10px" :disabled="busy" @click="regenerate">
           {{ busy ? '生成中…' : '重新生成计划（换一版再打补丁）' }}

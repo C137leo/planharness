@@ -60,7 +60,11 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/demo -H 'Content-Type: applicatio
 - `GET /api/v1/me/profile`
 - `GET /api/v1/plans/current`（seed 的 v1，12 个 action）
 - `POST /api/v1/plans/generate`（模板生成 + 热量/蛋白质计算 + validator，生成 v2）
-- `POST /api/v1/plans/{plan_id}/patch-requests`（**一句话改计划**：解析意图 → 草案 / 追问 / 被安全门拦下）
+- `PUT /api/v1/me/profile`（目标 / 体型 / 器械 / 过敏原 / 饮食偏好，直接喂给生成与安全门）
+- `POST /api/v1/plans/drafts`（**生成计划草案**：模型调用 healthy-fitness-coach skill → 训练 + 食谱 + 摄入目标）
+- `POST /api/v1/plans/drafts/{id}/feedback|confirm|reject`（再改改 ≤3 轮 / 确认落版本 / 不要了）
+- `GET /api/v1/patch-presets`（预设改动入口：休息 / 受伤停练 / 换部位 / 加强度 / 调饮食 / 没时间）
+- `POST /api/v1/plans/{plan_id}/patch-requests`（**一句话改计划**：模型定向修改 → 草案 / 追问 / 被安全门拦下）
 - `POST /api/v1/patch-requests/{id}/feedback|approve|reject`（再改改 ≤3 轮 / 确认应用 / 拒绝）
 - `POST /api/v1/plans/{id}/undo`（撤销上一次提交，仍生成新版本）
 - `POST/GET /api/v1/workout-logs`、`GET /api/v1/stats/calories`（训练记录 → 热量，只算消耗）
@@ -99,10 +103,10 @@ npm run dev:h5
 
 当前页面（TabBar：今天 / 计划 / 进展 / 我的）：
 
-- 今天：今天的动作 + 今日消耗，快捷按钮打开「改计划」抽屉
-- 计划：整周明细、待确认改动、撤销上一次改动
+- 今天：今天练什么（动作/组次/肌群）、今天吃什么（食材克数/热量）、推荐摄入、六个改动预设 + 「自己说一句」
+- 计划：整周明细、今日餐食、待确认改动、撤销上一次改动、换一份计划
 - 进展：近 7 天消耗、体重、训练记录（附热量公式与口径）
-- 我的：画像 / 器械 / 过敏原 + demo 的真实边界
+- 我的：目标 / 体型 / 器械 / 过敏原 / 饮食偏好可编辑，保存后直接生成计划
 - 打卡：体重/睡眠/饥饿/酸痛/执行率 + 记一条训练（实时算 kcal）
 - Console（H5）：场景回放、Trace、Diff、上下文、成本、审计链、A/B/C 对比
 - 待确认补丁：旧的独立审批页保留，作为抽屉之外的兜底入口
@@ -162,6 +166,7 @@ Console 里还有「场景回放」：点 E01–E08 任一个，服务端跑一�
 - [19 当前阶段与最终优先级](docs/19-final-priorities.md)：90 tests/8 Evals/6 变异已完成，剩余前端账号、CI、部署、演示
 - [12 架构总结](docs/12-architecture.md)：**架构风格判定**（分层单体/贫血模型，不是 DDD）、分层与依赖规则、聚合边界、状态机、9 条 ADR、技术债与演进路线、面试讲稿
 - [15 上线前修改清单](docs/15-prelaunch-checklist.md)：**上线前逐条过**：10 个阻断项 + 8 个建议项 + 验证/回滚；配套 `deploy/preflight.sh` 自检
+- [21 skill 驱动的计划生成](docs/21-skill-driven-plan.md)：**本轮**：Node 桥接 healthy-fitness-coach、模型编排 + 本地安全门、生成草案 → 确认 → 落版本、补丁改为用户自定义
 - [20 一句话改计划](docs/20-flexible-patch-flow.md)：**本轮改版**：可协商草案、新增 3 张表与 7 个接口、热量口径、TabBar 与抽屉交互、已验证/未验证
 - [生产部署模板](deploy/README.md)：systemd + Nginx + 现有 Postgres 容器（当前实际方案）
 
@@ -188,10 +193,11 @@ Console 里还有「场景回放」：点 E01–E08 任一个，服务端跑一�
 
 ## 下一步
 
-已完成：一句话改计划（草案 / 追问 / ≤3 轮修订 / 确认 / 撤销）、训练记录与热量统计、
-TabBar 四页与改计划抽屉、Console 观测面、8 场景 Evals + 6 变异体、审计链。
+已完成：教练 skill 桥接（训练 + 食谱 + 摄入）、画像录入、计划草案多轮确认、
+用户自定义补丁（预设 + 自由文本，模型定向修改 + 确定性校验）、训练记录与热量统计、
+TabBar 四页、Console 观测面、8 场景 Evals + 6 变异体、审计链。
 
-1. 浏览器里过一遍四页与抽屉（当前环境没有浏览器，只做了构建期检查）。
-2. 把意图解析从规则表换成 LLM，并用现有 8 个场景 + 新增口语场景做回归。
-3. `docs/15` 的服务器侧阻断项：备份定时器、Postgres 超级用户收敛、端口核验。
-4. 小程序端回归（需要 AppID）。
+1. 浏览器里过一遍五页与两个抽屉（当前环境没有浏览器，只做了构建期检查）。
+2. 用真实 `DEEPSEEK_API_KEY` 跑一次生成，统计模型 tool-calling 的成功率与成本。
+3. 把新链路补进 Evals（生成计划 / 过敏排除 / 3 轮上限各一条场景）。
+4. `docs/15` 的服务器侧阻断项：备份定时器、Postgres 超级用户收敛、端口核验。

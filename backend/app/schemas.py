@@ -45,6 +45,9 @@ class ProfileOut(BaseModel):
     weekly_days: int
     session_minutes: int
     diet_pattern: str
+    goal: str = "fat_loss"
+    goal_note: str = ""
+    diet_preferences: list[str] = Field(default_factory=list)
     allergies: list[str] = Field(default_factory=list)
     dislikes: list[str] = Field(default_factory=list)
     timezone: str
@@ -67,10 +70,46 @@ class ActionOut(BaseModel):
     duration_min: int | None = None
     intensity: str | None = None
     portion_g: float | None = None
+    kcal: int | None = None
+    # 动作/食材的中文名、器械、RIR 等附加信息，前端直接展示
+    meta: dict = Field(default_factory=dict)
+
+
+class MealItemOut(BaseModel):
+    name: str
+    grams: float
+    kcal: int
+    protein: float = 0
+    fat: float = 0
+    carb: float = 0
+
+
+class MealPlanOut(BaseModel):
+    """一餐：吃什么、多少克、多少热量。过敏原已在生成时排除。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    day_index: int
+    slot: str
+    title: str
+    items: list[dict] = Field(default_factory=list)
+    kcal: int = 0
+    protein_g: float = 0
+    fat_g: float = 0
+    carb_g: float = 0
+
+
+class TodayOut(BaseModel):
+    """今天的安排：练什么 + 吃什么。"""
+
+    weekday: int
+    date: str
+    actions: list[ActionOut] = Field(default_factory=list)
+    meals: list[MealPlanOut] = Field(default_factory=list)
 
 
 class CurrentPlanOut(BaseModel):
-    """当前生效版本的计划：版本号 + 营养目标 + 全部动作。"""
+    """当前生效版本的计划：版本号 + 营养目标 + 动作 + 每日餐食 + 今日安排。"""
 
     plan_id: str
     status: str
@@ -79,7 +118,12 @@ class CurrentPlanOut(BaseModel):
     protein_target_g: float
     step_target: int
     summary: str
+    source: str = "template"
+    nutrition: dict = Field(default_factory=dict)
+    program: dict = Field(default_factory=dict)
     actions: list[ActionOut]
+    meals: list[MealPlanOut] = Field(default_factory=list)
+    today: TodayOut | None = None
 
 
 class WeChatLoginIn(BaseModel):
@@ -215,3 +259,47 @@ class WorkoutLogIn(BaseModel):
     reps: int | None = Field(default=None, ge=0, le=200)
     intensity: Literal["light", "normal", "hard"] = "normal"
     note: str = ""
+
+
+class ProfileUpdateIn(BaseModel):
+    """画像录入：基础信息 + 目标 + 饮食禁忌。
+
+    字段都可选，传什么改什么；没传的保持原值（注册时的默认画像不会被清空）。
+    """
+
+    sex: Literal["male", "female"] | None = None
+    birth_year: int | None = Field(default=None, ge=1940, le=2012)
+    height_cm: float | None = Field(default=None, ge=120, le=230)
+    weight_kg: float | None = Field(default=None, ge=30, le=250)
+    goal: Literal["fat_loss", "muscle_gain", "cardio", "health"] | None = None
+    goal_note: str | None = Field(default=None, max_length=500)
+    weekly_days: int | None = Field(default=None, ge=1, le=7)
+    session_minutes: int | None = Field(default=None, ge=10, le=180)
+    activity_level: Literal["sedentary", "light", "moderate", "active"] | None = None
+    training_experience: Literal["beginner", "intermediate", "advanced"] | None = None
+    equipment: list[str] | None = None
+    diet_pattern: Literal["omnivore", "vegetarian", "vegan", "pescatarian"] | None = None
+    # 过敏原会直接喂给安全门与食谱筛选
+    allergies: list[str] | None = None
+    diet_preferences: list[str] | None = None
+    dislikes: list[str] | None = None
+
+
+class PlanDraftIn(BaseModel):
+    """生成计划：一句原话 + 可选的执行模式。"""
+
+    instruction: str = Field(default="", max_length=1000)
+    parent_draft_id: str | None = None
+
+
+class DraftFeedbackIn(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+
+
+class PatchPresetOut(BaseModel):
+    """预设的改动入口：用户点一下就知道能说什么。"""
+
+    key: str
+    label: str
+    example: str
+    hint: str

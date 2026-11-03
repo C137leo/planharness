@@ -9,7 +9,8 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { api, type CurrentPlan, type PlanAction, type PlanPatchSummary } from '../../api'
 import PatchComposer from '../../components/PatchComposer.vue'
-import { actionName, slotLabel } from '../../styles/copy'
+import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
+import { actionLabel, slotLabel } from '../../styles/copy'
 import { WEEKDAY_LABELS } from '../../styles/dates'
 
 const plan = ref<CurrentPlan | null>(null)
@@ -19,6 +20,7 @@ const busy = ref(false)
 const error = ref('')
 const toast = ref('')
 const composerOpen = ref(false)
+const draftOpen = ref(false)
 
 const grouped = computed(() => {
   const groups: Record<number, PlanAction[]> = {}
@@ -63,8 +65,18 @@ async function onApplied() {
   await load()
 }
 
-function openApproval() {
-  uni.navigateTo({ url: '/pages/approval/index' })
+async function onConfirmed() {
+  draftOpen.value = false
+  await load()
+}
+
+const todayMeals = computed(() => {
+  const day = plan.value?.today?.weekday || 1
+  return (plan.value?.meals || []).filter((meal) => meal.day_index === day)
+})
+
+function openToday() {
+  uni.switchTab({ url: '/pages/today/index' })
 }
 
 function openConsole() {
@@ -95,6 +107,20 @@ onShow(load)
           <view class="chip">{{ plan.actions.length }} 个槽位</view>
         </view>
         <view class="subtitle" style="margin-top: 10px">{{ plan.summary }}</view>
+        <view class="stat-row">
+          <view class="stat">
+            <text class="stat-value">{{ plan.nutrition?.target_kcal || plan.calorie_target }}</text>
+            <text class="stat-label">kcal / 天</text>
+          </view>
+          <view class="stat">
+            <text class="stat-value">{{ Math.round(plan.protein_target_g) }}g</text>
+            <text class="stat-label">蛋白</text>
+          </view>
+          <view class="stat">
+            <text class="stat-value">{{ plan.source === 'coach' ? '教练' : '模板' }}</text>
+            <text class="stat-label">来源</text>
+          </view>
+        </view>
       </view>
 
       <view v-if="pending.length" class="card">
@@ -103,9 +129,17 @@ onShow(load)
           <text class="pending-text">{{ patch.reason_text || patch.reason_code }}</text>
           <text class="pending-meta">{{ patch.operations.length }} 处改动 · 待确认</text>
         </view>
-        <button class="btn secondary" style="margin-top: 12px" @click="openApproval">
-          去逐条确认
-        </button>
+        <view class="btn-row">
+          <view class="btn-sm primary" @click="openToday">去今天页修改计划</view>
+        </view>
+      </view>
+
+      <view v-if="todayMeals.length" class="card">
+        <view class="section-title">今天吃</view>
+        <view v-for="meal in todayMeals" :key="meal.slot" class="line">
+          <text class="line-name">{{ meal.title }}</text>
+          <text class="line-meta">{{ meal.kcal }} kcal · 蛋白 {{ meal.protein_g }}g</text>
+        </view>
       </view>
 
       <view v-for="group in grouped" :key="group.day" class="card">
@@ -114,7 +148,7 @@ onShow(load)
           <view class="chip">{{ group.actions.length }}</view>
         </view>
         <view v-for="action in group.actions" :key="action.id" class="line">
-          <text class="line-name">{{ actionName(action.action_ref) }}</text>
+          <text class="line-name">{{ actionLabel(action) }}</text>
           <text class="line-meta">
             {{ slotLabel(action.slot) }}
             <template v-if="action.sets"> · {{ action.sets }}×{{ action.reps }}</template>
@@ -123,10 +157,11 @@ onShow(load)
         </view>
       </view>
 
-      <button class="btn" @click="composerOpen = true">改计划</button>
-      <button class="btn secondary" :disabled="busy" @click="undo">
-        {{ busy ? '撤销中…' : '撤销上一次改动' }}
-      </button>
+      <view class="btn-row">
+        <view class="btn-sm primary" @click="composerOpen = true">改计划</view>
+        <view class="btn-sm" @click="undo">{{ busy ? '撤销中…' : '撤销上一次改动' }}</view>
+        <view class="btn-sm" @click="draftOpen = true">换一份计划</view>
+      </view>
       <view class="muted" style="margin-top: 10px; text-align: center">
         撤销会新建一个版本，历史版本不会被删除。
       </view>
@@ -135,6 +170,13 @@ onShow(load)
       <view class="console-link" @click="openConsole">打开 Harness Console →</view>
       <!-- #endif -->
     </template>
+
+    <PlanDraftSheet
+      :visible="draftOpen"
+      :has-plan="true"
+      @close="draftOpen = false"
+      @confirmed="onConfirmed"
+    />
 
     <PatchComposer
       :visible="composerOpen"

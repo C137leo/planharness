@@ -25,6 +25,7 @@ from app.domain.patches import (
     reject_patch,
     rollback_plan,
 )
+from app.agent.change_agent import propose_with_model, propose_without_model
 from app.domain.planner import Intent, parse_intent, plan_operations, violates_constraints
 from app.models import (
     PatchFeedback,
@@ -67,6 +68,7 @@ def create_request(
     quick_action: str = "",
     base_version: int | None = None,
     parent_request_id: str | None = None,
+    client=None,
 ) -> PatchRequest:
     plan = _load_plan(db, user, plan_id)
     if base_version is not None and base_version != plan.current_version:
@@ -117,16 +119,29 @@ def create_request(
         return request
 
     base = _current_actions(db, plan)
-    operations, risks = plan_operations(intent, base)
 
-    if not operations:
+    # 先让模型试着理解"用户到底要改哪几处"；模型只提议，校验在下面。
+    proposal = None
+    if client is not None and getattr(client, "available", lambda: False)():
+        try:
+            proposal = propose_with_model(
+                client, text, quick_action, base, _constraints(db, user, plan, intent)
+            )
+        except Exception:  # noqa: BLE001 - 模型失败退回规则表，不能让改计划整体失败
+            proposal = None
+    if proposal is None:
+        proposal = propose_without_model(text, quick_action, base)
+
+    if proposal["status"] != "ready":
         request.status = "clarifying"
-        request.question = (
-            risks[0] if risks else "按你的描述暂时没有需要改的地方，可以换个说法。"
-        )
+        request.question = proposal.get("question") or "还需要一点信息才能改。"
+        request.intent = {**intent.to_dict(), "source": proposal.get("source", "rules")}
         db.commit()
         db.refresh(request)
         return request
+
+    operations = proposal["operations"]
+    risks = list(proposal.get("risks") or [])
 
     proposed = _apply_operations(base, operations)
 
@@ -171,6 +186,9 @@ def create_request(
             "intent": intent.to_dict(),
             "risks": risks,
             "question": None,
+            # 定向修改的来源：model = 模型理解后提议（经确定性校验），rules = 规则表兜底
+            "change_source": proposal.get("source", "rules"),
+            "change_summary": proposal.get("summary", ""),
         },
         diff=diff,
         status="pending_approval",
@@ -211,8 +229,24 @@ def create_request(
     return request
 
 
+def _constraints(db: Session, user: User, plan: Plan, intent: Intent) -> dict:
+    """把"模型必须遵守的硬约束"显式给它，减少无效提议。"""
+    from app.models import Profile
+
+    profile = db.get(Profile, user.id)
+    profile = profile if profile is not None else None
+    return {
+        "allergies": list(getattr(profile, "allergies", None) or []),
+        "diet_preferences": list(getattr(profile, "diet_preferences", None) or []),
+        "weekly_days": int(getattr(profile, "weekly_days", 0) or 0),
+        "available_days_hint": intent.available_days,
+        "body_parts": list(intent.body_parts),
+        "current_days": sorted({item["day_index"] for item in _current_actions(db, plan)}),
+    }
+
+
 def add_feedback(
-    db: Session, user: User, request_id: str, text: str
+    db: Session, user: User, request_id: str, text: str, *, client=None
 ) -> PatchRequest:
     """用户说「再改改」：记下反馈，基于同一 base_version 重新规划一轮。"""
     parent = db.get(PatchRequest, request_id)
@@ -236,6 +270,7 @@ def add_feedback(
         combined,
         quick_action=parent.quick_action,
         parent_request_id=parent.id,
+        client=client,
     )
 
 

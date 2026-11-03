@@ -20,6 +20,7 @@ from langgraph.types import Command
 from app import config
 from app.auth import get_current_user, get_db, hash_password, issue_token, verify_password
 from app.domain import calories as calorie_stats
+from app.domain import coach as coach_plans
 from app.domain import requests as patch_requests
 from app.domain.patches import (
     PatchValidationError,
@@ -30,7 +31,7 @@ from app.domain.patches import (
 )
 from app.domain.planning import PlanValidationError, generate_plan as generate_plan_service
 from app.llm.deepseek import DeepSeekExplainer
-from app.audit import verify_stream
+from app.audit import append_event, verify_stream
 from app.models import (
     AgentRun,
     AuditEvent,
@@ -40,6 +41,7 @@ from app.models import (
     PlanAction,
     PlanPatch,
     PlanVersion,
+    MealPlan,
     Profile,
     User,
     WorkoutLog,
@@ -53,7 +55,13 @@ from app.schemas import (
     DemoLoginIn,
     PatchCreateIn,
     PatchFeedbackIn,
+    MealPlanOut,
+    TodayOut,
     PatchRequestIn,
+    PlanDraftIn,
+    DraftFeedbackIn,
+    ProfileUpdateIn,
+    PatchPresetOut,
     WorkoutLogIn,
     PatchOut,
     ProfileOut,
@@ -153,6 +161,14 @@ def _current_plan_payload(db: Session, user: User) -> CurrentPlanOut:
         .order_by(PlanAction.day_index, PlanAction.slot, PlanAction.seq)
     ).all()
 
+    meals = db.scalars(
+        select(MealPlan)
+        .where(MealPlan.plan_version_id == version.id)
+        .order_by(MealPlan.day_index, MealPlan.slot)
+    ).all()
+    weekday = date.today().isoweekday()
+    today = coach_plans.today_payload(db, plan, version, weekday)
+
     return CurrentPlanOut(
         plan_id=plan.id,
         status=plan.status,
@@ -161,8 +177,164 @@ def _current_plan_payload(db: Session, user: User) -> CurrentPlanOut:
         protein_target_g=version.protein_target_g,
         step_target=version.step_target,
         summary=version.summary,
+        source=plan.source or "template",
+        nutrition=plan.nutrition or {},
+        program=plan.program or {},
         actions=[ActionOut.model_validate(item) for item in actions],
+        meals=[MealPlanOut.model_validate(item) for item in meals],
+        today=TodayOut(**today),
     )
+
+
+@router.put("/me/profile")
+def update_profile(
+    payload: ProfileUpdateIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """录入/更新画像。过敏原与饮食偏好会直接进安全门与食谱筛选。"""
+    profile = db.get(Profile, user.id)
+    if profile is None:
+        profile = Profile(user_id=user.id)
+        db.add(profile)
+        db.flush()
+
+    changed = []
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        if value is not None:
+            setattr(profile, field, value)
+            changed.append(field)
+    if changed:
+        append_event(
+            db, f"user:{user.id}", "profile_updated",
+            {"fields": changed, "goal": profile.goal},
+            actor_type="user", actor_id=user.id,
+        )
+    db.commit()
+    db.refresh(profile)
+    return ok(request, ProfileOut.model_validate(profile).model_dump(), message="saved")
+
+
+def _tool_client(request: Request):
+    """按应用配置构造带 function-calling 的模型客户端；没配 Key 就返回 None。"""
+    from app.llm.tool_client import tool_client_from_settings
+
+    settings = request.app.state.settings
+    client = tool_client_from_settings(settings)
+    return client if client.available() else None
+
+
+@router.post("/plans/drafts")
+def create_plan_draft(
+    payload: PlanDraftIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """生成计划草案：模型调用 skill 的工具 → 训练 + 食谱 + 摄入目标，先不落版本。"""
+    try:
+        draft = coach_plans.create_draft(
+            db, user, payload.instruction, client=_tool_client(request)
+        )
+    except PatchValidationError as exc:
+        raise HTTPException(422, detail=exc.errors) from exc
+    return ok(request, coach_plans.draft_payload(draft))
+
+
+@router.get("/plans/drafts/{draft_id}")
+def get_plan_draft(
+    draft_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        draft = coach_plans.load_draft(db, user, draft_id)
+    except PatchValidationError as exc:
+        raise HTTPException(404, detail=exc.errors) from exc
+    return ok(request, coach_plans.draft_payload(draft))
+
+
+@router.post("/plans/drafts/{draft_id}/feedback")
+def feedback_plan_draft(
+    draft_id: str,
+    payload: DraftFeedbackIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """「再改改」：带着这句反馈重新生成一份草案（≤3 轮）。"""
+    try:
+        draft = coach_plans.add_feedback(
+            db, user, draft_id, payload.text, client=_tool_client(request)
+        )
+    except PatchValidationError as exc:
+        raise HTTPException(422, detail=exc.errors) from exc
+    return ok(request, coach_plans.draft_payload(draft))
+
+
+@router.post("/plans/drafts/{draft_id}/confirm")
+def confirm_plan_draft(
+    draft_id: str,
+    payload: ApprovalIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """确认草案 → 落成新版本，之后按这份计划执行。"""
+    try:
+        _, version = coach_plans.confirm_draft(db, user, draft_id, payload.comment)
+    except PatchValidationError as exc:
+        raise HTTPException(422, detail=exc.errors) from exc
+    db.expire_all()
+    plan = _current_plan_payload(db, user)
+    return ok(
+        request,
+        {"draft_id": draft_id, "committed_version": version.version, "plan": plan.model_dump()},
+        message="confirmed",
+    )
+
+
+@router.post("/plans/drafts/{draft_id}/reject")
+def reject_plan_draft(
+    draft_id: str,
+    payload: ApprovalIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        draft = coach_plans.reject_draft(db, user, draft_id, payload.comment)
+    except PatchValidationError as exc:
+        raise HTTPException(422, detail=exc.errors) from exc
+    return ok(request, coach_plans.draft_payload(draft), message="rejected")
+
+
+@router.get("/patch-presets")
+def patch_presets(request: Request):
+    """预设改动入口：不是写死补丁，而是"用户能这么说什么"的示例。"""
+    presets = [
+        PatchPresetOut(key="rest", label="今天想休息",
+                       example="今天想休息，把今天的训练挪到明天",
+                       hint="只改今天，不动整周结构"),
+        PatchPresetOut(key="injury_stop", label="受伤了，先停练",
+                       example="膝盖受伤了，先停止所有腿部训练",
+                       hint="停练 + 说明恢复条件"),
+        PatchPresetOut(key="injury_swap", label="受伤了，换个部位练",
+                       example="膝盖疼，换成上肢训练",
+                       hint="避开受伤部位，保留训练频率"),
+        PatchPresetOut(key="increase", label="感觉进步了，加强度",
+                       example="这周感觉轻松，想加一点强度",
+                       hint="加量受安全门约束"),
+        PatchPresetOut(key="diet", label="饮食要调整",
+                       example="晚餐想吃清淡一点，少油",
+                       hint="改餐食，不改训练"),
+        PatchPresetOut(key="time", label="这周没那么多时间",
+                       example="这周只能练两天，每次 30 分钟",
+                       hint="压缩天数与时长"),
+    ]
+    return ok(request, [item.model_dump() for item in presets])
 
 
 @router.get("/plans/current")
@@ -429,6 +601,7 @@ def create_patch_request(
             payload.text,
             quick_action=payload.quick_action,
             base_version=payload.base_version,
+            client=_tool_client(request),
         )
     except PatchValidationError as exc:
         raise HTTPException(422, detail=exc.errors) from exc
@@ -459,7 +632,9 @@ def feedback_patch_request(
 ):
     """「再改改」：基于同一 base_version 重新规划一轮（最多 3 轮）。"""
     try:
-        req = patch_requests.add_feedback(db, user, request_id, payload.text)
+        req = patch_requests.add_feedback(
+            db, user, request_id, payload.text, client=_tool_client(request)
+        )
     except PatchValidationError as exc:
         raise HTTPException(422, detail=exc.errors) from exc
     return ok(request, patch_requests.request_payload(db, req))

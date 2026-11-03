@@ -11,6 +11,54 @@ export interface PlanAction {
   duration_min: number | null
   intensity: string | null
   portion_g: number | null
+  kcal: number | null
+  meta: Record<string, unknown>
+}
+
+export interface MealItem {
+  name: string
+  grams: number
+  kcal: number
+  protein: number
+  fat: number
+  carb: number
+}
+
+export interface MealPlan {
+  day_index: number
+  slot: string
+  title: string
+  items: MealItem[]
+  kcal: number
+  protein_g: number
+  fat_g: number
+  carb_g: number
+}
+
+export interface TodayPlan {
+  weekday: number
+  date: string
+  actions: PlanAction[]
+  meals: MealPlan[]
+}
+
+export interface NutritionMacro {
+  low_g?: number
+  high_g?: number
+  low?: number
+  high?: number
+}
+
+export interface NutritionTargets {
+  status?: string
+  bmr?: number
+  tdee?: number
+  target_kcal?: number
+  delta_kcal?: number
+  macros?: Record<string, NutritionMacro>
+  scale_check?: string
+  cautions?: string[]
+  boundaries?: string[]
 }
 
 export interface CurrentPlan {
@@ -21,7 +69,12 @@ export interface CurrentPlan {
   protein_target_g: number
   step_target: number
   summary: string
+  source: 'template' | 'coach'
+  nutrition: NutritionTargets
+  program: Record<string, unknown>
   actions: PlanAction[]
+  meals: MealPlan[]
+  today: TodayPlan | null
 }
 
 export interface PatchOperation {
@@ -343,4 +396,77 @@ export interface CheckinRecord {
   soreness_level: number | null
   adherence_pct: number | null
   note: string
+}
+
+// ---------------- 教练计划草案（生成 → 多轮修改 → 确认） ----------------
+
+export interface DraftAction {
+  slot: string
+  seq: number
+  action_type: string
+  action_ref: string
+  sets: number | null
+  reps: number | null
+  duration_min: number | null
+  meta: Record<string, unknown>
+}
+
+export interface DraftDay {
+  day_index: number
+  session_id?: string
+  focus: string
+  minimum_version?: string
+  actions: DraftAction[]
+}
+
+export interface PlanDraft {
+  draft_id: string
+  status: 'ready' | 'clarifying' | 'invalid' | 'blocked' | 'confirmed' | 'rejected' | 'superseded'
+  round: number
+  instruction: string
+  feedback: string[]
+  question: string
+  summary: string
+  highlights: string[]
+  cautions: string[]
+  warnings: string[]
+  program: Record<string, unknown>
+  prescription: Record<string, unknown>
+  nutrition: NutritionTargets
+  days: DraftDay[]
+  meals: MealPlan[]
+  meta: {
+    skill_available?: boolean
+    skill_version?: string
+    tools_called?: string[]
+    model_fallback?: boolean
+    usage?: Record<string, number>
+  }
+  trace: Array<Record<string, unknown>>
+  created_at: string | null
+}
+
+export interface PatchPreset {
+  key: string
+  label: string
+  example: string
+  hint: string
+}
+
+export interface ProfileUpdate {
+  sex?: 'male' | 'female'
+  birth_year?: number
+  height_cm?: number
+  weight_kg?: number
+  goal?: 'fat_loss' | 'muscle_gain' | 'cardio' | 'health'
+  goal_note?: string
+  weekly_days?: number
+  session_minutes?: number
+  activity_level?: 'sedentary' | 'light' | 'moderate' | 'active'
+  training_experience?: 'beginner' | 'intermediate' | 'advanced'
+  equipment?: string[]
+  diet_pattern?: 'omnivore' | 'vegetarian' | 'vegan' | 'pescatarian'
+  allergies?: string[]
+  diet_preferences?: string[]
+  dislikes?: string[]
 }

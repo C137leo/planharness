@@ -7,7 +7,10 @@ import type {
   AuditVerify,
   CalorieStats,
   CheckinRecord,
+  PatchPreset,
+  PlanDraft,
   Profile,
+  ProfileUpdate,
   EvalScenario,
   EvalScenarioResult,
   PatchRequest,
@@ -163,6 +166,21 @@ export const api = {
   getCalorieStats: (days = 7) => request<CalorieStats>('GET', `/stats/calories?days=${days}`),
   listCheckins: () => request<CheckinRecord[]>('GET', '/checkins'),
   getProfile: () => request<Profile>('GET', '/me/profile'),
+  updateProfile: (payload: ProfileUpdate) => request<Profile>('PUT', '/me/profile', payload),
+  createPlanDraft: (instruction: string) =>
+    request<PlanDraft>('POST', '/plans/drafts', { instruction }),
+  getPlanDraft: (draftId: string) => request<PlanDraft>('GET', `/plans/drafts/${draftId}`),
+  feedbackPlanDraft: (draftId: string, text: string) =>
+    request<PlanDraft>('POST', `/plans/drafts/${draftId}/feedback`, { text }),
+  confirmPlanDraft: (draftId: string, comment = '') =>
+    request<{ draft_id: string; committed_version: number; plan: CurrentPlan }>(
+      'POST',
+      `/plans/drafts/${draftId}/confirm`,
+      { comment },
+    ),
+  rejectPlanDraft: (draftId: string, comment = '') =>
+    request<PlanDraft>('POST', `/plans/drafts/${draftId}/reject`, { comment }),
+  listPatchPresets: () => request<PatchPreset[]>('GET', '/patch-presets'),
   listRuns: (limit = 20, status = '') =>
     request<RunSummary[]>('GET', `/runs?limit=${limit}${status ? `&status=${status}` : ''}`),
   getRun: (runId: string) => request<RunDetail>('GET', `/runs/${runId}`),

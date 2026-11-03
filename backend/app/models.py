@@ -79,6 +79,12 @@ class Profile(Base):
     weekly_days: Mapped[int] = mapped_column(Integer, default=3)
     session_minutes: Mapped[int] = mapped_column(Integer, default=45)
     diet_pattern: Mapped[str] = mapped_column(String(16), default="omnivore")
+    # 训练目标：fat_loss / muscle_gain / cardio / health（对应 skill 的 减脂/增肌/心肺/综合健康）
+    goal: Mapped[str] = mapped_column(String(24), default="fat_loss")
+    # 用户原话，保留下来给模型和安全门看，不参与枚举判断
+    goal_note: Mapped[str] = mapped_column(Text, default="")
+    # 饮食偏好（素食/不吃牛肉…），和 allergies 一起决定食谱候选集
+    diet_preferences: Mapped[list] = mapped_column(JSON, default=list)
     # 过敏原/忌口都会参与餐食筛选
     allergies: Mapped[list] = mapped_column(JSON, default=list)
     dislikes: Mapped[list] = mapped_column(JSON, default=list)
@@ -104,6 +110,8 @@ class Goal(Base):
     status: Mapped[str] = mapped_column(String(16), default="active")
     # source 区分目标来自用户自述还是系统建议
     source: Mapped[str] = mapped_column(String(16), default="user")
+    # 用户原话（"我想 3 个月瘦 8 公斤"），审计时能看到目标从哪来
+    raw_text: Mapped[str] = mapped_column(Text, default="")
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
@@ -140,6 +148,12 @@ class Plan(Base):
     status: Mapped[str] = mapped_column(String(16), default="active")
     # 指向 PlanVersion.version，是"当前生效版本"的唯一真相
     current_version: Mapped[int] = mapped_column(Integer, default=1)
+    # template = 内置模板；coach = skill 生成（训练+食谱+营养）
+    source: Mapped[str] = mapped_column(String(16), default="template")
+    # skill 的营养目标（BMR/TDEE/目标热量/宏量区间），按版本会变，所以存在计划上
+    nutrition: Mapped[dict] = mapped_column(JSON, default=dict)
+    # skill 的训练结构（structure/days/minutes/prescription），用于展示与复盘
+    program: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -189,6 +203,8 @@ class PlanAction(Base):
     duration_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
     intensity: Mapped[str | None] = mapped_column(String(16), nullable=True)
     portion_g: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # 餐食估算热量（skill 食谱给出）；训练动作为空
+    kcal: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # 列名用 metadata（保留字），属性名 meta 避免与 SQLAlchemy 的 MetaData 冲突
     meta: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
     evidence_ids: Mapped[list] = mapped_column(JSON, default=list)
@@ -221,6 +237,33 @@ class PlanPatch(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
     )
+
+
+class MealPlan(Base):
+    """一天的餐食安排：由 skill 的食物库按目标宏量分配，过敏原已在生成时排除。
+
+    和 PlanAction 的分工：PlanAction 存"这一天有哪些动作/餐次槽位"，
+    MealPlan 存"这一餐具体吃什么、多少克、多少热量"。分表是因为一条记录
+    对应 2~4 个食材，塞进一行 JSON 之外还想按热量聚合。
+    """
+
+    __tablename__ = "meal_plans"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    plan_version_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("plan_versions.id"), index=True
+    )
+    day_index: Mapped[int] = mapped_column(Integer)
+    slot: Mapped[str] = mapped_column(String(32))
+    title: Mapped[str] = mapped_column(String(32))
+    # [{name, grams, kcal, protein, fat, carb}]
+    items: Mapped[list] = mapped_column(JSON, default=list)
+    kcal: Mapped[int] = mapped_column(Integer, default=0)
+    protein_g: Mapped[float] = mapped_column(Float, default=0.0)
+    fat_g: Mapped[float] = mapped_column(Float, default=0.0)
+    carb_g: Mapped[float] = mapped_column(Float, default=0.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class Approval(Base):
@@ -294,6 +337,33 @@ class Review(Base):
     trend: Mapped[dict] = mapped_column(JSON, default=dict)
     recommendation: Mapped[dict] = mapped_column(JSON, default=dict)
     status: Mapped[str] = mapped_column(String(24), default="draft")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class PlanDraft(Base):
+    """生成出来的计划草案：先看、再改（≤3 轮）、最后确认才落版本。
+
+    为什么单独建表而不是直接写 PlanVersion：草案要能整份丢弃，
+    而版本表是 append-only 的审计对象，两者生命周期不同。
+    """
+
+    __tablename__ = "plan_drafts"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    plan_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    base_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    instruction: Mapped[str] = mapped_column(Text, default="")
+    # 每轮反馈原话，复盘"为什么改了 3 轮"
+    feedback: Mapped[list] = mapped_column(JSON, default=list)
+    # 完整提案：{program, nutrition, meals, days, warnings, source}
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(16), default="draft")
+    round: Mapped[int] = mapped_column(Integer, default=1)
+    # blocked / needs_input 时给用户看的原话
+    question: Mapped[str] = mapped_column(Text, default="")
+    # 生成链路的技术信息：工具调用序列、降级原因、token/cost
+    trace: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

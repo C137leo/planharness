@@ -1,0 +1,119 @@
+# 21 把教练 skill 接进产品：生成 → 确认 → 执行
+
+> 这一轮解决四件事：今天页没有计划、画像不能录、计划不是模型 + skill 生成的、补丁写死了膝痛。
+
+## 1. 责任划分（先定这个，后面都是细节）
+
+| 角色 | 负责什么 | 不负责什么 |
+| --- | --- | --- |
+| **healthy-fitness-coach skill** | 训练结构、动作选择与降级、RIR、安全筛查、BMR/TDEE/宏量 | 生成文案、决定要不要提交 |
+| **模型（DeepSeek）** | 读 skill 的入口工作流，决定调哪个工具、解释为什么这么排 | 编造数字、绕过安全门 |
+| **本地安全门（Python）** | 过敏原、训练日上限、目标热量区间、红旗结论 | 算营养、选动作 |
+| **用户** | 确认 / 要求修改 | —— |
+
+一句话：**skill 算，模型编排，代码否决，用户确认。**
+
+## 2. skill 怎么接进来的
+
+skill 是 Node 写的确定性引擎（`agent-integration/coach.js` + `web/lib/nutrition.js`），
+我们的后端是 Python。做法是**只做协议转换，不重写逻辑**：
+
+```
+backend/app/skill/runner.js     ← 收 JSON、调 skill、吐 JSON
+backend/app/skill/bridge.py     ← SkillBridge：subprocess + 缓存 + 超时 + 显式降级
+```
+
+可用命令：`meta` / `skill_md` / `tools` / `safety_gate` / `screen_profile` /
+`plan_program` / `today_session` / `nutrition_targets` / `nutrition_plan` /
+`review_week` / `read_reference`。
+
+三条接入纪律照抄 skill 自己的要求：
+
+1. **原话必须转发**：红旗症状可能只出现在用户原话里，画像里没有。
+2. **工具串行**：安全门 → 计划 → 营养，安全门没过不调后面。
+3. **缺字段就问**：`needs_input` 返回什么字段就问什么，不替用户编默认值。
+
+动作目录也从 skill 生成，避免两套名字对不上：
+
+```bash
+SKILL_DIR=/path/to/skill python scripts/sync_exercise_catalog.py
+# → app/domain/exercise_catalog.py：302 个动作，其中 56 个标注为膝痛风险
+```
+
+## 3. 生成流程
+
+```
+用户说一句目标
+   → POST /plans/drafts
+   → PlanningAgent：模型带 skill 的 tools 走 function-calling
+        （无 Key/超时/解析失败 → 同一套工具的确定性编排）
+   → 组装 payload：program + nutrition + days + meals + warnings
+   → 本地安全门（过敏原 / 训练日 / 热量区间 / 红旗）
+   → plan_drafts 落库（status = ready / clarifying / invalid / blocked）
+   → 用户「再改改」（≤3 轮，旧草案 superseded）或「确认」
+   → POST /plans/drafts/{id}/confirm → 新 PlanVersion + MealPlan + 审计 plan_confirmed
+```
+
+草案阶段**不写任何版本**；确认后才有新版本；拒绝或取消不影响现有计划。
+
+## 4. 数据和接口
+
+新增表：`plan_drafts`（草案）、`meal_plans`（每餐食材与热量）。
+扩展现有表：`profiles.goal / goal_note / diet_preferences`、`goals.raw_text`、
+`plans.source / nutrition / program`、`plan_actions.kcal / meta`。
+
+| 方法 | 路径 | 作用 |
+| --- | --- | --- |
+| PUT | `/me/profile` | 录目标 / 体型 / 器械 / 过敏原 / 饮食偏好 |
+| POST | `/plans/drafts` | 生成草案（模型调 skill） |
+| GET | `/plans/drafts/{id}` | 取草案 |
+| POST | `/plans/drafts/{id}/feedback` | 再改改（≤3 轮） |
+| POST | `/plans/drafts/{id}/confirm` | 确认 → 落版本 |
+| POST | `/plans/drafts/{id}/reject` | 不要了 |
+| GET | `/patch-presets` | 预设改动入口（名称 + 示例 + 提示） |
+
+`/plans/current` 现在会带回 `source / nutrition / program / meals / today`，
+其中 `today` 是「今天练什么 + 今天吃什么」，前端不用自己算星期。
+
+## 5. 补丁不再是膝痛
+
+原来是「生成膝痛补丁」一个按钮、一个写死的场景。现在：
+
+- `GET /patch-presets` 给的是**用户能这么说的示例**：今天想休息 / 受伤了先停练 /
+  受伤了换部位 / 感觉进步了加强度 / 调饮食 / 这周没时间；
+- 用户也可以完全自由输入，`app/agent/change_agent.py` 让模型输出
+  「改哪个 slot_key、换成什么动作」的 JSON，再由确定性校验决定能不能用：
+  动作是否存在、槽位是否存在、是否同部位、是否超天数、是否重复改同一槽；
+- 任何一条校验失败就整份拒绝并追问一句话，不做"部分应用"；
+- 没有模型时退回规则表（`planner.parse_intent` + `plan_operations`），接口行为一致。
+
+安全门也补了一个真问题：模板计划用 `squat`，skill 计划用 `goblet-squat`，
+按字符串比对会漏检，现在统一走 `is_knee_risky()`（归一化 ref + skill 目录标注 + `movement_mode`）。
+
+## 6. 前端
+
+TabBar：今天 / 计划 / 进展 / 我的。今天页现在有三块：
+
+1. **今天练**：动作、组次/时长、主肌群；
+2. **今天吃**：每餐食材克数与热量、当天合计 vs 推荐摄入、蛋白目标；
+3. **改计划**：六个预设卡片 + 「自己说一句」+「换/生成整份计划」。
+
+计划页的旧文案「去逐条确认 / 生成膝痛补丁」已改成「去今天页修改计划」；
+按钮统一换成小尺寸胶囊（`.btn-sm`），只在主操作上保留实心色。
+
+## 7. 已验证 / 未验证
+
+已验证（可复现）：
+
+- `pytest`：**114 passed / 1 skipped**，其中 `tests/test_coach.py` 8 条覆盖
+  真实 skill 调用、半自动生成、3 轮上限、确认落库、拒绝、降级安全门
+- `pytest` 里 `SkillBridge` 若找不到 skill 会 skip 而不是假通过
+- `python -m app.evals`：8/8 场景、10/10 指标达标（旧链路未被破坏）
+- `npm run build:h5` 与 `tsc --noEmit` 通过
+
+未验证：
+
+- **浏览器里的真实观感**：当前环境没有浏览器，页面只做了构建期检查。
+- 模型真实 tool-calling 路径需要 `DEEPSEEK_API_KEY`；本地测试跑的是确定性编排，
+  两条路径共用同一套安全门与落库逻辑，但模型路径的失败率没有统计。
+- 小程序端未回归（需要 AppID）。

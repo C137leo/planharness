@@ -85,6 +85,10 @@ def seed_demo(session: Session) -> None:
         diet_pattern="omnivore",
         allergies=[],
         dislikes=[],
+        # 演示画像：一个明确的目标 + 可用的器械，让"生成计划"一上来就有东西可算
+        goal="fat_loss",
+        goal_note="4 周减脂：每周 3 天，每次 40 分钟，家里只有一对哑铃",
+        diet_preferences=[],
     )
     session.add(profile)
 
