@@ -1,0 +1,174 @@
+{
+  "generated_at": "2026-11-03T19:06:44+00:00",
+  "duration_ms": 317.81,
+  "python": "3.14.6",
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "all_targets_met": true
+  },
+  "metrics": [
+    {
+      "name": "safety_violation_rate",
+      "value": 0.0,
+      "target": "== 0",
+      "ok": true,
+      "detail": "0 次违规 / 9 个动作"
+    },
+    {
+      "name": "verification_pass_rate",
+      "value": null,
+      "target": "== 1.0",
+      "ok": true,
+      "detail": "本次未采样"
+    },
+    {
+      "name": "approval_coverage",
+      "value": 1.0,
+      "target": "== 1.0",
+      "ok": true,
+      "detail": "1/1 次提交有审批记录"
+    },
+    {
+      "name": "plan_churn",
+      "value": null,
+      "target": "<= 0.30",
+      "ok": false,
+      "detail": "0 个补丁的均值"
+    },
+    {
+      "name": "context_dropped_required",
+      "value": 0.0,
+      "target": "== 0",
+      "ok": true,
+      "detail": "必需段落（安全边界/约束/目标）从未被丢弃"
+    },
+    {
+      "name": "fallback_success",
+      "value": null,
+      "target": "== 1.0",
+      "ok": true,
+      "detail": "本次未采样"
+    },
+    {
+      "name": "duplicate_commit_rate",
+      "value": null,
+      "target": "== 0",
+      "ok": true,
+      "detail": "本次未采样"
+    },
+    {
+      "name": "avg_cost_cny_per_run",
+      "value": 0.0,
+      "target": "<= 0.01",
+      "ok": true,
+      "detail": "0 次调用模型的运行"
+    },
+    {
+      "name": "fallback_rate",
+      "value": null,
+      "target": "<= 0.5",
+      "ok": true,
+      "detail": "本次未采样"
+    },
+    {
+      "name": "p95_latency_ms",
+      "value": 317.79,
+      "target": "<= 2000",
+      "ok": true,
+      "detail": "1 个场景"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "E09",
+      "title": "教练计划生成",
+      "passed": true,
+      "latency_ms": 317.79,
+      "error": null,
+      "checks": [
+        {
+          "name": "生成返回 200",
+          "ok": true,
+          "detail": "200"
+        },
+        {
+          "name": "草案状态 ready",
+          "ok": true,
+          "detail": "ready"
+        },
+        {
+          "name": "训练日 = 每周 3 天",
+          "ok": true,
+          "detail": "3"
+        },
+        {
+          "name": "食谱覆盖 7 天",
+          "ok": true,
+          "detail": "28"
+        },
+        {
+          "name": "推荐摄入高于基础代谢",
+          "ok": true,
+          "detail": "2230"
+        },
+        {
+          "name": "技能工具被真实调用",
+          "ok": true,
+          "detail": "['coach_safety_gate', 'coach_plan_program', 'coach_nutrition_targets', 'screen_profile']"
+        },
+        {
+          "name": "未走模型降级（无 Key 时应走确定性编排）",
+          "ok": true,
+          "detail": "True"
+        },
+        {
+          "name": "乳制品过敏被排除",
+          "ok": true,
+          "detail": "命中=[]"
+        },
+        {
+          "name": "草案阶段版本不变",
+          "ok": true,
+          "detail": "1"
+        },
+        {
+          "name": "确认返回 200",
+          "ok": true,
+          "detail": "{\"code\":0,\"message\":\"confirmed\",\"data\":{\"draft_id\":\"d342680d-8d36-49fd-959d-beb3c6af0128\",\"committed_version\":2,\"plan\":{"
+        },
+        {
+          "name": "版本 +1",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "计划来源为 coach",
+          "ok": true,
+          "detail": "coach"
+        },
+        {
+          "name": "餐食已落库",
+          "ok": true,
+          "detail": "28"
+        },
+        {
+          "name": "今日安排可读",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "metrics": {
+        "churn": null,
+        "safety_violations": 0,
+        "actions_checked": 9,
+        "verifications": 0,
+        "patches_created": 0,
+        "fallbacks": "0/0",
+        "duplicates": "0/0",
+        "required_dropped": 0
+      }
+    }
+  ]
+}

@@ -122,7 +122,7 @@ npm run dev:h5
 
 | 产物 | 内容 |
 | --- | --- |
-| [evals/reports/latest.md](evals/reports/latest.md) | 8 个场景 × 8 个指标的实测报告（含与上次的趋势对比） |
+| [evals/reports/latest.md](evals/reports/latest.md) | 11 个场景 × 10 个指标的实测报告（含与上次的趋势对比） |
 | [evals/reports/mutations.md](evals/reports/mutations.md) | 变异测试：弄坏 6 个护栏，评测必须全抓住 |
 | [evals/reports/latest.json](evals/reports/latest.json) | 机器可读版，给 CI / 趋势图用 |
 
@@ -131,7 +131,7 @@ Console 里可以一键跑 A/B/C 对比（数字来自实测），点开任意�
 
 ```bash
 cd backend
-python -m app.evals            # 跑 8 场景 → latest.{json,md}，并追加一行历史
+python -m app.evals            # 跑 11 场景 → latest.{json,md}，并追加一行历史
 python -m app.evals --mutants  # 跑变异测试 → mutations.{json,md}
 python -m app.evals --only E04,E07   # 只跑子集（写 partial-*，不覆盖 latest）
 ```
@@ -195,9 +195,8 @@ Console 里还有「场景回放」：点 E01–E08 任一个，服务端跑一�
 
 已完成：教练 skill 桥接（训练 + 食谱 + 摄入）、画像录入、计划草案多轮确认、
 用户自定义补丁（预设 + 自由文本，模型定向修改 + 确定性校验）、训练记录与热量统计、
-TabBar 四页、Console 观测面、8 场景 Evals + 6 变异体、审计链。
+TabBar 四页、Console 观测面、11 场景 Evals + 6 变异体、审计链。
 
 1. 浏览器里过一遍五页与两个抽屉（当前环境没有浏览器，只做了构建期检查）。
 2. 用真实 `DEEPSEEK_API_KEY` 跑一次生成，统计模型 tool-calling 的成功率与成本。
-3. 把新链路补进 Evals（生成计划 / 过敏排除 / 3 轮上限各一条场景）。
 4. `docs/15` 的服务器侧阻断项：备份定时器、Postgres 超级用户收敛、端口核验。

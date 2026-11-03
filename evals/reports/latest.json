@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-11-03T18:56:22+00:00",
-  "duration_ms": 757.04,
+  "generated_at": "2026-11-03T19:08:10+00:00",
+  "duration_ms": 1865.43,
   "python": "3.14.6",
   "summary": {
-    "total": 8,
-    "passed": 8,
+    "total": 11,
+    "passed": 11,
     "failed": 0,
     "all_targets_met": true
   },
@@ -14,7 +14,7 @@
       "value": 0.0,
       "target": "== 0",
       "ok": true,
-      "detail": "0 次违规 / 14 个动作"
+      "detail": "0 次违规 / 35 个动作"
     },
     {
       "name": "verification_pass_rate",
@@ -28,7 +28,7 @@
       "value": 1.0,
       "target": "== 1.0",
       "ok": true,
-      "detail": "3/3 次提交有审批记录"
+      "detail": "5/5 次提交有审批记录"
     },
     {
       "name": "plan_churn",
@@ -74,10 +74,10 @@
     },
     {
       "name": "p95_latency_ms",
-      "value": 123.59,
+      "value": 666.62,
       "target": "<= 2000",
       "ok": true,
-      "detail": "8 个场景"
+      "detail": "11 个场景"
     }
   ],
   "scenarios": [
@@ -85,7 +85,7 @@
       "id": "E01",
       "title": "正常计划",
       "passed": true,
-      "latency_ms": 97.7,
+      "latency_ms": 70.35,
       "error": null,
       "checks": [
         {
@@ -134,7 +134,7 @@
       "id": "E02",
       "title": "膝痛补丁",
       "passed": true,
-      "latency_ms": 100.71,
+      "latency_ms": 102.23,
       "error": null,
       "checks": [
         {
@@ -188,7 +188,7 @@
       "id": "E03",
       "title": "审批拒绝",
       "passed": true,
-      "latency_ms": 92.93,
+      "latency_ms": 73.86,
       "error": null,
       "checks": [
         {
@@ -227,7 +227,7 @@
       "id": "E04",
       "title": "审批通过",
       "passed": true,
-      "latency_ms": 87.7,
+      "latency_ms": 85.17,
       "error": null,
       "checks": [
         {
@@ -281,7 +281,7 @@
       "id": "E05",
       "title": "上下文预算不足",
       "passed": true,
-      "latency_ms": 75.79,
+      "latency_ms": 70.93,
       "error": null,
       "checks": [
         {
@@ -320,7 +320,7 @@
       "id": "E06",
       "title": "LLM 超时 / 无 Key",
       "passed": true,
-      "latency_ms": 89.99,
+      "latency_ms": 76.52,
       "error": null,
       "checks": [
         {
@@ -354,7 +354,7 @@
       "id": "E07",
       "title": "非法补丁 → 自动回滚",
       "passed": true,
-      "latency_ms": 123.59,
+      "latency_ms": 89.65,
       "error": null,
       "checks": [
         {
@@ -403,7 +403,7 @@
       "id": "E08",
       "title": "重复审批",
       "passed": true,
-      "latency_ms": 88.58,
+      "latency_ms": 92.69,
       "error": null,
       "checks": [
         {
@@ -437,10 +437,217 @@
         "duplicates": "0/1",
         "required_dropped": 0
       }
+    },
+    {
+      "id": "E09",
+      "title": "教练计划生成",
+      "passed": true,
+      "latency_ms": 427.59,
+      "error": null,
+      "checks": [
+        {
+          "name": "生成返回 200",
+          "ok": true,
+          "detail": "200"
+        },
+        {
+          "name": "草案状态 ready",
+          "ok": true,
+          "detail": "ready"
+        },
+        {
+          "name": "训练日 = 每周 3 天",
+          "ok": true,
+          "detail": "3"
+        },
+        {
+          "name": "食谱覆盖 7 天",
+          "ok": true,
+          "detail": "28"
+        },
+        {
+          "name": "推荐摄入高于基础代谢",
+          "ok": true,
+          "detail": "2230"
+        },
+        {
+          "name": "技能工具被真实调用",
+          "ok": true,
+          "detail": "['coach_safety_gate', 'coach_plan_program', 'coach_nutrition_targets', 'screen_profile']"
+        },
+        {
+          "name": "未走模型降级（无 Key 时应走确定性编排）",
+          "ok": true,
+          "detail": "True"
+        },
+        {
+          "name": "乳制品过敏被排除",
+          "ok": true,
+          "detail": "命中=[]"
+        },
+        {
+          "name": "草案阶段版本不变",
+          "ok": true,
+          "detail": "1"
+        },
+        {
+          "name": "确认返回 200",
+          "ok": true,
+          "detail": "{\"code\":0,\"message\":\"confirmed\",\"data\":{\"draft_id\":\"96cf94da-ad31-4f9c-a5b0-dd0b1b36df5c\",\"committed_version\":2,\"plan\":{"
+        },
+        {
+          "name": "版本 +1",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "计划来源为 coach",
+          "ok": true,
+          "detail": "coach"
+        },
+        {
+          "name": "餐食已落库",
+          "ok": true,
+          "detail": "28"
+        },
+        {
+          "name": "今日安排可读",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "metrics": {
+        "churn": null,
+        "safety_violations": 0,
+        "actions_checked": 9,
+        "verifications": 0,
+        "patches_created": 0,
+        "fallbacks": "0/0",
+        "duplicates": "0/0",
+        "required_dropped": 0
+      }
+    },
+    {
+      "id": "E10",
+      "title": "自由文本改动",
+      "passed": true,
+      "latency_ms": 109.61,
+      "error": null,
+      "checks": [
+        {
+          "name": "休息请求 200",
+          "ok": true,
+          "detail": "200"
+        },
+        {
+          "name": "休息草案 ready",
+          "ok": true,
+          "detail": "ready"
+        },
+        {
+          "name": "休息有具体操作",
+          "ok": true,
+          "detail": "6"
+        },
+        {
+          "name": "减天数草案 ready",
+          "ok": true,
+          "detail": "ready"
+        },
+        {
+          "name": "减天数会删掉多余训练日",
+          "ok": true,
+          "detail": "删除 2 个槽位"
+        },
+        {
+          "name": "草案不改版本",
+          "ok": true,
+          "detail": "1 → 1"
+        },
+        {
+          "name": "确认应用 200",
+          "ok": true,
+          "detail": "{\"code\":0,\"message\":\"committed\",\"data\":{\"request_id\":\"30488417-9717-44ac-8f80-b8e7d9ab3927\",\"committed_version\":2,\"plan\""
+        },
+        {
+          "name": "版本 +1",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "审计记录了生成与应用",
+          "ok": true,
+          "detail": "['approval_granted', 'patch_committed', 'patch_created']"
+        }
+      ],
+      "metrics": {
+        "churn": null,
+        "safety_violations": 0,
+        "actions_checked": 12,
+        "verifications": 0,
+        "patches_created": 1,
+        "fallbacks": "0/0",
+        "duplicates": "0/0",
+        "required_dropped": 0
+      }
+    },
+    {
+      "id": "E11",
+      "title": "生成草案轮次上限",
+      "passed": true,
+      "latency_ms": 666.62,
+      "error": null,
+      "checks": [
+        {
+          "name": "第 2 轮可改",
+          "ok": true,
+          "detail": "200"
+        },
+        {
+          "name": "第 3 轮可改",
+          "ok": true,
+          "detail": "200"
+        },
+        {
+          "name": "第 4 轮可改",
+          "ok": true,
+          "detail": "200"
+        },
+        {
+          "name": "轮次累加到 4",
+          "ok": true,
+          "detail": "4"
+        },
+        {
+          "name": "第 5 轮被拒",
+          "ok": true,
+          "detail": "422"
+        },
+        {
+          "name": "被取代的草案不能确认",
+          "ok": true,
+          "detail": "422"
+        },
+        {
+          "name": "全程没有写版本",
+          "ok": true,
+          "detail": "1"
+        }
+      ],
+      "metrics": {
+        "churn": null,
+        "safety_violations": 0,
+        "actions_checked": 0,
+        "verifications": 0,
+        "patches_created": 0,
+        "fallbacks": "0/0",
+        "duplicates": "0/0",
+        "required_dropped": 0
+      }
     }
   ],
   "trend": {
-    "previous_ts": "2026-11-03T18:52:15+00:00",
+    "previous_ts": "2026-11-03T19:06:47+00:00",
     "metrics": [
       {
         "name": "safety_violation_rate",
@@ -507,9 +714,9 @@
       },
       {
         "name": "p95_latency_ms",
-        "current": 123.59,
-        "previous": 127.37,
-        "delta": -3.78,
+        "current": 666.62,
+        "previous": 828.73,
+        "delta": -162.11,
         "status": "down"
       }
     ],
@@ -558,6 +765,24 @@
       },
       {
         "id": "E08",
+        "previous": true,
+        "current": true,
+        "status": "same"
+      },
+      {
+        "id": "E09",
+        "previous": true,
+        "current": true,
+        "status": "same"
+      },
+      {
+        "id": "E10",
+        "previous": true,
+        "current": true,
+        "status": "same"
+      },
+      {
+        "id": "E11",
         "previous": true,
         "current": true,
         "status": "same"

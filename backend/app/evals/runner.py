@@ -29,7 +29,10 @@ class EvalRun:
 
     @property
     def passed(self) -> bool:
-        return all(r.passed for r in self.results) and all(m.ok for m in self.metrics)
+        # 没采到样的指标（子集运行）不参与判定，否则 `--only E09` 永远是"未达标"
+        return all(r.passed for r in self.results) and all(
+            m.ok or not m.sampled for m in self.metrics
+        )
 
     @property
     def failed_scenarios(self) -> list[ScenarioResult]:
@@ -153,6 +156,8 @@ def _aggregate(results: list[ScenarioResult]) -> list[Metric]:
             "<= 0.30",
             churn_mean is not None and churn_mean <= 0.30,
             f"{len(churns)} 个补丁的均值",
+            # 子集运行（--only）可能没有补丁样本，此时不能算失败
+            sampled=churn_mean is not None,
         )
     )
 

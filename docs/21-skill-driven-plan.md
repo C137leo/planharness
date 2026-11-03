@@ -136,7 +136,9 @@ usage: 10827 prompt / 919 completion tokens → 约 0.029 元
   真实 skill 调用、半自动生成、3 轮上限、确认落库、拒绝、降级安全门；
   `tests/test_patch_requests.py` 11 条覆盖自由文本改动、休息/减天数、受伤补全
 - `pytest` 里 `SkillBridge` 若找不到 skill 会 skip 而不是假通过
-- `python -m app.evals`：8/8 场景、10/10 指标达标（旧链路未被破坏）
+- `python -m app.evals`：**11/11 场景、10/10 指标达标**（E09 生成 / E10 自由文本改动 /
+  E11 轮次上限为新增，全程约 2.9 秒；旧 8 条不受影响）
+- `python -m app.evals --mutants`：6/6 变异体仍被抓住
 - `npm run build:h5` 与 `tsc --noEmit` 通过
 
 未验证：

@@ -24,6 +24,7 @@ from sqlalchemy import select
 from app.config import Settings
 from app.domain.patches import FORBIDDEN_KNEE_REFS
 from app.main import create_app
+from app.skill.bridge import get_bridge
 from app.models import AgentRun, Plan, PlanPatch, PlanVersion
 
 
@@ -539,3 +540,183 @@ def e08_duplicate_approve() -> ScenarioResult:
             _expect(checks, "计划停在 v2", plan.current_version == 2, str(plan.current_version))
 
     return ScenarioResult("E08", "重复审批", checks, sample)
+
+
+# ---------------------------------------------------------------- E09–E11（教练链路）
+#
+# 这三条要跑真实的 skill（Node 引擎）。没有 skill 的开发机/CI 上不注册，
+# 而不是"假装通过"——评测报告里少三条，比多三条假的诚实。
+
+DAIRY_FOODS = {"希腊酸奶", "牛奶", "乳清蛋白粉", "奶酪", "黄油"}
+
+
+def _setup_coach_profile(client: TestClient, headers) -> dict:
+    resp = client.put("/api/v1/me/profile", headers=headers, json={
+        "goal": "fat_loss",
+        "sex": "male",
+        "birth_year": 1997,
+        "height_cm": 178,
+        "weight_kg": 78,
+        "weekly_days": 3,
+        "session_minutes": 40,
+        "equipment": ["dumbbell"],
+        "allergies": ["乳制品"],
+        "goal_note": "3 个月瘦 8 公斤，不想每天称重",
+    })
+    assert resp.status_code == 200, resp.text
+    return resp.json()["data"]
+
+
+def e09_coach_generation() -> ScenarioResult:
+    """生成整份计划：训练日、食谱、推荐摄入都要有，且过敏原被排除。"""
+    checks: list[Check] = []
+    sample = Sample()
+    client, app = _env()
+    with client:
+        headers = _auth(client)
+        _setup_coach_profile(client, headers)
+
+        resp = client.post("/api/v1/plans/drafts", headers=headers,
+                           json={"instruction": "减脂，每周 3 天每次 40 分钟，家里有哑铃"})
+        _expect(checks, "生成返回 200", resp.status_code == 200, str(resp.status_code))
+        draft = resp.json()["data"]
+        meta = draft.get("meta") or {}
+
+        _expect(checks, "草案状态 ready", draft["status"] == "ready", draft["status"])
+        _expect(checks, "训练日 = 每周 3 天", len(draft["days"]) == 3, str(len(draft["days"])))
+        _expect(checks, "食谱覆盖 7 天", len(draft["meals"]) == 28, str(len(draft["meals"])))
+        _expect(checks, "推荐摄入高于基础代谢",
+                (draft["nutrition"].get("target_kcal") or 0) > (draft["nutrition"].get("bmr") or 0),
+                str(draft["nutrition"].get("target_kcal")))
+        _expect(checks, "技能工具被真实调用",
+                {"coach_safety_gate", "coach_plan_program", "coach_nutrition_targets"}
+                <= set(meta.get("tools_called") or []),
+                str(meta.get("tools_called")))
+        _expect(checks, "未走模型降级（无 Key 时应走确定性编排）",
+                meta.get("model_fallback") is True, str(meta.get("model_fallback")))
+
+        names = {item["name"] for meal in draft["meals"] for item in meal["items"]}
+        blocked = names & DAIRY_FOODS
+        _expect(checks, "乳制品过敏被排除", not blocked, f"命中={sorted(blocked)}")
+
+        # 确认前不写版本
+        before = _plan(client, headers)
+        _expect(checks, "草案阶段版本不变", before["version"] == 1, str(before["version"]))
+
+        resp = client.post(f"/api/v1/plans/drafts/{draft['draft_id']}/confirm",
+                           headers=headers, json={"comment": "确认"})
+        _expect(checks, "确认返回 200", resp.status_code == 200, resp.text[:120])
+        body = resp.json()["data"]
+        plan = body["plan"]
+        _expect(checks, "版本 +1", body["committed_version"] == before["version"] + 1,
+                str(body["committed_version"]))
+        _expect(checks, "计划来源为 coach", plan["source"] == "coach", plan["source"])
+        _expect(checks, "餐食已落库", bool(plan["meals"]), str(len(plan["meals"])))
+        _expect(checks, "今日安排可读", plan["today"] is not None, "")
+
+        sample.actions_checked += len(plan["actions"])
+        sample.commits += 1
+        sample.commits_with_approval += 1
+
+    return ScenarioResult("E09", "教练计划生成", checks, sample)
+
+
+def e10_free_text_change() -> ScenarioResult:
+    """自由文本改动：休息、只能练两天，都要能落到具体槽位，且审批前不写库。"""
+    checks: list[Check] = []
+    sample = Sample()
+    client, app = _env()
+    with client:
+        headers = _auth(client)
+        plan = _plan(client, headers)
+
+        rest = client.post(f"/api/v1/plans/{plan['plan_id']}/patch-requests",
+                           headers=headers, json={"text": "今天想休息"})
+        _expect(checks, "休息请求 200", rest.status_code == 200, str(rest.status_code))
+        rest_data = rest.json()["data"]
+        _expect(checks, "休息草案 ready", rest_data["status"] == "ready", rest_data["status"])
+        _expect(checks, "休息有具体操作",
+                bool((rest_data.get("draft") or {}).get("operations")),
+                str(len((rest_data.get("draft") or {}).get("operations") or [])))
+
+        limited = client.post(f"/api/v1/plans/{plan['plan_id']}/patch-requests",
+                              headers=headers, json={"text": "这周只能练两天，每次 30 分钟"})
+        limited_data = limited.json()["data"]
+        _expect(checks, "减天数草案 ready", limited_data["status"] == "ready", limited_data["status"])
+        removes = [op for op in (limited_data.get("draft") or {}).get("operations", [])
+                   if op["op"] == "remove_action"]
+        _expect(checks, "减天数会删掉多余训练日", bool(removes), f"删除 {len(removes)} 个槽位")
+
+        unchanged = _plan(client, headers)
+        _expect(checks, "草案不改版本", unchanged["version"] == plan["version"],
+                f"{plan['version']} → {unchanged['version']}")
+
+        approve = client.post(
+            f"/api/v1/patch-requests/{rest_data['request_id']}/approve",
+            headers=headers, json={"comment": "确认休息"},
+        )
+        _expect(checks, "确认应用 200", approve.status_code == 200, approve.text[:120])
+        after = approve.json()["data"]
+        _expect(checks, "版本 +1", after["committed_version"] == plan["version"] + 1,
+                str(after["committed_version"]))
+        sample.patches_created += 1
+        sample.approval_decisions += 1
+        sample.commits += 1
+        sample.commits_with_approval += 1
+        sample.actions_checked += len(after["plan"]["actions"])
+
+        audit = client.get(f"/api/v1/audit/{plan['plan_id']}", headers=headers).json()["data"]
+        actions = {event["action"] for event in audit}
+        _expect(checks, "审计记录了生成与应用",
+                {"patch_created", "approval_granted", "patch_committed"} <= actions, str(sorted(actions)))
+
+    return ScenarioResult("E10", "自由文本改动", checks, sample)
+
+
+def e11_draft_round_limit() -> ScenarioResult:
+    """生成草案最多改 3 轮：第 4 轮拒绝，旧草案不能再确认。"""
+    checks: list[Check] = []
+    sample = Sample()
+    client, app = _env()
+    with client:
+        headers = _auth(client)
+        _setup_coach_profile(client, headers)
+
+        first = client.post("/api/v1/plans/drafts", headers=headers,
+                            json={"instruction": "减脂，每周 3 天"}).json()["data"]
+        current = first
+        for index in range(3):
+            resp = client.post(f"/api/v1/plans/drafts/{current['draft_id']}/feedback",
+                               headers=headers, json={"text": f"再保守一点 {index}"})
+            _expect(checks, f"第 {index + 2} 轮可改", resp.status_code == 200, str(resp.status_code))
+            current = resp.json()["data"]
+
+        _expect(checks, "轮次累加到 4", current["round"] == 4, str(current["round"]))
+
+        over = client.post(f"/api/v1/plans/drafts/{current['draft_id']}/feedback",
+                           headers=headers, json={"text": "再改一次"})
+        _expect(checks, "第 5 轮被拒", over.status_code == 422, str(over.status_code))
+
+        stale = client.post(f"/api/v1/plans/drafts/{first['draft_id']}/confirm",
+                            headers=headers, json={"comment": "旧草案"})
+        _expect(checks, "被取代的草案不能确认", stale.status_code == 422, str(stale.status_code))
+
+        _expect(checks, "全程没有写版本", _plan(client, headers)["version"] == 1,
+                str(_plan(client, headers)["version"]))
+
+    return ScenarioResult("E11", "生成草案轮次上限", checks, sample)
+
+
+# 只有 skill 真的可用时才注册这三条，避免在无 skill 的机器上假通过
+if get_bridge().available:
+    SCENARIOS.extend([
+        Scenario("E09", "教练计划生成",
+                 "模型→skill 生成整份计划：训练日 / 食谱 / 摄入目标，过敏原被排除，确认后才落版本",
+                 e09_coach_generation),
+        Scenario("E10", "自由文本改动",
+                 "休息 / 只能练两天 → 具体槽位操作；审批前不写库，审批后版本 +1",
+                 e10_free_text_change),
+        Scenario("E11", "生成草案轮次上限",
+                 "草案最多改 3 轮，第 4 轮 422；被取代的草案不能确认",
+                 e11_draft_round_limit),
+    ])
