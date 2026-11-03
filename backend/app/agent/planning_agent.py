@@ -346,6 +346,7 @@ class PlanningAgent:
                 "tools_called": [entry.get("node") for entry in trace if entry.get("node") != "model"],
                 "model_fallback": fallback,
                 "usage": usage,
+                "cost_cny": _cost_cny(usage),
                 "model_output_chars": len(stripped),
             },
         }
@@ -375,6 +376,22 @@ class PlanningAgent:
 
         return PlanProposal(status=payload["status"], payload=payload, trace=trace,
                             usage=usage, fallback=fallback)
+
+
+# 默认价格（元 / 百万 token），与 LlmBudget 的默认值保持一致
+PRICE_IN_CNY_PER_MTOK = 2.0
+PRICE_OUT_CNY_PER_MTOK = 8.0
+
+
+def _cost_cny(usage: dict) -> float:
+    """按服务端返回的 token 数算成本；没有 usage 就是 0，不估。"""
+    tokens_in = int(usage.get("prompt_tokens") or 0)
+    tokens_out = int(usage.get("completion_tokens") or 0)
+    return round(
+        tokens_in / 1_000_000 * PRICE_IN_CNY_PER_MTOK
+        + tokens_out / 1_000_000 * PRICE_OUT_CNY_PER_MTOK,
+        6,
+    )
 
 
 def _body(profile_payload: dict) -> dict:

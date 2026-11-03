@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 
-from app.domain.catalog import all_exercise_refs, is_knee_risky_ref, name_of
+from app.domain.catalog import is_knee_risky_ref, name_of, refs_for_actions
 from app.domain.patches import is_knee_risky
 from app.domain.planner import QUICK_ACTIONS, Intent, parse_intent, plan_operations
 
@@ -24,6 +24,9 @@ CHANGE_CONTRACT = """你是计划修改器。根据用户这句话，输出**具
 1. 只允许 replace_action / remove_action 两种操作；slot_key 必须来自给定清单。
 2. replace_action 的 after_action_ref 必须来自给定的动作清单。
 3. 尽量少改：能改 1 个槽位就不要改 3 个。
+3b. 「今天想休息 / 今天不练 / 挪到明天」这类需求用 remove_action 把那一训练日的槽位删掉，
+    不要输出"换成同一个动作"的 replace（那是空操作）。
+3c. 只有真的换动作才用 replace_action，且 after_action_ref 必须与原来的不同。
 4. 受伤时不能换成同一部位的动作；可用天数减少时必须删掉多余训练日。
 5. 信息不足（比如只说了"受伤了"但没说部位）时，status 用 clarifying 并在 question 里问一句。
 6. 只输出 JSON，不要 Markdown 围栏：
@@ -80,8 +83,6 @@ def validate_operations(operations: list[dict], actions: list[dict],
     normalized: list[dict] = []
     seen: set[str] = set()
 
-    if not operations:
-        errors.append("没有解析出具体要改的槽位")
     if len(operations) > MAX_OPERATIONS:
         errors.append(f"一次最多改 {MAX_OPERATIONS} 个槽位，这次解析出 {len(operations)} 个")
 
@@ -110,8 +111,14 @@ def validate_operations(operations: list[dict], actions: list[dict],
         if ref not in available_refs:
             errors.append(f"动作不在可选清单里: {ref or '(空)'}")
             continue
-        if current["action_type"] == "exercise" and ref and ref == current["action_ref"]:
-            errors.append(f"{slot_key} 换成了同一个动作: {ref}")
+        want_sets = op.get("sets")
+        want_reps = op.get("reps")
+        changed_shape = (
+            (want_sets is not None and int(want_sets) != int(current.get("sets") or 0))
+            or (want_reps is not None and int(want_reps) != int(current.get("reps") or 0))
+        )
+        if ref == current["action_ref"] and not changed_shape:
+            # 空操作：模型表达"别改这个"时会这么写，直接忽略，不算错误
             continue
 
         candidate = {"action_ref": ref, "meta": {"name_zh": ref}}
@@ -126,8 +133,8 @@ def validate_operations(operations: list[dict], actions: list[dict],
             "after_action": {
                 "action_type": current["action_type"],
                 "action_ref": ref,
-                "sets": current.get("sets"),
-                "reps": current.get("reps"),
+                "sets": int(want_sets) if want_sets is not None else current.get("sets"),
+                "reps": int(want_reps) if want_reps is not None else current.get("reps"),
                 "duration_min": current.get("duration_min"),
                 "meta": {"name_zh": ref, "source": "change_agent"},
             },
@@ -180,7 +187,7 @@ def propose_without_model(text: str, quick_action: str,
 def propose_with_model(client, text: str, quick_action: str, actions: list[dict],
                        constraints: dict) -> dict:
     """模型编排：一次调用产出操作；解析失败就抛异常，由调用方退回规则表。"""
-    refs = all_exercise_refs()
+    refs = refs_for_actions(actions)
     messages = build_messages(text, quick_action, actions, refs, constraints)
     reply = client.complete(messages, tools=None, temperature=0.1, max_tokens=700)
     content = (reply["message"].get("content") or "").strip()
@@ -200,6 +207,11 @@ def propose_with_model(client, text: str, quick_action: str, actions: list[dict]
             "intent": {"kind": str(data.get("kind") or "other")},
             "source": "model",
         }
+    if not normalized:
+        # 模型没给出有效操作：让规则表再试一次，它认得"休息/减天数/清淡"这类结构性改动
+        fallback = propose_without_model(text, quick_action, actions)
+        fallback["source"] = "rules_after_model"
+        return fallback
     intent = parse_intent(text, quick_action)
     return {
         "status": "ready",

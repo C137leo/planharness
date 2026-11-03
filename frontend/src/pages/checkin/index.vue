@@ -215,9 +215,9 @@ onLoad(() => {
       </view>
     </view>
 
-    <button class="btn" :disabled="busy" @click="submit">
-      {{ busy ? '保存中…' : '保存今日打卡' }}
-    </button>
+    <view class="btn-row">
+      <view class="btn-sm primary" @click="submit">{{ busy ? '保存中…' : '保存今日打卡' }}</view>
+    </view>
   </view>
 </template>
 

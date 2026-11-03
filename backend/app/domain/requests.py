@@ -26,7 +26,13 @@ from app.domain.patches import (
     rollback_plan,
 )
 from app.agent.change_agent import propose_with_model, propose_without_model
-from app.domain.planner import Intent, parse_intent, plan_operations, violates_constraints
+from app.domain.planner import (
+    Intent,
+    cover_injured_slots,
+    parse_intent,
+    plan_operations,
+    violates_constraints,
+)
 from app.models import (
     PatchFeedback,
     PatchRequest,
@@ -109,7 +115,7 @@ def create_request(
         return request
 
     intent = parse_intent(text, quick_action)
-    request.intent = intent.to_dict()
+    request.intent = {**intent.to_dict(), "source": "pending"}
 
     if intent.needs_clarification:
         request.status = "clarifying"
@@ -132,16 +138,22 @@ def create_request(
     if proposal is None:
         proposal = propose_without_model(text, quick_action, base)
 
+    request.intent = {**intent.to_dict(), "source": proposal.get("source", "rules")}
+
     if proposal["status"] != "ready":
         request.status = "clarifying"
         request.question = proposal.get("question") or "还需要一点信息才能改。"
-        request.intent = {**intent.to_dict(), "source": proposal.get("source", "rules")}
         db.commit()
         db.refresh(request)
         return request
 
     operations = proposal["operations"]
     risks = list(proposal.get("risks") or [])
+    # 模型可能只改了一部分；硬约束必须被补齐（模型提议 + 代码补全）
+    extra = cover_injured_slots(intent, base, operations)
+    if extra:
+        operations = operations + extra
+        risks.append(f"已补全 {len(extra)} 处涉及受伤部位的槽位")
 
     proposed = _apply_operations(base, operations)
 

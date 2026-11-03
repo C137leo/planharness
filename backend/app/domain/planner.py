@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from app.domain.patches import FORBIDDEN_KNEE_REFS
+from app.domain.planning import MEALS
 
 # ---------------------------------------------------------------- 意图
 
@@ -132,8 +133,13 @@ def parse_intent(text: str, quick_action: str = "") -> Intent:
             kind = "injury_stop"
         elif any(w in text for w in increase_hints):
             kind = "increase"
-        elif any(w in text for w in ("饮食", "吃", "餐", "过敏", "忌口")):
+        elif any(w in text for w in ("饮食", "吃", "餐", "过敏", "忌口", "清淡", "少油", "少盐")):
             kind = "diet"
+        # 只说"这周只能练两天"也算明确需求：压训练日，不一定要受伤
+        elif _find_days(text) is not None and any(
+            w in text for w in ("只能", "没时间", "没那么多时间", "抽不出", "这周")
+        ):
+            kind = "time"
         else:
             kind = "other"
 
@@ -179,6 +185,11 @@ def parse_intent(text: str, quick_action: str = "") -> Intent:
 
 
 # ---------------------------------------------------------------- 规划操作
+
+
+# 晚餐候选：按热量从低到高排，diet 意图从里面挑更轻的一份
+LIGHT_DINNERS = ("tofu_veggies", "rice_veggies", "fish_veggies", "beef_salad")
+MEAL_INDEX: dict[str, dict] = {meal["ref"]: meal for meal in MEALS}
 
 
 def _action_body_parts(ref: str) -> list[str]:
@@ -335,10 +346,115 @@ def plan_operations(intent: Intent, actions: list[dict]) -> tuple[list[dict], li
         return operations, risks
 
     if intent.kind == "diet":
+        # 只动晚餐：换成热量更低的餐食模板，训练结构保持不变
+        light = [ref for ref in LIGHT_DINNERS if ref in MEAL_INDEX]
+        for item in actions:
+            if item["action_type"] != "meal" or item.get("slot") != "meal_dinner":
+                continue
+            current = item["action_ref"]
+            replacement = next((ref for ref in light if ref != current), None)
+            if replacement is None:
+                continue
+            operations.append(
+                {
+                    "op": "replace_action",
+                    "slot_key": item["slot_key"],
+                    "before_action_ref": current,
+                    "after_action": {
+                        "action_type": "meal",
+                        "action_ref": replacement,
+                        "sets": None,
+                        "reps": None,
+                        "duration_min": None,
+                        "portion_g": MEAL_INDEX[replacement].get("portion_g"),
+                        "kcal": MEAL_INDEX[replacement].get("kcal"),
+                        "meta": {"name": MEAL_INDEX[replacement]["name"],
+                                 "allergens": MEAL_INDEX[replacement].get("allergens", [])},
+                    },
+                    "reason": "晚餐换成更清淡的一份（少油、热量更低）",
+                }
+            )
         risks.append("饮食建议不构成医学营养处方；如有基础疾病请咨询专业人士。")
-        return [], risks
+        return operations, risks
+
+    if intent.kind == "time":
+        # 时间不够：只保留前 N 个训练日，其余训练日删掉；餐食不动
+        if not intent.available_days:
+            return [], ["需要知道这周能练几天"]
+        training_days = sorted(
+            {a["day_index"] for a in exercises if a.get("slot") in ("strength", "cardio")}
+        )
+        overflow = training_days[intent.available_days:]
+        for day in overflow:
+            for item in exercises:
+                if item["day_index"] != day:
+                    continue
+                operations.append(
+                    {
+                        "op": "remove_action",
+                        "slot_key": item["slot_key"],
+                        "before_action_ref": item["action_ref"],
+                        "reason": f"本周只能练 {intent.available_days} 天，去掉第 {day} 天训练",
+                    }
+                )
+        risks.append("压缩天数后仍建议保留一次低强度活动（散步/拉伸）。")
+        return operations, risks
 
     return [], ["暂时还不支持这类调整"]
+
+
+def cover_injured_slots(intent: Intent, base: list[dict],
+                        operations: list[dict]) -> list[dict]:
+    """模型可能只改一部分：把"仍然涉及受伤部位"的槽位补齐。
+
+    这是 harness 该做的事——模型的提议可以不全，但**结果**必须满足硬约束。
+    返回需要追加的操作（不修改入参）。
+    """
+    from app.domain.patches import _apply_operations
+
+    if intent.kind not in ("injury_stop", "injury_swap") or not intent.body_parts:
+        return []
+    injured = set(intent.body_parts)
+    try:
+        after = _apply_operations(base, operations)
+    except Exception:  # noqa: BLE001 - 操作本身有问题时交给上层报错
+        return []
+
+    touched = {op.get("slot_key") for op in operations}
+    extra: list[dict] = []
+    used_refs = {item["action_ref"] for item in after}
+    for item in after:
+        if item["action_type"] != "exercise" or item["slot_key"] in touched:
+            continue
+        parts = set(_action_body_parts(item["action_ref"]))
+        if not (parts & injured):
+            continue
+        if intent.kind == "injury_stop":
+            extra.append({
+                "op": "remove_action",
+                "slot_key": item["slot_key"],
+                "before_action_ref": item["action_ref"],
+                "reason": f"{'/'.join(intent.body_parts)} 不适，补删这个仍涉及该部位的动作",
+            })
+            continue
+        replacement = _pick_safe_replacement(item, injured, used_refs)
+        if replacement is None:
+            continue
+        used_refs.add(replacement)
+        extra.append({
+            "op": "replace_action",
+            "slot_key": item["slot_key"],
+            "before_action_ref": item["action_ref"],
+            "after_action": {
+                "action_ref": replacement,
+                "duration_min": 20 if replacement == "easy_walk" else None,
+                "sets": 3 if replacement not in ("easy_walk", "stretch") else None,
+                "reps": 12 if replacement not in ("easy_walk", "stretch") else None,
+                "meta": {"name": replacement, "equipment": []},
+            },
+            "reason": f"{'/'.join(intent.body_parts)} 不适，补齐替换",
+        })
+    return extra
 
 
 def violates_constraints(actions: list[dict], intent: Intent) -> list[str]:

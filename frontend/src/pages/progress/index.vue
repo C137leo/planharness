@@ -142,7 +142,9 @@ onShow(load)
         </view>
       </view>
 
-      <button class="btn" @click="openCheckin">去打卡</button>
+      <view class="btn-row">
+        <view class="btn-sm primary" @click="openCheckin">去打卡</view>
+      </view>
       <view class="muted" style="margin-top: 8px; text-align: center">
         记录日期 {{ todayStr() }}
       </view>

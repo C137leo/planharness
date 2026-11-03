@@ -175,3 +175,31 @@ def test_revision_supersedes_previous_draft(client, auth_headers) -> None:
         json={"comment": "旧草案"},
     )
     assert stale.status_code == 422, "被取代的草案不能再提交"
+
+
+def test_rest_and_time_intents_are_supported(client, auth_headers) -> None:
+    """用户能自由说：休息、只能练两天。两者都要能出草案，而不是追问。"""
+    rest = _ask(client, auth_headers, "今天想休息")
+    assert rest["status"] == "ready"
+    assert rest["draft"]["operations"], "休息至少要动一个槽位"
+
+    limited = _ask(client, auth_headers, "这周只能练两天，每次 30 分钟")
+    assert limited["status"] == "ready"
+    assert limited["intent"]["kind"] == "time"
+    assert any(op["op"] == "remove_action" for op in limited["draft"]["operations"])
+
+
+def test_injury_stop_covers_all_injured_slots(client, auth_headers) -> None:
+    """「停止腿部训练」不能只删一个动作：凡是涉及受伤部位的都要被处理完。"""
+    data = _ask(client, auth_headers, "膝盖受伤了，先停止所有腿部训练")
+    assert data["status"] == "ready"
+    ops = data["draft"]["operations"]
+    assert ops
+
+    plan = _current(client, auth_headers)
+    removed = {op["slot_key"] for op in ops if op["op"] == "remove_action"}
+    risky = {"squat", "bodyweight_squat", "lunge", "jump_squat", "run"}
+    for action in plan["actions"]:
+        if action["action_type"] != "exercise" or action["action_ref"] not in risky:
+            continue
+        assert action["slot_key"] in removed, f"{action['slot_key']} 仍涉及膝主导动作但没被删"

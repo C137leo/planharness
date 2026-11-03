@@ -198,24 +198,26 @@ onShow(load)
         <text class="muted small">我已核对以上 3 处变更，确认提交 v{{ pending.base_version + 1 }}</text>
       </view>
 
-      <button class="btn" :disabled="busy || cooldown || !confirmed" @click="approve">
-        {{ busy ? '处理中…' : cooldown ? '请先核对变更…' : '通过并提交 v' + (pending.base_version + 1) }}
-      </button>
-      <button class="btn danger" :disabled="busy || cooldown" @click="reject">拒绝</button>
+      <view class="btn-row">
+        <view class="btn-sm primary" @click="approve">
+          {{ busy ? '处理中…' : cooldown ? '请先核对变更…' : '通过并提交 v' + (pending.base_version + 1) }}
+        </view>
+        <view class="btn-sm accent" @click="reject">拒绝</view>
+      </view>
     </template>
 
-    <!-- 没有 pending：只有历史，给出「去生成补丁」的入口 -->
+    <!-- 没有 pending：只有历史，给出「去今天页改计划」的入口 -->
     <template v-else>
       <view class="card">
         <view class="muted">
           当前没有等待审批的补丁。审批按钮只会在有新补丁时出现。
         </view>
-        <button class="btn" style="margin-top: 14px" @click="uni.switchTab({ url: '/pages/today/index' })">
-          去今天页修改计划
-        </button>
-        <button class="btn secondary" style="margin-top: 10px" :disabled="busy" @click="regenerate">
-          {{ busy ? '生成中…' : '重新生成计划（换一版再打补丁）' }}
-        </button>
+        <view class="btn-row">
+          <view class="btn-sm primary" @click="uni.switchTab({ url: '/pages/today/index' })">
+            去今天页修改计划
+          </view>
+          <view class="btn-sm" @click="regenerate">{{ busy ? '生成中…' : '重新生成模板计划' }}</view>
+        </view>
         <view class="muted small" style="margin-top: 8px">
           打完一次补丁后，风险动作已被替换；要再演示一遍，先全量重新生成计划。
         </view>
