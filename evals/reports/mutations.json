@@ -1,0 +1,108 @@
+{
+  "generated_at": "2026-11-03T17:33:32+00:00",
+  "score": 1.0,
+  "killed": 6,
+  "total": 6,
+  "mutants": [
+    {
+      "id": "M1",
+      "name": "退化成全量重生成",
+      "description": "把 _diff 改成「几乎全改」，等价于 A 模式（裸奔）的 churn",
+      "expected_killers": [
+        "E02"
+      ],
+      "killed": true,
+      "failed_scenarios": [
+        "E02"
+      ],
+      "checks_broken": [
+        "E02:改动 3 个槽位",
+        "E02:churn 25%"
+      ]
+    },
+    {
+      "id": "M2",
+      "name": "驳回落成通过",
+      "description": "reject_patch 实际调用 approve_patch，用户不同意也提交",
+      "expected_killers": [
+        "E03"
+      ],
+      "killed": true,
+      "failed_scenarios": [
+        "E03"
+      ],
+      "checks_broken": [
+        "E03:补丁状态 rejected",
+        "E03:计划仍为 v1"
+      ]
+    },
+    {
+      "id": "M3",
+      "name": "验证器恒通过",
+      "description": "verify_commit 永远返回 passed=True，提交后不再核对事实",
+      "expected_killers": [
+        "E07"
+      ],
+      "killed": true,
+      "failed_scenarios": [
+        "E07"
+      ],
+      "checks_broken": [
+        "E07:审批返回 409",
+        "E07:回滚后 12 个动作",
+        "E07:回滚内容与提交前一致",
+        "E07:run 标记 VERIFICATION_FAILED"
+      ]
+    },
+    {
+      "id": "M4",
+      "name": "预算配置被忽略",
+      "description": "上下文装配永远用超大预算，required 超限也不会告警",
+      "expected_killers": [
+        "E05"
+      ],
+      "killed": true,
+      "failed_scenarios": [
+        "E05"
+      ],
+      "checks_broken": [
+        "E05:记录上下文错误",
+        "E05:required 未被丢弃"
+      ]
+    },
+    {
+      "id": "M5",
+      "name": "降级文案为空",
+      "description": "fallback_explanation 返回空串，模型不可用时用户看不到任何解释",
+      "expected_killers": [
+        "E05",
+        "E06"
+      ],
+      "killed": true,
+      "failed_scenarios": [
+        "E05",
+        "E06"
+      ],
+      "checks_broken": [
+        "E05:解释降级为非空文本",
+        "E06:解释降级为非空文本",
+        "E06:降级文案提到本次调整"
+      ]
+    },
+    {
+      "id": "M6",
+      "name": "安全门被关闭",
+      "description": "_safety_check 恒返回空，禁忌动作与超天数全部放行",
+      "expected_killers": [
+        "E02"
+      ],
+      "killed": true,
+      "failed_scenarios": [
+        "E02"
+      ],
+      "checks_broken": [
+        "E02:安全门拦截非法可用天数"
+      ]
+    }
+  ]
+}

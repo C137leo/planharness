@@ -1,6 +1,6 @@
 # 12 架构总结（Architecture Summary）
 
-> 对应代码：`backend/` 工作区（15 个接口 / 13 张表 / 约 3800 行 / 37 个测试全绿）
+> 对应代码：`backend/` 工作区（20+ 个接口 / 14 张表 / 约 5000 行 / 90 个测试全绿）
 > 用途：面试讲解、新人接手、以及「这个改动该放哪一层」的判断依据。
 > 配套阅读：[10 代码地图与流程图](10-code-map-and-flows.md)（看代码怎么跑）、[03 领域模型与协议](03-domain-and-protocol.md)（看表结构与契约）。
 
@@ -174,7 +174,8 @@ curl -s localhost:8000/docs | grep -c "https://cdn"
 | `agent/checkpointer.py` | 118 | dev 内存 / prod Postgres 的选择、连接池与 setup | `make_checkpointer()`、`resolve_backend()` |
 | `agent/checkpoint_cleanup.py` | 128 | 按 thread 清理过期 checkpoint（可 CLI / systemd timer 调用） | `purge_old_checkpoints()`、`python -m app.agent.checkpoint_cleanup` |
 | `agent/verify.py` | 192 | **提交后独立验证器**：只查数据库事实，不调模型 | `verify_commit()` → `VerificationResult` |
-| `evals/` | 873 | **任务级评测**：8 场景 + 8 指标 + JSON/MD 报告 | `python -m app.evals` |
+| `evals/` | 873 | **任务级评测**：8 场景 + 10 指标 + JSON/MD 报告 | `python -m app.evals` |
+| `audit.py` | 210 | **审计哈希链**：append / verify，篡改与删改可定位到 seq | `append_event()`、`verify_stream()` |
 | `tests/` | 800+ | 37 个用例：api 7 / auth 6 / **context 9** / planning 4 / patches 3 / **agent 2** / prompts 2 / fallback 2 / deepseek 2 | — |
 
 ---
@@ -403,6 +404,7 @@ JWT 的卖点是服务端不存会话，代价是**签出去的 token 收不回�
 | **可撤销** | `token_version` + `ver` claim 比对 | `test_token_is_revoked_after_version_bump` |
 | **上下文可解释** | 每次装配写 `context_snapshots`（保留了哪些、丢了哪些、是否截断） | `test_context.py` 9 个用例 |
 | **完成可验证** | 提交后跑独立验证器（版本指针/审批记录/禁忌动作/churn），结论写 `agent_runs.output.verification`；**不通过自动回滚**到提交前版本，接口返回 409 | `test_agent_graph.py::test_verify_failure_triggers_auto_rollback` |
+| **可防篡改** | 每条审计事件带 `payload_hash/prev_hash/hash`；`/audit/{id}/verify` 返回 `valid` 或 `broken_at` | `test_audit.py`（篡改 payload / 删中间事件） |
 | **成本可控** | 读 DeepSeek 真实 `usage` 写 `agent_runs.tokens_in/out`、`output.cost_cny`；prompt 超预算不调用，用量超限标 `budget_exceeded` | `test_llm_cost.py`、`test_runs.py::test_run_records_real_tokens_and_cost` |
 
 ---

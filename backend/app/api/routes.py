@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from langgraph.prebuilt import interrupt
@@ -19,6 +19,8 @@ from langgraph.types import Command
 
 from app import config
 from app.auth import get_current_user, get_db, hash_password, issue_token, verify_password
+from app.domain import calories as calorie_stats
+from app.domain import requests as patch_requests
 from app.domain.patches import (
     PatchValidationError,
     approve_patch,
@@ -40,6 +42,7 @@ from app.models import (
     PlanVersion,
     Profile,
     User,
+    WorkoutLog,
 )
 from app.schemas import (
     ActionOut,
@@ -49,6 +52,9 @@ from app.schemas import (
     CheckinOut,
     DemoLoginIn,
     PatchCreateIn,
+    PatchFeedbackIn,
+    PatchRequestIn,
+    WorkoutLogIn,
     PatchOut,
     ProfileOut,
     RollbackIn,
@@ -323,6 +329,22 @@ def verify_audit_stream(
     return ok(request, verify_stream(db, stream_id).to_dict())
 
 
+@router.post("/compare/knee-patch")
+def compare_knee_patch_modes(
+    request: Request,
+    user: User = Depends(get_current_user),
+):
+    """跑一次 A/B/C 三模式对比（临时库，不影响调用者的计划）。
+
+    A 裸奔：全量重生成，无安全门、无审批
+    B 安全门：全量重生成 + 安全门修正 + 审批
+    C 补丁：最小补丁（3/12）+ 安全门 + 审批
+    """
+    from app.evals.compare import run_knee_comparison
+
+    return ok(request, run_knee_comparison())
+
+
 @router.get("/evals/scenarios")
 def list_eval_scenarios(
     request: Request,
@@ -384,6 +406,123 @@ def run_eval_scenario(
             },
         },
         message="ok" if result.passed else "failed",
+    )
+
+
+@router.post("/plans/{plan_id}/patch-requests")
+def create_patch_request(
+    plan_id: str,
+    payload: PatchRequestIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """一句话改计划：解析意图 → 生成草案（或追问）。
+
+    草案阶段不写新版本；只有 approve 才提交。
+    """
+    try:
+        req = patch_requests.create_request(
+            db,
+            user,
+            plan_id,
+            payload.text,
+            quick_action=payload.quick_action,
+            base_version=payload.base_version,
+        )
+    except PatchValidationError as exc:
+        raise HTTPException(422, detail=exc.errors) from exc
+    return ok(request, patch_requests.request_payload(db, req))
+
+
+@router.get("/patch-requests/{request_id}")
+def get_patch_request(
+    request_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        req = patch_requests.load_request(db, user, request_id)
+    except PatchValidationError as exc:
+        raise HTTPException(404, detail=exc.errors) from exc
+    return ok(request, patch_requests.request_payload(db, req))
+
+
+@router.post("/patch-requests/{request_id}/feedback")
+def feedback_patch_request(
+    request_id: str,
+    payload: PatchFeedbackIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """「再改改」：基于同一 base_version 重新规划一轮（最多 3 轮）。"""
+    try:
+        req = patch_requests.add_feedback(db, user, request_id, payload.text)
+    except PatchValidationError as exc:
+        raise HTTPException(422, detail=exc.errors) from exc
+    return ok(request, patch_requests.request_payload(db, req))
+
+
+@router.post("/patch-requests/{request_id}/approve")
+def approve_patch_request(
+    request_id: str,
+    payload: ApprovalIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """确认应用：走真实审批 + 验证 + 审计。"""
+    try:
+        _, version = patch_requests.approve_request(db, user, request_id, payload.comment)
+    except PatchValidationError as exc:
+        raise HTTPException(422, detail=exc.errors) from exc
+    db.expire_all()
+    plan = _current_plan_payload(db, user)
+    return ok(
+        request,
+        {
+            "request_id": request_id,
+            "committed_version": version.version,
+            "plan": plan.model_dump(),
+        },
+        message="committed",
+    )
+
+
+@router.post("/patch-requests/{request_id}/reject")
+def reject_patch_request(
+    request_id: str,
+    payload: ApprovalIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        req = patch_requests.reject_request(db, user, request_id, payload.comment)
+    except PatchValidationError as exc:
+        raise HTTPException(422, detail=exc.errors) from exc
+    return ok(request, patch_requests.request_payload(db, req), message="rejected")
+
+
+@router.post("/plans/{plan_id}/undo")
+def undo_plan_change(
+    plan_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """撤销上一次提交：回滚到父版本（仍生成新版本，历史不删）。"""
+    try:
+        version = patch_requests.undo_last_change(db, user, plan_id)
+    except PatchValidationError as exc:
+        raise HTTPException(422, detail=exc.errors) from exc
+    plan = _current_plan_payload(db, user)
+    return ok(
+        request,
+        {"new_version": version.version, "plan": plan.model_dump()},
+        message="undone",
     )
 
 
@@ -514,15 +653,21 @@ def reject(
     return ok(request, _patch_payload(patch), message="rejected")
 
 
-def _run_summary(run: AgentRun) -> RunSummaryOut:
+def _run_summary(run: AgentRun, db: Session | None = None) -> RunSummaryOut:
     output = run.output or {}
+    plan_id = None
+    patch_id = output.get("patch_id")
+    if db is not None and patch_id:
+        patch = db.get(PlanPatch, patch_id)
+        plan_id = patch.plan_id if patch is not None else None
     return RunSummaryOut(
         id=run.id,
         kind=run.kind,
         mode=run.mode,
         status=run.status,
         stop_reason=output.get("stop_reason"),
-        patch_id=output.get("patch_id"),
+        patch_id=patch_id,
+        plan_id=plan_id,
         created_at=run.created_at,
         finished_at=run.finished_at,
         latency_ms=run.latency_ms,
@@ -548,7 +693,7 @@ def list_runs(
     if status_filter:
         stmt = stmt.where(AgentRun.status == status_filter)
     runs = db.scalars(stmt.order_by(AgentRun.created_at.desc()).limit(limit)).all()
-    return ok(request, [item.model_dump() for item in map(_run_summary, runs)])
+    return ok(request, [_run_summary(run, db).model_dump() for run in runs])
 
 
 @router.get("/runs/{run_id}")
@@ -564,7 +709,7 @@ def get_run(
         # 不区分「不存在」和「不是你的」，避免探测
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
 
-    summary = _run_summary(run)
+    summary = _run_summary(run, db)
     output = run.output or {}
     patch = db.get(PlanPatch, output.get("patch_id")) if output.get("patch_id") else None
 
@@ -630,6 +775,109 @@ def rollback(
         {"rolled_back_to": payload.target_version, "new_version": version.version, "plan": plan.model_dump()},
         message="rolled_back",
     )
+
+
+def _weight_for(db: Session, user: User) -> tuple[float, str]:
+    """体重口径：最近一次打卡 > 画像 > 兜底 70kg（并在返回里标注来源）。"""
+    last = db.scalar(
+        select(Checkin)
+        .where(Checkin.user_id == user.id, Checkin.weight_kg.is_not(None))
+        .order_by(Checkin.date.desc())
+        .limit(1)
+    )
+    if last is not None and last.weight_kg:
+        return float(last.weight_kg), "checkin"
+    profile = db.scalar(select(Profile).where(Profile.user_id == user.id))
+    if profile is not None and profile.weight_kg:
+        return float(profile.weight_kg), "profile"
+    return 70.0, "default"
+
+
+@router.post("/workout-logs")
+def create_workout_log(
+    payload: WorkoutLogIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """记一条训练。热量在读取时算，不落库，避免体重变了旧数据口径对不上。"""
+    day = payload.date or date.today()
+    log = WorkoutLog(
+        user_id=user.id,
+        date=day,
+        action_ref=payload.action_ref,
+        kind=payload.kind,
+        duration_min=payload.duration_min,
+        sets=payload.sets,
+        reps=payload.reps,
+        intensity=payload.intensity,
+        note=payload.note,
+    )
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+    weight, source = _weight_for(db, user)
+    row = calorie_stats.burn_for_log(log, weight)
+    row["weight_source"] = source
+    return ok(request, row, message="logged")
+
+
+@router.get("/workout-logs")
+def list_workout_logs(
+    request: Request,
+    days: int = 14,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    days = max(1, min(days, 90))
+    since = date.today() - timedelta(days=days - 1)
+    rows = db.scalars(
+        select(WorkoutLog)
+        .where(WorkoutLog.user_id == user.id, WorkoutLog.date >= since)
+        .order_by(WorkoutLog.date.desc(), WorkoutLog.created_at.desc())
+    ).all()
+    weight, source = _weight_for(db, user)
+    items = [calorie_stats.burn_for_log(row, weight) | {"weight_source": source} for row in rows]
+    return ok(request, {"items": items, "days": days, "since": since.isoformat()})
+
+
+@router.delete("/workout-logs/{log_id}")
+def delete_workout_log(
+    log_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    log = db.get(WorkoutLog, log_id)
+    if log is None or log.user_id != user.id:
+        raise HTTPException(404, "workout log not found")
+    db.delete(log)
+    db.commit()
+    return ok(request, {"deleted": log_id})
+
+
+@router.get("/stats/calories")
+def calorie_stats_endpoint(
+    request: Request,
+    days: int = 7,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """只算消耗（burn_only）：训练记录 → MET → kcal，口径写在返回里。"""
+    days = max(1, min(days, 90))
+    since = date.today() - timedelta(days=days - 1)
+    rows = db.scalars(
+        select(WorkoutLog)
+        .where(WorkoutLog.user_id == user.id, WorkoutLog.date >= since)
+        .order_by(WorkoutLog.date.asc())
+    ).all()
+    weight, source = _weight_for(db, user)
+    burned = [calorie_stats.burn_for_log(row, weight) for row in rows]
+    data = calorie_stats.summarize(burned, weight)
+    data["weight_source"] = source
+    data["since"] = since.isoformat()
+    data["days_window"] = days
+    return ok(request, data)
 
 
 @router.post("/checkins")

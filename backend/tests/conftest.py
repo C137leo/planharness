@@ -15,6 +15,7 @@ import os
 # 整个测试收集阶段就会因为连不上库而失败。测试不该依赖开发机环境。
 os.environ["ENV"] = "dev"
 os.environ["DATABASE_URL"] = "sqlite://"          # 纯内存，导入期建表用，跑完即弃
+os.environ["DEEPSEEK_API_KEY"] = ""               # 测试绝不联网、不花钱
 os.environ.pop("CHECKPOINTER_BACKEND", None)
 
 import pytest  # noqa: E402

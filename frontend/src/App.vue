@@ -10,9 +10,11 @@ onLaunch(() => {
 </script>
 
 <style>
+@import "./styles/theme.css";
+
 page {
-  background: #f5f7f8;
-  color: #17212b;
+  background: var(--canvas, #f5f3ee);
+  color: var(--ink, #14201f);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Helvetica Neue', Arial, sans-serif;
 }

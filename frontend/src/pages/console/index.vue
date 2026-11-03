@@ -1,7 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { api, type EvalScenario, type EvalScenarioResult, type RunDetail, type RunSummary } from '../../api'
+import {
+  api,
+  type AuditEvent,
+  type AuditVerify,
+  type CompareResult,
+  type EvalScenario,
+  type EvalScenarioResult,
+  type RunDetail,
+  type RunSummary,
+} from '../../api'
 
 const runs = ref<RunSummary[]>([])
 const selected = ref<RunDetail | null>(null)
@@ -9,6 +18,11 @@ const error = ref('')
 const loading = ref(false)
 const statusFilter = ref('')
 const limit = ref(20)
+const auditEvents = ref<AuditEvent[]>([])
+const auditVerify = ref<AuditVerify | null>(null)
+const auditBusy = ref(false)
+const compare = ref<CompareResult | null>(null)
+const comparing = ref(false)
 const scenarios = ref<EvalScenario[]>([])
 const replay = ref<EvalScenarioResult | null>(null)
 const replaying = ref('')
@@ -69,9 +83,34 @@ function clock(iso?: string | null): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
+async function loadAudit(planId?: string | null) {
+  auditEvents.value = []
+  auditVerify.value = null
+  if (!planId) return
+  try {
+    auditEvents.value = await api.getAudit(planId)
+  } catch {
+    auditEvents.value = []
+  }
+}
+
+async function verifyAuditChain() {
+  const planId = selected.value?.plan_id
+  if (!planId || auditBusy.value) return
+  auditBusy.value = true
+  try {
+    auditVerify.value = await api.verifyAudit(planId)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '验证失败'
+  } finally {
+    auditBusy.value = false
+  }
+}
+
 async function select(id: string) {
   try {
     selected.value = await api.getRun(id)
+    await loadAudit(selected.value.plan_id)
   } catch (err) {
     error.value = err instanceof Error ? err.message : '读取 run 失败'
   }
@@ -82,6 +121,18 @@ async function loadScenarios() {
     scenarios.value = await api.listEvalScenarios()
   } catch {
     scenarios.value = []
+  }
+}
+
+async function runCompare() {
+  if (comparing.value) return
+  comparing.value = true
+  try {
+    compare.value = await api.compareKneeModes()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '对比失败'
+  } finally {
+    comparing.value = false
   }
 }
 
@@ -143,6 +194,54 @@ onShow(() => {
     <view class="subtitle">真实 run · trace 时间线 · diff · 上下文预算 · 独立验证</view>
 
     <view v-if="error" class="error">{{ error }}</view>
+
+    <view class="card">
+      <view class="row">
+        <view class="eyebrow">A/B/C COMPARISON</view>
+        <view class="chip">{{ comparing ? '计算中…' : '同场景 · 三配置' }}</view>
+      </view>
+      <view class="muted small" style="margin-top: 6px">
+        第 2 周膝痛 + 只能练 2 天：A 裸奔 / B 安全门 / C 补丁，只改 Harness 配置。
+      </view>
+
+      <button class="btn" style="margin-top: 12px" :disabled="comparing" @click="runCompare">
+        {{ comparing ? '正在跑三种模式…' : compare ? '重新跑一次' : '跑一次对比' }}
+      </button>
+
+      <template v-if="compare">
+        <view class="matrix">
+          <view class="matrix-row header">
+            <text>指标</text><text>A 裸奔</text><text>B 安全门</text><text>C 补丁</text>
+          </view>
+          <view class="matrix-row">
+            <text>违规</text>
+            <text v-for="m in compare.modes" :key="m.mode" :class="{ warn: m.violations > 0 }">
+              {{ m.violations }}
+            </text>
+          </view>
+          <view class="matrix-row">
+            <text>churn</text>
+            <text v-for="m in compare.modes" :key="m.mode">{{ Math.round(m.churn * 100) }}%</text>
+          </view>
+          <view class="matrix-row">
+            <text>不必要改动</text>
+            <text v-for="m in compare.modes" :key="m.mode">{{ Math.round(m.unnecessary_churn * 100) }}%</text>
+          </view>
+          <view class="matrix-row">
+            <text>审批</text>
+            <text v-for="m in compare.modes" :key="m.mode">{{ m.approval ? '✓' : '✗' }}</text>
+          </view>
+          <view class="matrix-row">
+            <text>改动槽位</text>
+            <text v-for="m in compare.modes" :key="m.mode">{{ m.changed_slots }}/{{ m.total_slots }}</text>
+          </view>
+        </view>
+        <view class="muted small" style="margin-top: 10px">{{ compare.fixture_note }}</view>
+        <view v-for="m in compare.modes" :key="`n-${m.mode}`" class="muted small" style="margin-top: 4px">
+          <text class="compare-note">{{ m.mode }}</text>{{ m.notes }}
+        </view>
+      </template>
+    </view>
 
     <view class="card">
       <view class="row">
@@ -349,6 +448,47 @@ onShow(() => {
 
       <view class="card">
         <view class="row">
+          <view class="eyebrow">AUDIT CHAIN</view>
+          <view v-if="auditVerify" class="chip" :class="auditVerify.valid ? 'succeeded' : 'failed'">
+            {{ auditVerify.valid ? '链完整' : `断裂 @ #${auditVerify.broken_at}` }}
+          </view>
+          <view v-else class="chip">{{ auditEvents.length }} 条事件</view>
+        </view>
+
+        <view v-if="auditEvents.length === 0" class="muted">这次运行没有关联的审计流。</view>
+
+        <view v-for="ev in auditEvents" :key="ev.seq" class="audit-row">
+          <text class="audit-seq">#{{ ev.seq }}</text>
+          <view class="audit-main">
+            <view class="audit-head">
+              <text class="audit-action">{{ ev.action }}</text>
+              <text class="muted small">{{ ev.actor_type }}/{{ shortId(ev.actor_id) }}</text>
+            </view>
+            <text class="muted small audit-hash">
+              {{ ev.prev_hash.slice(0, 8) }} → {{ ev.hash.slice(0, 8) }}
+            </text>
+          </view>
+        </view>
+
+        <button
+          v-if="auditEvents.length > 0"
+          class="btn secondary"
+          style="margin-top: 12px"
+          :disabled="auditBusy"
+          @click="verifyAuditChain"
+        >
+          {{ auditBusy ? '校验中…' : '验证链完整性' }}
+        </button>
+
+        <view v-if="auditVerify" class="notice" style="margin-top: 12px">
+          {{ auditVerify.valid
+            ? `✓ ${auditVerify.count} 条事件逐条校验通过`
+            : `✗ 在 #${auditVerify.broken_at} 断开：${auditVerify.reason}` }}
+        </view>
+      </view>
+
+      <view class="card">
+        <view class="row">
           <view class="eyebrow">VERIFICATION</view>
           <view class="chip" :class="selected.verification?.passed ? 'succeeded' : 'failed'">
             {{ selected.verification?.passed ? '通过' : '未通过' }}
@@ -378,6 +518,64 @@ onShow(() => {
 </template>
 
 <style>
+.matrix {
+  margin-top: 12px;
+}
+.matrix-row {
+  border-bottom: 1px solid #edf1f1;
+  display: grid;
+  font-size: 12px;
+  gap: 6px;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  padding: 9px 0;
+}
+.matrix-row.header {
+  color: #6b7c85;
+  font-weight: 600;
+}
+.matrix-row text:not(:first-child) {
+  text-align: right;
+}
+.matrix-row .warn {
+  color: #b3261e;
+  font-weight: 600;
+}
+.compare-note {
+  color: #176b52;
+  font-weight: 600;
+  margin-right: 6px;
+}
+.audit-row {
+  align-items: flex-start;
+  border-bottom: 1px solid #edf1f1;
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+}
+.audit-seq {
+  color: #176b52;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  width: 32px;
+}
+.audit-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 2px;
+}
+.audit-head {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+}
+.audit-action {
+  font-size: 13px;
+  font-weight: 600;
+}
+.audit-hash {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 .scenario-grid {
   display: grid;
   gap: 8px;

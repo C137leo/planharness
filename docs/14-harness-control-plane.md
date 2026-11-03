@@ -320,6 +320,26 @@ id, run_id, seq, actor, action, payload_hash, prev_hash, hash, created_at
 - 篡改一条记录，后续 hash 对不上；
 - 面试可以讲“证据链”，不只是日志。
 
+### 2.6.1 已落地：审计哈希链
+
+`audit_events` 表 + `app/audit.py`，每个 `plan_id` 一条链：
+
+```
+hash_i = sha256(stream_id | seq | action | actor | payload_hash | hash_{i-1})
+```
+
+接入了 6 类事件：`patch_created` / `approval_granted` / `approval_rejected` /
+`patch_committed` / `verification_failed` / `rollback_committed`。
+
+`GET /audit/{plan_id}/verify` 会重算整条链，返回：
+
+- `valid`：是否完整
+- `broken_at`：第一个出问题的 seq
+- `reason`：`payload_hash mismatch` / `prev_hash mismatch` / `seq gap`
+
+三种攻击都有测试：改 payload、改 payload 并重算自身 hash、删掉中间一条。
+局限也说清楚：能改库的人理论上可以重算整条链，所以**真要防篡改还要把最新 hash 锚定到外部**（P1）。
+
 ### 2.7 凭据与成本
 
 现在 Key 在 `.env`，没有预算。

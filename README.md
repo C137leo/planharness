@@ -60,12 +60,19 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/demo -H 'Content-Type: applicatio
 - `GET /api/v1/me/profile`
 - `GET /api/v1/plans/current`（seed 的 v1，12 个 action）
 - `POST /api/v1/plans/generate`（模板生成 + 热量/蛋白质计算 + validator，生成 v2）
+- `POST /api/v1/plans/{plan_id}/patch-requests`（**一句话改计划**：解析意图 → 草案 / 追问 / 被安全门拦下）
+- `POST /api/v1/patch-requests/{id}/feedback|approve|reject`（再改改 ≤3 轮 / 确认应用 / 拒绝）
+- `POST /api/v1/plans/{id}/undo`（撤销上一次提交，仍生成新版本）
+- `POST/GET /api/v1/workout-logs`、`GET /api/v1/stats/calories`（训练记录 → 热量，只算消耗）
 - `POST /api/v1/plans/{id}/patches`（膝痛补丁，3/12，churn 25%，返回 `validation.explanation`）
 - `POST /api/v1/patches/{id}/approve|reject`（审批前不写库；验证失败→409 并自动回滚）
 - `POST /api/v1/plans/{id}/rollback`（回滚生成新版本）
 - `POST/GET /api/v1/checkins`（打卡 upsert / 列表）
 - `GET /api/v1/patches?status=`（补丁历史，审批页据此判断有没有待审批）
 - `GET /api/v1/runs?status=`（最近的 Agent 运行列表，Console 用）
+- `POST /api/v1/compare/knee-patch`（A/B/C 三模式对比，返回真实指标）
+- `GET /api/v1/audit/{plan_id}`（审计哈希链：每条事件带 prev_hash/hash）
+- `GET /api/v1/audit/{plan_id}/verify`（重算整条链，返回 valid / broken_at）
 - `GET /api/v1/runs/{id}`（trace 时间线 + patch diff + 上下文快照 + 验证结论）
 
 服务器部署（当前实际方案）：
@@ -90,12 +97,18 @@ npm run dev:h5
 - 小程序：`npm run dev:mp-weixin`（需要 AppID；当前用开发者工具模拟器）
 - 小程序请求域名必须是绝对地址：`VITE_API_BASE=https://www.agentworkout.online/api/v1`
 
-当前页面：
+当前页面（TabBar：今天 / 计划 / 进展 / 我的）：
 
-- 今天：当前计划、12 个 action、生成膝痛补丁
-- 打卡：体重/睡眠/饥饿/酸痛/执行率
-- 审批：补丁 diff、通过/拒绝
-- Console：H5 骨架，下一轮接真实场景/Trace/指标
+- 今天：今天的动作 + 今日消耗，快捷按钮打开「改计划」抽屉
+- 计划：整周明细、待确认改动、撤销上一次改动
+- 进展：近 7 天消耗、体重、训练记录（附热量公式与口径）
+- 我的：画像 / 器械 / 过敏原 + demo 的真实边界
+- 打卡：体重/睡眠/饥饿/酸痛/执行率 + 记一条训练（实时算 kcal）
+- Console（H5）：场景回放、Trace、Diff、上下文、成本、审计链、A/B/C 对比
+- 待确认补丁：旧的独立审批页保留，作为抽屉之外的兜底入口
+
+「改计划」是底部抽屉而不是独立 tab：审批是动作的一部分，不该让用户再去找页面。
+交互上有一条硬规则：**审批动作绝不自动跳转**（曾因自动切 tab + 按钮同位置导致连点两次直接提交）。
 
 > Uni-app 当前安装包提示 Node >=22；本机 Node 20 也能 build，但建议升级到 Node 22。
 
@@ -108,6 +121,9 @@ npm run dev:h5
 | [evals/reports/latest.md](evals/reports/latest.md) | 8 个场景 × 8 个指标的实测报告（含与上次的趋势对比） |
 | [evals/reports/mutations.md](evals/reports/mutations.md) | 变异测试：弄坏 6 个护栏，评测必须全抓住 |
 | [evals/reports/latest.json](evals/reports/latest.json) | 机器可读版，给 CI / 趋势图用 |
+
+Console 里可以一键跑 A/B/C 对比（数字来自实测），点开任意一个 run，能看到：**trace 时间线 → diff → 上下文 → 成本 → 审计链（可一键验证）→ 独立验证**。
+审计链断了会直接显示 `断裂 @ #N` 和原因。
 
 ```bash
 cd backend
@@ -143,8 +159,10 @@ Console 里还有「场景回放」：点 E01–E08 任一个，服务端跑一�
 - [16 Graph API 接入模板](docs/16-graph-wiring-template.md)：patch_id/thread_id、路由改写、resume、测试模板
 - [17 Run 生命周期与 Verifier](docs/17-run-lifecycle-and-verifier.md)：AgentRun 状态机、独立验收、测试模板
 - [18 剩余工作清单](docs/18-remaining-work.md)：Evals、Console Trace、token/cost、audit、生产收口与优先级
+- [19 当前阶段与最终优先级](docs/19-final-priorities.md)：90 tests/8 Evals/6 变异已完成，剩余前端账号、CI、部署、演示
 - [12 架构总结](docs/12-architecture.md)：**架构风格判定**（分层单体/贫血模型，不是 DDD）、分层与依赖规则、聚合边界、状态机、9 条 ADR、技术债与演进路线、面试讲稿
 - [15 上线前修改清单](docs/15-prelaunch-checklist.md)：**上线前逐条过**：10 个阻断项 + 8 个建议项 + 验证/回滚；配套 `deploy/preflight.sh` 自检
+- [20 一句话改计划](docs/20-flexible-patch-flow.md)：**本轮改版**：可协商草案、新增 3 张表与 7 个接口、热量口径、TabBar 与抽屉交互、已验证/未验证
 - [生产部署模板](deploy/README.md)：systemd + Nginx + 现有 Postgres 容器（当前实际方案）
 
 ## 已锁定决策
@@ -170,7 +188,10 @@ Console 里还有「场景回放」：点 E01–E08 任一个，服务端跑一�
 
 ## 下一步
 
-1. 今天先落表结构、seed、`/health`、`/auth/demo`、`/me/profile`。
-2. 明天做真实 LLM 计划 + 模板兜底 + validator。
-3. 后天做 PlanPatch + 安全门。
-4. 按 [06 全量 P0 冲刺](docs/06-full-scope-sprint.md) 的三轨排期推进；每天 22:00 对照 Gate。
+已完成：一句话改计划（草案 / 追问 / ≤3 轮修订 / 确认 / 撤销）、训练记录与热量统计、
+TabBar 四页与改计划抽屉、Console 观测面、8 场景 Evals + 6 变异体、审计链。
+
+1. 浏览器里过一遍四页与抽屉（当前环境没有浏览器，只做了构建期检查）。
+2. 把意图解析从规则表换成 LLM，并用现有 8 个场景 + 新增口语场景做回归。
+3. `docs/15` 的服务器侧阻断项：备份定时器、Postgres 超级用户收敛、端口核验。
+4. 小程序端回归（需要 AppID）。

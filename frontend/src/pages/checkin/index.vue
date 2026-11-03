@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
-import { api } from '../../api'
+import { api, type WorkoutKind, type WorkoutLogItem } from '../../api'
+import { actionName } from '../../styles/copy'
+import { todayStr } from '../../styles/dates'
 
 const busy = ref(false)
 const error = ref('')
@@ -16,10 +18,7 @@ const form = reactive({
 })
 
 function today(): string {
-  const now = new Date()
-  const month = `${now.getMonth() + 1}`.padStart(2, '0')
-  const day = `${now.getDate()}`.padStart(2, '0')
-  return `${now.getFullYear()}-${month}-${day}`
+  return todayStr()
 }
 
 function numberOrNull(value: string): number | null {
@@ -51,8 +50,77 @@ async function submit() {
   }
 }
 
+// ---- 训练记录：热量只能从"真的练了"的记录算，不能拿计划反推 ----
+
+const workout = reactive({
+  action_ref: 'brisk_walk',
+  kind: 'cardio' as WorkoutKind,
+  duration_min: '30',
+  note: '',
+})
+const workoutBusy = ref(false)
+const workoutError = ref('')
+const workoutLogs = ref<WorkoutLogItem[]>([])
+
+const exerciseOptions = [
+  'brisk_walk',
+  'easy_walk',
+  'bodyweight_squat',
+  'pushup',
+  'row',
+  'backpack_row',
+  'glute_bridge',
+  'stretch',
+]
+
+async function loadWorkouts() {
+  try {
+    const data = await api.listWorkoutLogs(7)
+    workoutLogs.value = data.items
+  } catch {
+    // 进展页会再拉一次，这里失败不挡住打卡主表单。
+  }
+}
+
+async function logWorkout() {
+  if (workoutBusy.value) return
+  const duration = Number(workout.duration_min)
+  if (!Number.isFinite(duration) || duration <= 0) {
+    workoutError.value = '时长要填一个大于 0 的分钟数'
+    return
+  }
+  workoutBusy.value = true
+  workoutError.value = ''
+  try {
+    const item = await api.logWorkout({
+      date: form.date || today(),
+      action_ref: workout.action_ref,
+      kind: workout.kind,
+      duration_min: Math.round(duration),
+      note: workout.note,
+    })
+    workoutLogs.value = [item, ...workoutLogs.value]
+    workout.note = ''
+    uni.showToast({ title: `记下了 ${item.kcal} kcal`, icon: 'none' })
+  } catch (err) {
+    workoutError.value = err instanceof Error ? err.message : '记录失败'
+  } finally {
+    workoutBusy.value = false
+  }
+}
+
+async function removeWorkout(logId: string) {
+  try {
+    await api.deleteWorkoutLog(logId)
+    workoutLogs.value = workoutLogs.value.filter((item) => item.log_id !== logId)
+  } catch (err) {
+    workoutError.value = err instanceof Error ? err.message : '删除失败'
+  }
+}
+
 onLoad(() => {
   form.date = today()
+  loadWorkouts()
 })
 </script>
 
@@ -95,6 +163,58 @@ onLoad(() => {
       </view>
     </view>
 
+    <view class="card">
+      <view class="row">
+        <view class="section-title">记一条训练</view>
+        <view class="chip">只算消耗</view>
+      </view>
+      <view class="muted" style="margin-top: 6px">
+        热量 = MET × 3.5 × 体重 ÷ 200 × 时长，点「记下这一条」时后端按这个式子算。
+      </view>
+
+      <view class="option-grid">
+        <view
+          v-for="ref in exerciseOptions"
+          :key="ref"
+          class="chip option"
+          :class="{ active: workout.action_ref === ref }"
+          @click="workout.action_ref = ref"
+        >
+          {{ actionName(ref) }}
+        </view>
+      </view>
+
+      <view class="option-grid">
+        <view
+          v-for="kind in (['strength', 'cardio', 'flexibility'] as WorkoutKind[])"
+          :key="kind"
+          class="chip option"
+          :class="{ active: workout.kind === kind }"
+          @click="workout.kind = kind"
+        >
+          {{ kind === 'strength' ? '力量' : kind === 'cardio' ? '有氧' : '拉伸' }}
+        </view>
+      </view>
+
+      <input v-model="workout.duration_min" class="input" placeholder="时长（分钟）" />
+      <input v-model="workout.note" class="input" placeholder="备注（可选）" />
+
+      <view v-if="workoutError" class="error" style="margin-top: 10px">{{ workoutError }}</view>
+      <button class="btn secondary" :disabled="workoutBusy" @click="logWorkout">
+        {{ workoutBusy ? '记录中…' : '记下这一条' }}
+      </button>
+
+      <view v-for="log in workoutLogs.slice(0, 5)" :key="log.log_id" class="log">
+        <view class="log-main">
+          <text class="log-name">{{ actionName(log.action_ref) }}</text>
+          <text class="log-meta">
+            {{ log.date }} · {{ log.duration_min }} 分钟 · {{ log.kcal }} kcal
+          </text>
+        </view>
+        <text class="log-del" @click="removeWorkout(log.log_id)">删除</text>
+      </view>
+    </view>
+
     <button class="btn" :disabled="busy" @click="submit">
       {{ busy ? '保存中…' : '保存今日打卡' }}
     </button>
@@ -121,5 +241,50 @@ onLoad(() => {
   font-size: 16px;
   padding: 12px;
   width: 100%;
+}
+</style>
+
+<style>
+.option-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.option {
+  background: #f7f5ef;
+  border: 1px solid transparent;
+  color: var(--ink-soft);
+}
+.option.active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
+}
+.log {
+  align-items: center;
+  border-top: 1px solid #f5f1e9;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding-top: 10px;
+}
+.log-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.log-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.log-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+.log-del {
+  color: var(--accent);
+  font-size: 12px;
 }
 </style>

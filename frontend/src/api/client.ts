@@ -2,8 +2,17 @@ import type {
   ApiEnvelope,
   CheckinPayload,
   CurrentPlan,
+  AuditEvent,
+  CompareResult,
+  AuditVerify,
+  CalorieStats,
+  CheckinRecord,
+  Profile,
   EvalScenario,
   EvalScenarioResult,
+  PatchRequest,
+  WorkoutLogItem,
+  WorkoutLogPayload,
   PlanPatch,
   PlanPatchSummary,
   RunDetail,
@@ -42,7 +51,7 @@ function parseError(data: unknown, statusCode: number): ApiError {
 }
 
 async function rawRequest<T>(
-  method: 'GET' | 'POST' | 'PUT',
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
   path: string,
   data?: unknown,
   token = '',
@@ -83,7 +92,7 @@ export async function ensureToken(): Promise<string> {
   return data.access_token
 }
 
-async function request<T>(method: 'GET' | 'POST' | 'PUT', path: string, data?: unknown): Promise<T> {
+async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, data?: unknown): Promise<T> {
   let token = await ensureToken()
   try {
     return await rawRequest<T>(method, path, data, token)
@@ -117,9 +126,43 @@ export const api = {
     request<PlanPatch>('POST', `/patches/${patchId}/reject`, { comment }),
   saveCheckin: (payload: CheckinPayload) =>
     request<{ id: string; date: string }>('POST', '/checkins', payload),
+  getAudit: (streamId: string) => request<AuditEvent[]>('GET', `/audit/${streamId}`),
+  verifyAudit: (streamId: string) => request<AuditVerify>('GET', `/audit/${streamId}/verify`),
+  compareKneeModes: () => request<CompareResult>('POST', '/compare/knee-patch'),
   listEvalScenarios: () => request<EvalScenario[]>('GET', '/evals/scenarios'),
   runEvalScenario: (id: string) =>
     request<EvalScenarioResult>('POST', `/evals/scenarios/${id}/run`),
+  createPatchRequest: (planId: string, text: string, quickAction = '', baseVersion?: number) =>
+    request<PatchRequest>('POST', `/plans/${planId}/patch-requests`, {
+      text,
+      quick_action: quickAction,
+      base_version: baseVersion ?? null,
+    }),
+  getPatchRequest: (requestId: string) => request<PatchRequest>('GET', `/patch-requests/${requestId}`),
+  feedbackPatchRequest: (requestId: string, text: string) =>
+    request<PatchRequest>('POST', `/patch-requests/${requestId}/feedback`, { text }),
+  approvePatchRequest: (requestId: string, comment = '') =>
+    request<{ request_id: string; committed_version: number; plan: CurrentPlan }>(
+      'POST',
+      `/patch-requests/${requestId}/approve`,
+      { comment },
+    ),
+  rejectPatchRequest: (requestId: string, comment = '') =>
+    request<PatchRequest>('POST', `/patch-requests/${requestId}/reject`, { comment }),
+  undoPlan: (planId: string) =>
+    request<{ new_version: number; plan: CurrentPlan }>('POST', `/plans/${planId}/undo`),
+  logWorkout: (payload: WorkoutLogPayload) =>
+    request<WorkoutLogItem>('POST', '/workout-logs', payload),
+  listWorkoutLogs: (days = 14) =>
+    request<{ items: WorkoutLogItem[]; days: number; since: string }>(
+      'GET',
+      `/workout-logs?days=${days}`,
+    ),
+  deleteWorkoutLog: (logId: string) =>
+    request<{ deleted: string }>('DELETE', `/workout-logs/${logId}`),
+  getCalorieStats: (days = 7) => request<CalorieStats>('GET', `/stats/calories?days=${days}`),
+  listCheckins: () => request<CheckinRecord[]>('GET', '/checkins'),
+  getProfile: () => request<Profile>('GET', '/me/profile'),
   listRuns: (limit = 20, status = '') =>
     request<RunSummary[]>('GET', `/runs?limit=${limit}${status ? `&status=${status}` : ''}`),
   getRun: (runId: string) => request<RunDetail>('GET', `/runs/${runId}`),

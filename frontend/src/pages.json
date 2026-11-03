@@ -2,36 +2,75 @@
   "pages": [
     {
       "path": "pages/today/index",
-      "style": { "navigationBarTitleText": "今天" }
+      "style": {
+        "navigationBarTitleText": "今天"
+      }
+    },
+    {
+      "path": "pages/plan/index",
+      "style": {
+        "navigationBarTitleText": "计划"
+      }
+    },
+    {
+      "path": "pages/progress/index",
+      "style": {
+        "navigationBarTitleText": "进展"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
     },
     {
       "path": "pages/checkin/index",
-      "style": { "navigationBarTitleText": "打卡" }
+      "style": {
+        "navigationBarTitleText": "打卡"
+      }
     },
     {
       "path": "pages/approval/index",
-      "style": { "navigationBarTitleText": "审批补丁" }
+      "style": {
+        "navigationBarTitleText": "待确认补丁"
+      }
     },
     {
       "path": "pages/console/index",
-      "style": { "navigationBarTitleText": "Harness Console" }
+      "style": {
+        "navigationBarTitleText": "Harness Console"
+      }
     }
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "PlanHarness",
-    "navigationBarBackgroundColor": "#f5f7f8",
-    "backgroundColor": "#f5f7f8"
+    "navigationBarBackgroundColor": "#f5f3ee",
+    "backgroundColor": "#f5f3ee"
   },
   "tabBar": {
-    "color": "#6b7c85",
+    "color": "#6b7a75",
     "selectedColor": "#176b52",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [
-      { "pagePath": "pages/today/index", "text": "今天" },
-      { "pagePath": "pages/checkin/index", "text": "打卡" },
-      { "pagePath": "pages/approval/index", "text": "审批" }
+      {
+        "pagePath": "pages/today/index",
+        "text": "今天"
+      },
+      {
+        "pagePath": "pages/plan/index",
+        "text": "计划"
+      },
+      {
+        "pagePath": "pages/progress/index",
+        "text": "进展"
+      },
+      {
+        "pagePath": "pages/profile/index",
+        "text": "我的"
+      }
     ]
   }
 }

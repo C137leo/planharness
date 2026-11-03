@@ -1,50 +1,32 @@
 <script setup lang="ts">
+/**
+ * 今天：只看今天要做的事 + 一个「改计划」入口。
+ *
+ * 改计划走底部抽屉（PatchComposer），不再是一个独立 tab：
+ * 「要不要同意」是当下这个动作的一部分，不该让用户再去找页面。
+ */
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { api, type CurrentPlan, type PlanAction } from '../../api'
+import { api, type CalorieStats, type CurrentPlan, type PlanAction } from '../../api'
+import PatchComposer from '../../components/PatchComposer.vue'
+import { actionName, slotLabel } from '../../styles/copy'
+import { WEEKDAY_LABELS, isoWeekday, todayStr } from '../../styles/dates'
 
 const plan = ref<CurrentPlan | null>(null)
+const calories = ref<CalorieStats | null>(null)
 const loading = ref(true)
-const busy = ref(false)
 const error = ref('')
-const createdPatchId = ref('')
+const composerOpen = ref(false)
+const presetText = ref('')
+const presetQuick = ref('')
 
-const slotLabels: Record<string, string> = {
-  warmup: '热身',
-  strength: '力量',
-  cardio: '有氧',
-  mobility: '放松',
-  meal_breakfast: '早餐',
-  meal_lunch: '午餐',
-  meal_dinner: '晚餐',
-}
-
-const actionNames: Record<string, string> = {
-  dynamic_warmup: '动态热身',
-  goblet_squat: '高脚杯深蹲',
-  squat: '深蹲',
-  bodyweight_squat: '自重深蹲',
-  pushup: '俯卧撑',
-  row: '哑铃划船',
-  backpack_row: '背包划船',
-  brisk_walk: '快走',
-  easy_walk: '低冲击快走',
-  glute_bridge: '臀桥',
-  full_body_stretch: '全身拉伸',
-  chicken_rice_bowl: '鸡胸糙米碗',
-  oats_eggs: '燕麦鸡蛋',
-  beef_salad: '牛肉沙拉',
-  fish_veggies: '鱼排蔬菜',
-  tofu_veggies: '豆腐时蔬',
-  rice_veggies: '米饭时蔬',
-}
-
-const grouped = computed(() => {
-  const groups: Record<number, PlanAction[]> = {}
-  for (const action of plan.value?.actions || []) {
-    ;(groups[action.day_index] ||= []).push(action)
-  }
-  return Object.entries(groups).map(([day, actions]) => ({ day: Number(day), actions }))
+const weekday = isoWeekday()
+const todaysActions = computed<PlanAction[]>(() =>
+  (plan.value?.actions || []).filter((action) => action.day_index === weekday),
+)
+const todaysKcal = computed(() => {
+  const today = calories.value?.days.find((day) => day.date === todayStr())
+  return today?.kcal ?? 0
 })
 
 async function load() {
@@ -52,6 +34,7 @@ async function load() {
   error.value = ''
   try {
     plan.value = await api.getCurrentPlan()
+    calories.value = await api.getCalorieStats(7)
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载失败'
   } finally {
@@ -59,29 +42,19 @@ async function load() {
   }
 }
 
-async function makeKneePatch() {
-  if (!plan.value || busy.value) return
-  busy.value = true
-  error.value = ''
-  try {
-    const patch = await api.createKneePatch(plan.value.plan_id, 2)
-    // 不再自动跳转：跳转后审批按钮通常就在刚才点击的位置，
-    // 连点两下很容易直接点穿到「通过」并一路确认掉。
-    createdPatchId.value = patch.id
-    uni.showToast({ title: '补丁已生成', icon: 'success' })
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : '生成补丁失败'
-  } finally {
-    busy.value = false
-  }
+function openComposer(text = '', quick = '') {
+  presetText.value = text
+  presetQuick.value = quick
+  composerOpen.value = true
+}
+
+async function onApplied() {
+  composerOpen.value = false
+  await load()
 }
 
 function openCheckin() {
-  uni.switchTab({ url: '/pages/checkin/index' })
-}
-
-function openConsole() {
-  uni.navigateTo({ url: '/pages/console/index' })
+  uni.navigateTo({ url: '/pages/checkin/index' })
 }
 
 onShow(load)
@@ -89,151 +62,129 @@ onShow(load)
 
 <template>
   <view class="page">
-    <view class="eyebrow">PLANHARNESS · TODAY</view>
-    <view class="title">今天，只改该改的。</view>
-    <view class="subtitle">
-      模型可以提议，但计划变更必须经过安全门和你的确认。
-    </view>
+    <view class="eyebrow">PLANHARNESS · 今天</view>
+    <view class="title">{{ WEEKDAY_LABELS[weekday - 1] }}，只做今天的事。</view>
+    <view class="subtitle">计划随时能改，改了才叫计划；不能改的只是愿望。</view>
 
-    <view v-if="loading" class="card muted">正在加载当前计划…</view>
+    <view v-if="loading" class="card muted">正在加载…</view>
     <view v-else-if="error" class="error">{{ error }}</view>
 
     <template v-else-if="plan">
       <view class="card">
         <view class="row">
-          <view>
-            <view class="eyebrow">CURRENT PLAN</view>
-            <view style="font-size: 22px; font-weight: 700; margin-top: 4px">
-              v{{ plan.version }}
-            </view>
-          </view>
-          <view class="chip">{{ plan.actions.length }} 个动作</view>
+          <view class="section-title">今天</view>
+          <view class="chip">v{{ plan.version }}</view>
         </view>
-        <view class="subtitle" style="margin-top: 10px">{{ plan.summary }}</view>
-        <view class="metrics">
-          <view class="metric">
-            <text class="metric-value">{{ Math.round(plan.calorie_target) }}</text>
-            <text class="metric-label">kcal</text>
+
+        <view v-if="!todaysActions.length" class="muted" style="margin-top: 10px">
+          今天没有安排训练。休息也是计划的一部分。
+        </view>
+
+        <view v-for="action in todaysActions" :key="action.id" class="task">
+          <view class="task-main">
+            <text class="task-name">{{ actionName(action.action_ref) }}</text>
+            <text class="task-meta">
+              {{ slotLabel(action.slot) }}
+              <template v-if="action.sets"> · {{ action.sets }}×{{ action.reps }}</template>
+              <template v-if="action.duration_min"> · {{ action.duration_min }} 分钟</template>
+            </text>
           </view>
-          <view class="metric">
-            <text class="metric-value">{{ Math.round(plan.protein_target_g) }}</text>
-            <text class="metric-label">protein g</text>
-          </view>
-          <view class="metric">
-            <text class="metric-value">{{ plan.step_target }}</text>
-            <text class="metric-label">steps</text>
-          </view>
+          <text class="task-kind">{{ action.action_type === 'meal' ? '餐' : '练' }}</text>
+        </view>
+
+        <view class="kcal-strip">
+          <text class="kcal-value">{{ todaysKcal }}</text>
+          <text class="kcal-label">今天已记录消耗 kcal</text>
         </view>
       </view>
 
-      <view class="card">
-        <view class="row">
-          <view class="eyebrow">7-DAY PLAN</view>
-          <view class="chip">v{{ plan.version }}</view>
-        </view>
-        <view v-for="group in grouped" :key="group.day" class="day">
-          <view class="day-title">Day {{ group.day }}</view>
-          <view v-for="action in group.actions" :key="action.id" class="action">
-            <view class="action-main">
-              <text class="action-name">{{ actionNames[action.action_ref] || action.action_ref }}</text>
-              <text class="action-meta">
-                {{ slotLabels[action.slot] || action.slot }}
-                <template v-if="action.sets"> · {{ action.sets }}×{{ action.reps }}</template>
-                <template v-if="action.duration_min"> · {{ action.duration_min }} min</template>
-              </text>
-            </view>
-            <text class="action-type">{{ action.action_type === 'meal' ? '餐食' : '训练' }}</text>
+      <view class="actions">
+        <button class="btn" @click="openComposer()">改计划</button>
+        <view class="quick-grid">
+          <view class="quick" @click="openComposer('今天想休息', 'rest')">今天想休息</view>
+          <view class="quick" @click="openComposer('膝盖疼，换成不伤膝的动作', 'injury_swap')">
+            受伤了
           </view>
+          <view class="quick" @click="openComposer('想加点强度', 'increase')">想加量</view>
+          <view class="quick" @click="openComposer('晚餐想吃得清淡一点', 'diet')">吃得清淡</view>
         </view>
+        <button class="btn secondary" @click="openCheckin">去打卡 / 记训练</button>
       </view>
 
       <view class="notice">
-        演示动作：假设你右膝疼痛，本周只能练 2 天。系统应只改 3/12 个槽位，而不是重生成整份计划。
+        演示口径：模型只负责提议，安全门（受伤部位 / 可用天数 / 过敏原）和你的确认说了算。
       </view>
-
-      <button class="btn" :disabled="busy" @click="makeKneePatch">
-        {{ busy ? '生成补丁…' : '生成膝痛补丁（3/12）' }}
-      </button>
-      <button
-        v-if="createdPatchId"
-        class="btn secondary"
-        style="margin-top: 10px"
-        @click="uni.switchTab({ url: '/pages/approval/index' })"
-      >
-        补丁已生成 → 去审批
-      </button>
-      <button class="btn secondary" @click="openCheckin">去打卡</button>
-
-      <!-- #ifdef H5 -->
-      <view class="console-link" @click="openConsole">打开 Harness Console →</view>
-      <!-- #endif -->
     </template>
+
+    <PatchComposer
+      :visible="composerOpen"
+      :plan-id="plan?.plan_id || ''"
+      :preset-text="presetText"
+      :preset-quick="presetQuick"
+      @close="composerOpen = false"
+      @applied="onApplied"
+    />
   </view>
 </template>
 
 <style>
-.metrics {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-}
-.metric {
-  background: #f3f7f5;
-  border-radius: 14px;
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  padding: 12px;
-}
-.metric-value {
-  font-size: 20px;
-  font-weight: 700;
-}
-.metric-label {
-  color: #6b7c85;
-  font-size: 11px;
-  margin-top: 2px;
-}
-.day {
-  border-top: 1px solid #edf1f1;
-  margin-top: 14px;
-  padding-top: 12px;
-}
-.day-title {
-  color: #176b52;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  margin-bottom: 6px;
-}
-.action {
+.task {
   align-items: center;
+  border-bottom: 1px solid #f0ece4;
   display: flex;
   justify-content: space-between;
-  padding: 9px 0;
+  padding: 12px 0;
 }
-.action-main {
+.task-main {
   display: flex;
   flex-direction: column;
   gap: 3px;
 }
-.action-name {
-  font-size: 15px;
+.task-name {
+  font-size: 16px;
   font-weight: 600;
 }
-.action-meta {
-  color: #6b7c85;
+.task-meta {
+  color: var(--muted);
   font-size: 12px;
 }
-.action-type {
-  color: #8a9a9a;
-  font-size: 11px;
+.task-kind {
+  color: var(--muted);
+  font-size: 12px;
 }
-.console-link {
-  color: #176b52;
-  font-size: 13px;
-  margin-top: 22px;
+.kcal-strip {
+  align-items: baseline;
+  background: var(--primary-soft);
+  border-radius: 14px;
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px 14px;
+}
+.kcal-value {
+  color: var(--primary);
+  font-size: 24px;
+  font-weight: 700;
+}
+.kcal-label {
+  color: var(--primary);
+  font-size: 12px;
+}
+.actions {
+  margin-top: 16px;
+}
+.quick-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 10px;
+}
+.quick {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  font-size: 14px;
+  padding: 14px 12px;
   text-align: center;
-  text-decoration: underline;
 }
 </style>

@@ -287,3 +287,53 @@ def test_replay_scenario_returns_checks(client: TestClient, auth_headers) -> Non
 
 def test_replay_unknown_scenario_404(client: TestClient, auth_headers) -> None:
     assert client.post("/api/v1/evals/scenarios/E99/run", headers=auth_headers).status_code == 404
+
+
+def test_run_detail_exposes_plan_id_for_audit(client: TestClient, auth_headers) -> None:
+    """Console 要靠 plan_id 去拉审计链。"""
+    plan_id, _ = _create_and_approve(client, auth_headers)
+    run = client.get("/api/v1/runs", headers=auth_headers).json()["data"][0]
+    assert run["plan_id"] == plan_id
+
+    detail = client.get(f"/api/v1/runs/{run['id']}", headers=auth_headers).json()["data"]
+    assert detail["plan_id"] == plan_id
+
+    events = client.get(f"/api/v1/audit/{plan_id}", headers=auth_headers).json()["data"]
+    assert [e["action"] for e in events] == [
+        "patch_created",
+        "approval_granted",
+        "patch_committed",
+    ]
+    assert client.get(f"/api/v1/audit/{plan_id}/verify", headers=auth_headers).json()["data"]["valid"] is True
+
+
+# ---------------- A/B/C 对比 ----------------
+
+def test_compare_knee_modes_returns_real_numbers(client: TestClient, auth_headers) -> None:
+    """三模式对比：A 有违规且无审批；B 无违规但改动大；C 改动最小。"""
+    data = client.post("/api/v1/compare/knee-patch", headers=auth_headers).json()["data"]
+
+    assert data["scenario"].startswith("第 2 周膝痛")
+    assert "fixture" in data["fixture_note"]
+
+    modes = {m["mode"]: m for m in data["modes"]}
+    assert set(modes) == {"A", "B", "C"}
+
+    a, b, c = modes["A"], modes["B"], modes["C"]
+    assert a["violations"] > 0, "A 必须暴露违规"
+    assert a["approval"] is False, "A 不走审批"
+    assert b["violations"] == 0 and b["approval"] is True
+    assert c["violations"] == 0 and c["approval"] is True
+
+    # C 的改动必须小于 B（这就是最小补丁的价值）
+    assert c["changed_slots"] < b["changed_slots"]
+    assert c["churn"] == 0.25
+    assert b["unnecessary_churn"] <= a["unnecessary_churn"]
+
+
+def test_compare_does_not_touch_user_plan(client: TestClient, auth_headers) -> None:
+    before = client.get("/api/v1/plans/current", headers=auth_headers).json()["data"]["version"]
+    client.post("/api/v1/compare/knee-patch", headers=auth_headers)
+    after = client.get("/api/v1/plans/current", headers=auth_headers).json()["data"]["version"]
+    assert before == after == 1
+    assert client.get("/api/v1/patches", headers=auth_headers).json()["data"] == []

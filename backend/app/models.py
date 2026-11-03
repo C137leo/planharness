@@ -257,6 +257,29 @@ class Checkin(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class WorkoutLog(Base):
+    """实际训练记录：用户今天到底练了什么、多久。
+
+    和 PlanAction 的区别：PlanAction 是"计划要练的"，WorkoutLog 是"真的练了的"。
+    热量只能从这条记录算，不能拿计划反推。
+    """
+
+    __tablename__ = "workout_logs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    action_ref: Mapped[str] = mapped_column(String(64))
+    # strength / cardio / flexibility，用于分组统计
+    kind: Mapped[str] = mapped_column(String(16), default="strength")
+    duration_min: Mapped[int] = mapped_column(Integer, default=0)
+    sets: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reps: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    intensity: Mapped[str] = mapped_column(String(16), default="normal")
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Review(Base):
     """周复盘：趋势结论 + 下一步建议，仍走 draft→确认的状态机。"""
 
@@ -327,4 +350,77 @@ class ContextSnapshot(Base):
     compressed: Mapped[bool] = mapped_column(Boolean, default=False)
     # compression_method: truncate / summarize / extract；未压缩时为 None
     compression_method: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+class AuditEvent(Base):
+    """审计事件（哈希链）：每条事件的 hash 都把上一条的 hash 算进去。
+
+    为什么不用「只记日志」：日志可以被删、被改，而且没人能证明它没被动过。
+    这里把 (seq, payload_hash, prev_hash) 一起哈希，任何一处改动都会让后续链路对不上。
+
+    stream_id 用 plan_id：patches / approvals / rollback 都是围绕一份计划发生的，
+    一条流就能回答「这份计划被人动过什么」。
+    """
+
+    __tablename__ = "audit_events"
+    __table_args__ = (UniqueConstraint("stream_id", "seq", name="uq_audit_seq"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    stream_id: Mapped[str] = mapped_column(String(36), index=True)
+    seq: Mapped[int] = mapped_column(Integer)
+    # actor_type: user / agent / system
+    actor_type: Mapped[str] = mapped_column(String(16), default="agent")
+    actor_id: Mapped[str] = mapped_column(String(36), default="")
+    # action: patch_created / approval_granted / approval_rejected /
+    #         patch_committed / verification_failed / rollback_committed
+    action: Mapped[str] = mapped_column(String(32))
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    payload_hash: Mapped[str] = mapped_column(String(64))
+    prev_hash: Mapped[str] = mapped_column(String(64))
+    hash: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+class PatchRequest(Base):
+    """用户的一次「改计划」请求（自然语言 + 结构化意图）。
+
+    和 PlanPatch 的分工：
+    - PatchRequest：用户说了什么、解析成什么意图、处在哪一步（clarifying/ready/applied）；
+    - PlanPatch：具体要改哪几个槽位（草案/已提交都在这里）。
+
+    一次请求最多 3 轮（parent_request_id 串起来），防无限返工。
+    """
+
+    __tablename__ = "patch_requests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    plan_id: Mapped[str] = mapped_column(String(36), ForeignKey("plans.id"), index=True)
+    base_version: Mapped[int] = mapped_column(Integer)
+    raw_text: Mapped[str] = mapped_column(Text, default="")
+    quick_action: Mapped[str] = mapped_column(String(32), default="")
+    # intent: {kind, body_parts, target_body_parts, available_days, duration_min, notes}
+    intent: Mapped[dict] = mapped_column(JSON, default=dict)
+    # status: clarifying / ready / applied / rejected / invalid
+    status: Mapped[str] = mapped_column(String(16), default="clarifying")
+    # 需要追问时给用户看的问题
+    question: Mapped[str] = mapped_column(Text, default="")
+    # 指向草案补丁
+    patch_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    parent_request_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    round: Mapped[int] = mapped_column(Integer, default=1)
+    run_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
+class PatchFeedback(Base):
+    """用户对草案的「再改改」反馈。"""
+
+    __tablename__ = "patch_feedback"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    request_id: Mapped[str] = mapped_column(String(36), ForeignKey("patch_requests.id"), index=True)
+    user_text: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

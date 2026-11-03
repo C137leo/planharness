@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import date as date_type
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -173,6 +174,7 @@ class RunSummaryOut(BaseModel):
     status: str
     stop_reason: str | None = None
     patch_id: str | None = None
+    plan_id: str | None = None
     created_at: datetime
     finished_at: datetime | None = None
     latency_ms: int = 0
@@ -188,3 +190,28 @@ class RunDetailOut(RunSummaryOut):
     patch: dict | None = None
     context: dict | None = None
     verification: dict | None = None
+
+
+class PatchRequestIn(BaseModel):
+    """一句话改计划。base_version 传了就做乐观锁校验。"""
+
+    text: str = Field(min_length=1, max_length=500)
+    quick_action: str = ""
+    base_version: int | None = None
+
+
+class PatchFeedbackIn(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+
+
+class WorkoutLogIn(BaseModel):
+    """打卡里的训练记录；时长必填，热量由后端按 MET 算。"""
+
+    date: date_type | None = None
+    action_ref: str = Field(min_length=1, max_length=64)
+    kind: Literal["strength", "cardio", "flexibility"] = "strength"
+    duration_min: int = Field(ge=1, le=300)
+    sets: int | None = Field(default=None, ge=0, le=50)
+    reps: int | None = Field(default=None, ge=0, le=200)
+    intensity: Literal["light", "normal", "hard"] = "normal"
+    note: str = ""

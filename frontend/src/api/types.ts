@@ -97,6 +97,7 @@ export interface RunSummary {
   status: string
   stop_reason: string | null
   patch_id: string | null
+  plan_id?: string | null
   created_at: string
   finished_at: string | null
   latency_ms: number
@@ -140,6 +141,10 @@ export interface RunContext {
   sections: RunContextSection[]
 }
 
+export interface RunSummaryWithPlan extends RunSummary {
+  plan_id?: string | null
+}
+
 export interface RunDetail extends RunSummary {
   trace: TraceEntry[]
   input: Record<string, unknown>
@@ -181,4 +186,161 @@ export interface EvalScenarioResult {
     churn: number | null
     safety_violations: number
   }
+}
+
+// ---------------- 审计链 ----------------
+
+export interface AuditEvent {
+  seq: number
+  action: string
+  actor_type: string
+  actor_id: string
+  payload: Record<string, unknown>
+  payload_hash: string
+  prev_hash: string
+  hash: string
+  created_at: string | null
+}
+
+export interface AuditVerify {
+  stream_id: string
+  valid: boolean
+  count: number
+  broken_at: number | null
+  reason: string
+  checks: string[]
+}
+
+// ---------------- A/B/C 三模式对比 ----------------
+
+export interface CompareMode {
+  mode: 'A' | 'B' | 'C'
+  label: string
+  changed_slots: number
+  total_slots: number
+  churn: number
+  unnecessary_churn: number
+  violations: number
+  violation_refs: string[]
+  approval: boolean
+  notes: string
+  gate_changes?: string[]
+}
+
+export interface CompareResult {
+  scenario: string
+  constraint: string
+  fixture_note: string
+  modes: CompareMode[]
+}
+
+// ---------------- 一句话改计划（patch-requests） ----------------
+
+export interface PatchIntent {
+  kind: string
+  body_parts: string[]
+  target_body_parts: string[]
+  available_days: number | null
+  duration_min: number | null
+  notes: string
+}
+
+export interface PatchDraft {
+  patch_id: string
+  operations: PatchOperation[]
+  summary: string
+  explanation: string
+  risks: string[]
+  diff: Record<string, unknown>
+  status: string
+}
+
+/** status: ready(可审批) / clarifying(需要追问) / invalid(被安全门拦下) / applied / rejected */
+export interface PatchRequest {
+  request_id: string
+  status: string
+  round: number
+  intent: PatchIntent | Record<string, never>
+  question: string
+  raw_text: string
+  parent_request_id: string | null
+  draft: PatchDraft | null
+  created_at: string | null
+}
+
+// ---------------- 训练记录与热量 ----------------
+
+export type WorkoutKind = 'strength' | 'cardio' | 'flexibility'
+
+export interface WorkoutLogPayload {
+  date?: string
+  action_ref: string
+  kind: WorkoutKind
+  duration_min: number
+  sets?: number | null
+  reps?: number | null
+  intensity?: 'light' | 'normal' | 'hard'
+  note?: string
+}
+
+export interface WorkoutLogItem {
+  log_id: string
+  date: string
+  action_ref: string
+  kind: WorkoutKind
+  duration_min: number
+  met: number
+  met_fallback: boolean
+  kcal: number
+  weight_source: 'checkin' | 'profile' | 'default'
+}
+
+export interface CalorieDay {
+  date: string
+  kcal: number
+  duration_min: number
+  sessions: number
+}
+
+export interface CalorieStats {
+  weight_kg: number
+  weight_source: 'checkin' | 'profile' | 'default'
+  total_kcal: number
+  total_duration_min: number
+  sessions: number
+  days: CalorieDay[]
+  by_kind: Record<string, number>
+  formula: string
+  scope: 'burn_only'
+  note: string
+  since: string
+  days_window: number
+}
+
+export interface Profile {
+  user_id: string
+  sex: string
+  birth_year: number
+  height_cm: number
+  weight_kg: number
+  activity_level: string
+  training_experience: string
+  equipment: string[]
+  weekly_days: number
+  session_minutes: number
+  diet_pattern: string
+  allergies: string[]
+  dislikes: string[]
+  timezone: string
+}
+
+export interface CheckinRecord {
+  id: string
+  date: string
+  weight_kg: number | null
+  sleep_hours: number | null
+  hunger_level: number | null
+  soreness_level: number | null
+  adherence_pct: number | null
+  note: string
 }
