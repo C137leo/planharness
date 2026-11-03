@@ -258,17 +258,7 @@ function describeError(err: unknown): string {
   margin-top: 6px;
 }
 .input {
-  background: var(--line-soft);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  font-size: 15px;
   margin-top: 8px;
-  padding: 11px 13px;
-  width: 100%;
-}
-textarea.input {
-  height: 84px;
-  line-height: 1.5;
 }
 .draft-summary {
   background: var(--primary-soft);

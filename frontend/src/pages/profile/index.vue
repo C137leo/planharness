@@ -299,17 +299,11 @@ onShow(load)
   font-size: 12px;
   margin-bottom: 8px;
 }
+/* 尺寸交给 theme.css；这里只管上下文间距 */
 .input {
-  background: var(--line-soft);
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  font-size: 15px;
-  padding: 10px 12px;
-  width: 100%;
+  margin-top: 8px;
 }
 textarea.input {
-  height: 72px;
-  line-height: 1.5;
   margin-top: 12px;
 }
 .link-card {

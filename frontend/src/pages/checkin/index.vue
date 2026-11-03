@@ -56,7 +56,6 @@ const workout = reactive({
   action_ref: 'brisk_walk',
   kind: 'cardio' as WorkoutKind,
   duration_min: '30',
-  note: '',
 })
 const workoutBusy = ref(false)
 const workoutError = ref('')
@@ -97,10 +96,8 @@ async function logWorkout() {
       action_ref: workout.action_ref,
       kind: workout.kind,
       duration_min: Math.round(duration),
-      note: workout.note,
     })
     workoutLogs.value = [item, ...workoutLogs.value]
-    workout.note = ''
     uni.showToast({ title: `记下了 ${item.kcal} kcal`, icon: 'none' })
   } catch (err) {
     workoutError.value = err instanceof Error ? err.message : '记录失败'
@@ -197,12 +194,11 @@ onLoad(() => {
       </view>
 
       <input v-model="workout.duration_min" class="input" placeholder="时长（分钟）" />
-      <input v-model="workout.note" class="input" placeholder="备注（可选）" />
 
       <view v-if="workoutError" class="error" style="margin-top: 10px">{{ workoutError }}</view>
-      <button class="btn secondary" :disabled="workoutBusy" @click="logWorkout">
-        {{ workoutBusy ? '记录中…' : '记下这一条' }}
-      </button>
+      <view class="btn-row">
+        <view class="btn-sm primary" @click="logWorkout">{{ workoutBusy ? '记录中…' : '记下这一条' }}</view>
+      </view>
 
       <view v-for="log in workoutLogs.slice(0, 5)" :key="log.log_id" class="log">
         <view class="log-main">
@@ -235,12 +231,9 @@ onLoad(() => {
   font-size: 13px;
   margin-bottom: 8px;
 }
+/* 尺寸（高度/内边距）统一由 theme.css 的 .input 管，页面只调整间距 */
 .input {
-  background: var(--line-soft);
-  border-radius: 10px;
-  font-size: 16px;
-  padding: 12px;
-  width: 100%;
+  margin-top: 8px;
 }
 </style>
 

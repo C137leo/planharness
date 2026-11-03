@@ -122,6 +122,8 @@ tabBar 仍是文字（uni-app 的图标位需要准备 PNG 资源，这轮没做
 | 输入框溢出卡片右侧 | 只给 `view/text` 设了 `box-sizing: border-box`，`uni-input` / `uni-textarea` 还是 `content-box`，`width:100% + padding` 就多出 24px | 全局把表单控件也纳入 border-box；`.input` 再加 `max-width:100%` |
 | 抽屉底部按钮被 tabBar 压住 | 抽屉 `z-index: 61` 低于 uni-app H5 tabBar 的 998，且底部没有为 tabBar 留空间 | 抽屉与遮罩提到 1200/1201，底部 padding 加上 `var(--window-bottom)` |
 | 桌面端整页拉成一条 | 手机优先的布局没有最大宽度 | `.page { max-width: 760px; margin: 0 auto }`，Console 用 `.page.wide` 保持全宽 |
+| 输入框变成空白条、点不进去 | `box-sizing: border-box` 之后，uni-input 默认的 `height: 1.4em` 被 padding 吃光，内容区高度为 0 | 单行统一 `height: 46px; padding: 0 14px`，多行 `height: 96px; padding: 12px 14px`，并让内部 wrapper/input 撑满 100% |
+| 预设胶囊在卡片右侧被截断 | `overflow-x: auto` 的单行滚动在卡片内边被裁掉半个胶囊 | 改成 `flex-wrap: wrap`，永不横向截断 |
 
 ## 7. 已验证 / 未验证
 

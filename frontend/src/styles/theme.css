@@ -135,16 +135,13 @@ page {
 /* ---- 横向胶囊行：预设改动、餐次切换都长这样 ---- */
 .chip-scroll {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: none;
-  white-space: nowrap;
 }
 
-.chip-scroll::-webkit-scrollbar {
-  display: none;
+.chip-scroll .pill {
+  white-space: nowrap;
 }
 
 .pill {
@@ -311,14 +308,57 @@ page {
   width: 44px;
 }
 
-/* 输入框统一：宽度包含 padding，且不超出父级 */
+/* 输入框统一。
+   坑：uni-app 的 uni-input 默认 height: 1.4em，加上 border-box 后
+   padding 会把内容区吃光 → 输入框变成一条空白条、还点不进去。
+   所以这里显式给高度，padding 也不再和高度打架。 */
 .input,
 input.input,
 textarea.input,
 .input input,
 .input textarea {
   box-sizing: border-box;
+  display: block;
   max-width: 100%;
+  width: 100%;
+}
+
+/* 单行输入：固定 46px，左右留白，数字/文字都垂直居中 */
+input.input,
+uni-input.input {
+  background: var(--line-soft);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: 15px;
+  height: 46px;
+  padding: 0 14px;
+}
+
+/* 多行输入：给足高度，inner 的 textarea 自动撑满 */
+textarea.input,
+uni-textarea.input {
+  background: var(--line-soft);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: 15px;
+  height: 96px;
+  line-height: 1.5;
+  padding: 12px 14px;
+}
+
+/* uni-app 内部的输入元素按 100% 填满外层，否则又会被压成 0 */
+.input .uni-input-wrapper,
+.input .uni-textarea-wrapper {
+  box-sizing: border-box;
+  height: 100%;
+}
+
+.input .uni-input-input,
+.input .uni-textarea-textarea {
+  box-sizing: border-box;
+  height: 100%;
   width: 100%;
 }
 

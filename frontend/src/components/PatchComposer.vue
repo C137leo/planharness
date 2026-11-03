@@ -282,17 +282,7 @@ function describeError(err: unknown): string {
   font-weight: 600;
 }
 .input {
-  background: var(--line-soft);
-  border: 1px solid var(--line, #e3ded3);
-  border-radius: 14px;
-  font-size: 15px;
   margin-top: 6px;
-  padding: 12px 14px;
-  width: 100%;
-}
-textarea.input {
-  height: 84px;
-  line-height: 1.5;
 }
 .draft-summary {
   background: var(--primary-soft, #e8f1ec);
