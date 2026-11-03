@@ -63,6 +63,10 @@ async function onApplied() {
   await load()
 }
 
+function openApproval() {
+  uni.navigateTo({ url: '/pages/approval/index' })
+}
+
 function openConsole() {
   uni.navigateTo({ url: '/pages/console/index' })
 }
@@ -99,6 +103,9 @@ onShow(load)
           <text class="pending-text">{{ patch.reason_text || patch.reason_code }}</text>
           <text class="pending-meta">{{ patch.operations.length }} 处改动 · 待确认</text>
         </view>
+        <button class="btn secondary" style="margin-top: 12px" @click="openApproval">
+          去逐条确认
+        </button>
       </view>
 
       <view v-for="group in grouped" :key="group.day" class="card">
