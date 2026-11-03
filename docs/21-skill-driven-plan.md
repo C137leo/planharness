@@ -115,6 +115,14 @@ TabBar：今天 / 计划 / 进展 / 我的。今天页现在有三块：
 动作/餐食都带圆形缩略图占位（没有实拍图时用 emoji 而不是空白），改动入口是横向滚动的胶囊行。
 tabBar 仍是文字（uni-app 的图标位需要准备 PNG 资源，这轮没做）。
 
+顺手修了三个真实的布局 bug（都是这次截图暴露的）：
+
+| 问题 | 根因 | 修法 |
+| --- | --- | --- |
+| 输入框溢出卡片右侧 | 只给 `view/text` 设了 `box-sizing: border-box`，`uni-input` / `uni-textarea` 还是 `content-box`，`width:100% + padding` 就多出 24px | 全局把表单控件也纳入 border-box；`.input` 再加 `max-width:100%` |
+| 抽屉底部按钮被 tabBar 压住 | 抽屉 `z-index: 61` 低于 uni-app H5 tabBar 的 998，且底部没有为 tabBar 留空间 | 抽屉与遮罩提到 1200/1201，底部 padding 加上 `var(--window-bottom)` |
+| 桌面端整页拉成一条 | 手机优先的布局没有最大宽度 | `.page { max-width: 760px; margin: 0 auto }`，Console 用 `.page.wide` 保持全宽 |
+
 ## 7. 已验证 / 未验证
 
 已验证（可复现）：

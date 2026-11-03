@@ -188,7 +188,7 @@ onShow(() => {
 </script>
 
 <template>
-  <view class="page">
+  <view class="page wide">
     <view class="eyebrow">HARNESS CONSOLE</view>
     <view class="title">每次运行，都留得下证据。</view>
     <view class="subtitle">真实 run · trace 时间线 · diff · 上下文预算 · 独立验证</view>

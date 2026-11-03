@@ -19,14 +19,30 @@ page {
     'Helvetica Neue', Arial, sans-serif;
 }
 
+/* uni-app 的 input/textarea 是自定义元素（uni-input / uni-textarea），
+   只给 view/text 设 border-box 会让"width:100% + padding"的输入框溢出卡片。 */
 view,
-text {
+text,
+input,
+textarea,
+image,
+button,
+uni-input,
+uni-textarea,
+scroll-view {
   box-sizing: border-box;
 }
 
 .page {
+  margin: 0 auto;
+  max-width: 760px;
   min-height: 100vh;
   padding: 24px 18px 96px;
+}
+
+/* Console 是观测面板，需要全宽放表格与时间线 */
+.page.wide {
+  max-width: 100%;
 }
 
 .eyebrow {

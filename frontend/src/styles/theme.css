@@ -282,20 +282,25 @@ page {
   position: fixed;
   right: 0;
   top: 0;
-  z-index: 60;
+  /* 必须高于 uni-app H5 的 tabBar（998），否则抽屉开着还能切 tab */
+  z-index: 1200;
 }
 
 .sheet {
   background: var(--surface);
   border-radius: 24px 24px 0 0;
   bottom: 0;
+  box-sizing: border-box;
   left: 0;
-  max-height: 88vh;
+  margin: 0 auto;
+  max-height: 92vh;
+  max-width: 560px;
   overflow-y: auto;
-  padding: 20px 18px 28px;
+  /* --window-bottom 在 H5 等于 tabBar 高度；底部留出这段，按钮不会被导航压住 */
+  padding: 20px 18px calc(24px + var(--window-bottom, 0px) + 12px);
   position: fixed;
   right: 0;
-  z-index: 61;
+  z-index: 1201;
 }
 
 .sheet-grip {
@@ -304,4 +309,21 @@ page {
   height: 4px;
   margin: 0 auto 14px;
   width: 44px;
+}
+
+/* 输入框统一：宽度包含 padding，且不超出父级 */
+.input,
+input.input,
+textarea.input,
+.input input,
+.input textarea {
+  box-sizing: border-box;
+  max-width: 100%;
+  width: 100%;
+}
+
+/* 抽屉里的操作行再留一点余量，避免贴边 */
+.sheet .btn-row {
+  margin-top: 14px;
+  padding-bottom: 2px;
 }
