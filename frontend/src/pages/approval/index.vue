@@ -90,7 +90,7 @@ async function approve() {
       content: '提交后旧版本仍可回滚。',
       confirmText: '确认提交',
       cancelText: '再看看',
-      confirmColor: '#176b52',
+      confirmColor: 'var(--primary)',
       success: (result) => resolve(result.confirm),
       fail: () => resolve(false),
     })
@@ -253,7 +253,7 @@ onShow(load)
 }
 .checkbox {
   align-items: center;
-  border: 1px solid #b9c6ca;
+  border: 1px solid var(--line);
   border-radius: 4px;
   display: flex;
   height: 18px;
@@ -262,12 +262,12 @@ onShow(load)
   font-size: 13px;
 }
 .checkbox.on {
-  background: #176b52;
-  border-color: #176b52;
+  background: var(--primary);
+  border-color: var(--primary);
   color: #fff;
 }
 .status {
-  color: #8a6d1d;
+  color: #8a5a15;
   font-size: 12px;
 }
 .diff-grid {
@@ -276,7 +276,7 @@ onShow(load)
   margin-top: 16px;
 }
 .diff-cell {
-  background: #f3f7f5;
+  background: var(--primary-soft);
   border-radius: 12px;
   display: flex;
   flex: 1;
@@ -288,12 +288,12 @@ onShow(load)
   font-weight: 700;
 }
 .diff-label {
-  color: #6b7c85;
+  color: var(--muted);
   font-size: 11px;
   margin-top: 3px;
 }
 .change {
-  border-top: 1px solid #edf1f1;
+  border-top: 1px solid var(--line-soft);
   padding: 12px 0;
 }
 .change:first-of-type {
@@ -306,24 +306,24 @@ onShow(load)
   font-size: 15px;
 }
 .before {
-  color: #8a3f36;
+  color: #9a2f22;
   text-decoration: line-through;
 }
 .after {
-  color: #176b52;
+  color: var(--primary);
   font-weight: 600;
 }
 .arrow {
-  color: #9aa8a8;
+  color: var(--muted);
 }
 .change-reason {
-  color: #6b7c85;
+  color: var(--muted);
   font-size: 12px;
   margin-top: 5px;
 }
 .history-item {
   align-items: center;
-  border-bottom: 1px solid #edf1f1;
+  border-bottom: 1px solid var(--line-soft);
   display: flex;
   gap: 10px;
   justify-content: space-between;

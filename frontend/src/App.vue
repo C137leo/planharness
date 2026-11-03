@@ -13,8 +13,8 @@ onLaunch(() => {
 @import "./styles/theme.css";
 
 page {
-  background: var(--canvas, #f5f3ee);
-  color: var(--ink, #14201f);
+  background: var(--canvas, #fdf2e9);
+  color: var(--ink, #2b1a12);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Helvetica Neue', Arial, sans-serif;
 }
@@ -30,7 +30,7 @@ text {
 }
 
 .eyebrow {
-  color: #6b7c85;
+  color: var(--muted, #8a7466);
   font-size: 12px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -44,7 +44,7 @@ text {
 }
 
 .subtitle {
-  color: #6b7c85;
+  color: var(--muted, #8a7466);
   font-size: 14px;
   line-height: 1.6;
 }
@@ -75,7 +75,7 @@ text {
 
 .btn {
   align-items: center;
-  background: #176b52;
+  background: var(--primary, #e2552b);
   border: none;
   border-radius: 14px;
   color: #ffffff;
@@ -103,16 +103,16 @@ text {
 }
 
 .muted {
-  color: #6b7c85;
+  color: var(--muted, #8a7466);
   font-size: 13px;
   line-height: 1.55;
 }
 
 .notice {
-  background: #fff8e8;
-  border: 1px solid #f1dfb4;
+  background: #fdf6ec;
+  border: 1px solid #f2dfc4;
   border-radius: 14px;
-  color: #6d5217;
+  color: #7a5a20;
   font-size: 13px;
   line-height: 1.6;
   padding: 12px 14px;
@@ -120,10 +120,10 @@ text {
 }
 
 .error {
-  background: #fff0ef;
-  border: 1px solid #f0c8c3;
+  background: #fdeceb;
+  border: 1px solid #f3cdc8;
   border-radius: 14px;
-  color: #8d2b22;
+  color: #9a2f22;
   font-size: 13px;
   line-height: 1.6;
   padding: 12px 14px;

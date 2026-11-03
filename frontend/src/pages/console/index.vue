@@ -530,7 +530,7 @@ onShow(() => {
   padding: 9px 0;
 }
 .matrix-row.header {
-  color: #6b7c85;
+  color: #8a7466;
   font-weight: 600;
 }
 .matrix-row text:not(:first-child) {
@@ -541,7 +541,7 @@ onShow(() => {
   font-weight: 600;
 }
 .compare-note {
-  color: #176b52;
+  color: #c2410c;
   font-weight: 600;
   margin-right: 6px;
 }
@@ -553,7 +553,7 @@ onShow(() => {
   padding: 8px 0;
 }
 .audit-seq {
-  color: #176b52;
+  color: #c2410c;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   width: 32px;
@@ -594,7 +594,7 @@ onShow(() => {
   background: #e7f4ee;
 }
 .scenario-id {
-  color: #176b52;
+  color: #c2410c;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   font-weight: 700;
@@ -624,7 +624,7 @@ onShow(() => {
   padding: 6px 12px;
 }
 .filter.active {
-  background: #176b52;
+  background: #c2410c;
   color: #ffffff;
 }
 .run-item {
@@ -657,7 +657,7 @@ onShow(() => {
   font-weight: 600;
 }
 .status.succeeded {
-  color: #176b52;
+  color: #c2410c;
 }
 .status.failed {
   color: #b3261e;
@@ -670,7 +670,7 @@ onShow(() => {
 }
 .chip.succeeded {
   background: #e7f4ee;
-  color: #176b52;
+  color: #c2410c;
 }
 .chip.failed {
   background: #fdeceb;
@@ -685,7 +685,7 @@ onShow(() => {
   padding: 6px 0;
 }
 .dot {
-  background: #176b52;
+  background: #c2410c;
   border-radius: 50%;
   flex: none;
   height: 8px;
@@ -716,7 +716,7 @@ onShow(() => {
   gap: 2px;
 }
 .k {
-  color: #6b7c85;
+  color: #8a7466;
   font-size: 12px;
 }
 .v {

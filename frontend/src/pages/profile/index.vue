@@ -275,7 +275,7 @@ onShow(load)
   margin-top: 12px;
 }
 .option {
-  background: #faf9f6;
+  background: var(--line-soft);
   border: 1px solid transparent;
   color: var(--ink-soft);
 }
@@ -286,7 +286,7 @@ onShow(load)
   font-weight: 600;
 }
 .field {
-  border-top: 1px solid #f1ede4;
+  border-top: 1px solid var(--line-soft);
   padding: 12px 0 0;
   margin-top: 12px;
 }
@@ -300,7 +300,7 @@ onShow(load)
   margin-bottom: 8px;
 }
 .input {
-  background: #faf9f6;
+  background: var(--line-soft);
   border: 1px solid var(--line);
   border-radius: 12px;
   font-size: 15px;

@@ -258,7 +258,7 @@ function describeError(err: unknown): string {
   margin-top: 6px;
 }
 .input {
-  background: #faf9f6;
+  background: var(--line-soft);
   border: 1px solid var(--line);
   border-radius: 14px;
   font-size: 15px;
@@ -282,7 +282,7 @@ textarea.input {
   margin-top: 16px;
 }
 .meal {
-  border-top: 1px solid #f1ede4;
+  border-top: 1px solid var(--line-soft);
   display: flex;
   flex-direction: column;
   gap: 4px;

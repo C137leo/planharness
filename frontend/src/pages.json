@@ -46,12 +46,12 @@
   "globalStyle": {
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "PlanHarness",
-    "navigationBarBackgroundColor": "#f5f3ee",
-    "backgroundColor": "#f5f3ee"
+    "navigationBarBackgroundColor": "#fdf2e9",
+    "backgroundColor": "#fdf2e9"
   },
   "tabBar": {
-    "color": "#6b7a75",
-    "selectedColor": "#176b52",
+    "color": "#8a7466",
+    "selectedColor": "#e2552b",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [

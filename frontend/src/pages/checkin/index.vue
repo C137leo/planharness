@@ -223,20 +223,20 @@ onLoad(() => {
 
 <style>
 .field {
-  border-bottom: 1px solid #edf1f1;
+  border-bottom: 1px solid var(--line-soft);
   padding: 12px 0;
 }
 .field:last-child {
   border-bottom: none;
 }
 .label {
-  color: #6b7c85;
+  color: var(--muted);
   display: block;
   font-size: 13px;
   margin-bottom: 8px;
 }
 .input {
-  background: #f6f8f8;
+  background: var(--line-soft);
   border-radius: 10px;
   font-size: 16px;
   padding: 12px;
@@ -252,7 +252,7 @@ onLoad(() => {
   margin-top: 12px;
 }
 .option {
-  background: #f7f5ef;
+  background: var(--line-soft);
   border: 1px solid transparent;
   color: var(--ink-soft);
 }
@@ -264,7 +264,7 @@ onLoad(() => {
 }
 .log {
   align-items: center;
-  border-top: 1px solid #f5f1e9;
+  border-top: 1px solid var(--line-soft);
   display: flex;
   justify-content: space-between;
   margin-top: 10px;

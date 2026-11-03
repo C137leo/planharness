@@ -278,11 +278,11 @@ function describeError(err: unknown): string {
   border: 1px solid transparent;
 }
 .quick-row .chip.active {
-  border-color: var(--primary, #176b52);
+  border-color: var(--primary, var(--primary));
   font-weight: 600;
 }
 .input {
-  background: #faf9f6;
+  background: var(--line-soft);
   border: 1px solid var(--line, #e3ded3);
   border-radius: 14px;
   font-size: 15px;
@@ -303,7 +303,7 @@ textarea.input {
   padding: 12px 14px;
 }
 .op {
-  border-bottom: 1px solid #f0ece4;
+  border-bottom: 1px solid var(--line-soft);
   display: flex;
   flex-direction: column;
   gap: 3px;

@@ -77,10 +77,21 @@ onShow(load)
     <view v-else-if="error" class="error">{{ error }}</view>
 
     <template v-else>
+      <view class="hero">
+        <view class="row">
+          <text class="badge">近 7 天</text>
+          <text class="badge">{{ stats?.sessions || 0 }} 次训练</text>
+        </view>
+        <view class="hero-title">{{ stats?.total_kcal ?? 0 }} kcal</view>
+        <view class="hero-sub">
+          共 {{ stats?.total_duration_min || 0 }} 分钟 · 只统计训练消耗，不含基础代谢与饮食摄入。
+        </view>
+      </view>
+
       <view class="card">
         <view class="row">
-          <view class="section-title">近 7 天消耗</view>
-          <view class="chip">{{ stats?.sessions || 0 }} 次训练</view>
+          <view class="section-title">按天看</view>
+          <view class="chip">{{ stats?.sessions || 0 }} 次</view>
         </view>
         <view class="big">
           <text class="big-value">{{ stats?.total_kcal ?? 0 }}</text>
@@ -183,14 +194,14 @@ onShow(load)
   width: 40px;
 }
 .bar-track {
-  background: #f2efe7;
+  background: var(--primary-soft);
   border-radius: 999px;
   flex: 1;
   height: 10px;
   overflow: hidden;
 }
 .bar-fill {
-  background: var(--primary);
+  background: linear-gradient(90deg, #f08a5d 0%, var(--primary) 100%);
   border-radius: 999px;
   height: 10px;
 }
@@ -201,7 +212,7 @@ onShow(load)
   width: 46px;
 }
 .formula {
-  background: #f7f5ef;
+  background: var(--line-soft);
   border-radius: 12px;
   color: var(--ink-soft);
   font-size: 12px;
@@ -211,7 +222,7 @@ onShow(load)
 .weight-row,
 .log-row {
   align-items: center;
-  border-top: 1px solid #f5f1e9;
+  border-top: 1px solid var(--line-soft);
   display: flex;
   justify-content: space-between;
   padding: 10px 0;

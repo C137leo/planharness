@@ -75,6 +75,15 @@ const todayMeals = computed(() => {
   return (plan.value?.meals || []).filter((meal) => meal.day_index === day)
 })
 
+/** 槽位 emoji：训练/餐食一眼能区分，不用真实图片也能看出结构。 */
+function slotEmoji(action: { action_type: string; slot: string }): string {
+  if (action.action_type === 'meal') return '🍽️'
+  if (action.slot === 'cardio') return '🏃'
+  if (action.slot === 'mobility') return '🧘'
+  if (action.slot === 'warmup') return '🔥'
+  return '🏋️'
+}
+
 function openToday() {
   uni.switchTab({ url: '/pages/today/index' })
 }
@@ -98,27 +107,25 @@ onShow(load)
     <template v-else-if="plan">
       <view v-if="toast" class="notice">{{ toast }}</view>
 
-      <view class="card">
+      <view class="hero">
         <view class="row">
-          <view>
-            <view class="section-title">当前版本</view>
-            <view class="version">v{{ plan.version }}</view>
-          </view>
-          <view class="chip">{{ plan.actions.length }} 个槽位</view>
+          <text class="badge">v{{ plan.version }}</text>
+          <text class="badge">{{ plan.source === 'coach' ? '教练计划' : '模板计划' }}</text>
         </view>
-        <view class="subtitle" style="margin-top: 10px">{{ plan.summary }}</view>
+        <view class="hero-title">{{ plan.nutrition?.target_kcal || plan.calorie_target }} kcal / 天</view>
+        <view class="hero-sub">{{ plan.summary }}</view>
         <view class="stat-row">
           <view class="stat">
-            <text class="stat-value">{{ plan.nutrition?.target_kcal || plan.calorie_target }}</text>
-            <text class="stat-label">kcal / 天</text>
-          </view>
-          <view class="stat">
             <text class="stat-value">{{ Math.round(plan.protein_target_g) }}g</text>
-            <text class="stat-label">蛋白</text>
+            <text class="stat-label">蛋白目标</text>
           </view>
           <view class="stat">
-            <text class="stat-value">{{ plan.source === 'coach' ? '教练' : '模板' }}</text>
-            <text class="stat-label">来源</text>
+            <text class="stat-value">{{ grouped.length }}</text>
+            <text class="stat-label">训练天</text>
+          </view>
+          <view class="stat">
+            <text class="stat-value">{{ plan.actions.length }}</text>
+            <text class="stat-label">槽位</text>
           </view>
         </view>
       </view>
@@ -135,7 +142,10 @@ onShow(load)
       </view>
 
       <view v-if="todayMeals.length" class="card">
-        <view class="section-title">今天吃</view>
+        <view class="row">
+          <view class="section-title">今天吃</view>
+          <text class="link" @click="openToday">今天页 →</text>
+        </view>
         <view v-for="meal in todayMeals" :key="meal.slot" class="line">
           <text class="line-name">{{ meal.title }}</text>
           <text class="line-meta">{{ meal.kcal }} kcal · 蛋白 {{ meal.protein_g }}g</text>
@@ -147,13 +157,18 @@ onShow(load)
           <view class="day-title">{{ WEEKDAY_LABELS[group.day - 1] || `Day ${group.day}` }}</view>
           <view class="chip">{{ group.actions.length }}</view>
         </view>
-        <view v-for="action in group.actions" :key="action.id" class="line">
-          <text class="line-name">{{ actionLabel(action) }}</text>
-          <text class="line-meta">
-            {{ slotLabel(action.slot) }}
-            <template v-if="action.sets"> · {{ action.sets }}×{{ action.reps }}</template>
-            <template v-if="action.duration_min"> · {{ action.duration_min }} 分钟</template>
-          </text>
+        <view v-for="action in group.actions" :key="action.id" class="list-row">
+          <view class="list-body">
+            <view class="thumb">{{ slotEmoji(action) }}</view>
+            <view class="list-main">
+              <text class="list-title">{{ actionLabel(action) }}</text>
+              <text class="list-meta">
+                {{ slotLabel(action.slot) }}
+                <template v-if="action.sets"> · {{ action.sets }}×{{ action.reps }}</template>
+                <template v-if="action.duration_min"> · {{ action.duration_min }} 分钟</template>
+              </text>
+            </view>
+          </view>
         </view>
       </view>
 
@@ -188,13 +203,8 @@ onShow(load)
 </template>
 
 <style>
-.version {
-  font-size: 26px;
-  font-weight: 700;
-  margin-top: 2px;
-}
 .pending {
-  border-top: 1px solid #f0ece4;
+  border-top: 1px solid var(--line-soft);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -210,24 +220,9 @@ onShow(load)
   font-size: 12px;
 }
 .day-title {
-  color: var(--primary);
-  font-size: 13px;
+  color: var(--primary-deep);
+  font-size: 14px;
   font-weight: 700;
-}
-.line {
-  align-items: center;
-  border-top: 1px solid #f5f1e9;
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 0;
-}
-.line-name {
-  font-size: 15px;
-  font-weight: 600;
-}
-.line-meta {
-  color: var(--muted);
-  font-size: 12px;
 }
 .console-link {
   color: var(--primary);

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-11-03T19:08:10+00:00",
-  "duration_ms": 1865.43,
+  "generated_at": "2026-11-03T19:08:16+00:00",
+  "duration_ms": 1614.33,
   "python": "3.14.6",
   "summary": {
     "total": 11,
@@ -74,7 +74,7 @@
     },
     {
       "name": "p95_latency_ms",
-      "value": 666.62,
+      "value": 546.19,
       "target": "<= 2000",
       "ok": true,
       "detail": "11 个场景"
@@ -85,7 +85,7 @@
       "id": "E01",
       "title": "正常计划",
       "passed": true,
-      "latency_ms": 70.35,
+      "latency_ms": 62.73,
       "error": null,
       "checks": [
         {
@@ -134,7 +134,7 @@
       "id": "E02",
       "title": "膝痛补丁",
       "passed": true,
-      "latency_ms": 102.23,
+      "latency_ms": 92.45,
       "error": null,
       "checks": [
         {
@@ -188,7 +188,7 @@
       "id": "E03",
       "title": "审批拒绝",
       "passed": true,
-      "latency_ms": 73.86,
+      "latency_ms": 78.57,
       "error": null,
       "checks": [
         {
@@ -227,7 +227,7 @@
       "id": "E04",
       "title": "审批通过",
       "passed": true,
-      "latency_ms": 85.17,
+      "latency_ms": 85.14,
       "error": null,
       "checks": [
         {
@@ -281,7 +281,7 @@
       "id": "E05",
       "title": "上下文预算不足",
       "passed": true,
-      "latency_ms": 70.93,
+      "latency_ms": 69.65,
       "error": null,
       "checks": [
         {
@@ -320,7 +320,7 @@
       "id": "E06",
       "title": "LLM 超时 / 无 Key",
       "passed": true,
-      "latency_ms": 76.52,
+      "latency_ms": 75.47,
       "error": null,
       "checks": [
         {
@@ -354,7 +354,7 @@
       "id": "E07",
       "title": "非法补丁 → 自动回滚",
       "passed": true,
-      "latency_ms": 89.65,
+      "latency_ms": 94.47,
       "error": null,
       "checks": [
         {
@@ -403,7 +403,7 @@
       "id": "E08",
       "title": "重复审批",
       "passed": true,
-      "latency_ms": 92.69,
+      "latency_ms": 86.25,
       "error": null,
       "checks": [
         {
@@ -442,7 +442,7 @@
       "id": "E09",
       "title": "教练计划生成",
       "passed": true,
-      "latency_ms": 427.59,
+      "latency_ms": 250.97,
       "error": null,
       "checks": [
         {
@@ -493,7 +493,7 @@
         {
           "name": "确认返回 200",
           "ok": true,
-          "detail": "{\"code\":0,\"message\":\"confirmed\",\"data\":{\"draft_id\":\"96cf94da-ad31-4f9c-a5b0-dd0b1b36df5c\",\"committed_version\":2,\"plan\":{"
+          "detail": "{\"code\":0,\"message\":\"confirmed\",\"data\":{\"draft_id\":\"f88cf656-744b-4c33-8af0-e6fdbef2d97a\",\"committed_version\":2,\"plan\":{"
         },
         {
           "name": "版本 +1",
@@ -531,7 +531,7 @@
       "id": "E10",
       "title": "自由文本改动",
       "passed": true,
-      "latency_ms": 109.61,
+      "latency_ms": 172.26,
       "error": null,
       "checks": [
         {
@@ -567,7 +567,7 @@
         {
           "name": "确认应用 200",
           "ok": true,
-          "detail": "{\"code\":0,\"message\":\"committed\",\"data\":{\"request_id\":\"30488417-9717-44ac-8f80-b8e7d9ab3927\",\"committed_version\":2,\"plan\""
+          "detail": "{\"code\":0,\"message\":\"committed\",\"data\":{\"request_id\":\"d2704013-d5ce-4300-9580-13e835f7030c\",\"committed_version\":2,\"plan\""
         },
         {
           "name": "版本 +1",
@@ -595,7 +595,7 @@
       "id": "E11",
       "title": "生成草案轮次上限",
       "passed": true,
-      "latency_ms": 666.62,
+      "latency_ms": 546.19,
       "error": null,
       "checks": [
         {
@@ -647,7 +647,7 @@
     }
   ],
   "trend": {
-    "previous_ts": "2026-11-03T19:06:47+00:00",
+    "previous_ts": "2026-11-03T19:08:12+00:00",
     "metrics": [
       {
         "name": "safety_violation_rate",
@@ -714,9 +714,9 @@
       },
       {
         "name": "p95_latency_ms",
-        "current": 666.62,
-        "previous": 828.73,
-        "delta": -162.11,
+        "current": 546.19,
+        "previous": 666.62,
+        "delta": -120.43,
         "status": "down"
       }
     ],
