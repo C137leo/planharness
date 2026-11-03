@@ -1,4 +1,14 @@
-import type { ApiEnvelope, CheckinPayload, CurrentPlan, PlanPatch } from './types'
+import type {
+  ApiEnvelope,
+  CheckinPayload,
+  CurrentPlan,
+  EvalScenario,
+  EvalScenarioResult,
+  PlanPatch,
+  PlanPatchSummary,
+  RunDetail,
+  RunSummary,
+} from './types'
 
 const API_BASE = (import.meta.env.VITE_API_BASE || '/api/v1').replace(/\/$/, '')
 const TOKEN_KEY = 'planharness_token'
@@ -96,6 +106,7 @@ export const api = {
       available_days: availableDays,
     }),
   getPatch: (patchId: string) => request<PlanPatch>('GET', `/patches/${patchId}`),
+  listPatches: (limit = 20) => request<PlanPatchSummary[]>('GET', `/patches?limit=${limit}`),
   approvePatch: (patchId: string, comment = '') =>
     request<{ patch_id: string; committed_version: number; plan: CurrentPlan }>(
       'POST',
@@ -106,4 +117,10 @@ export const api = {
     request<PlanPatch>('POST', `/patches/${patchId}/reject`, { comment }),
   saveCheckin: (payload: CheckinPayload) =>
     request<{ id: string; date: string }>('POST', '/checkins', payload),
+  listEvalScenarios: () => request<EvalScenario[]>('GET', '/evals/scenarios'),
+  runEvalScenario: (id: string) =>
+    request<EvalScenarioResult>('POST', `/evals/scenarios/${id}/run`),
+  listRuns: (limit = 20, status = '') =>
+    request<RunSummary[]>('GET', `/runs?limit=${limit}${status ? `&status=${status}` : ''}`),
+  getRun: (runId: string) => request<RunDetail>('GET', `/runs/${runId}`),
 }

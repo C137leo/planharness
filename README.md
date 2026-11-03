@@ -61,10 +61,12 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/demo -H 'Content-Type: applicatio
 - `GET /api/v1/plans/current`（seed 的 v1，12 个 action）
 - `POST /api/v1/plans/generate`（模板生成 + 热量/蛋白质计算 + validator，生成 v2）
 - `POST /api/v1/plans/{id}/patches`（膝痛补丁，3/12，churn 25%，返回 `validation.explanation`）
-- `POST /api/v1/patches/{id}/approve|reject`（审批前不写库）
+- `POST /api/v1/patches/{id}/approve|reject`（审批前不写库；验证失败→409 并自动回滚）
 - `POST /api/v1/plans/{id}/rollback`（回滚生成新版本）
 - `POST/GET /api/v1/checkins`（打卡 upsert / 列表）
-- 20 个 pytest
+- `GET /api/v1/patches?status=`（补丁历史，审批页据此判断有没有待审批）
+- `GET /api/v1/runs?status=`（最近的 Agent 运行列表，Console 用）
+- `GET /api/v1/runs/{id}`（trace 时间线 + patch diff + 上下文快照 + 验证结论）
 
 服务器部署（当前实际方案）：
 
@@ -97,6 +99,32 @@ npm run dev:h5
 
 > Uni-app 当前安装包提示 Node >=22；本机 Node 20 也能 build，但建议升级到 Node 22。
 
+## 评测（Evals）
+
+不是"我写了测试"，而是**任务级回归 + 指标 + 失败归因 + 变异测试**：
+
+| 产物 | 内容 |
+| --- | --- |
+| [evals/reports/latest.md](evals/reports/latest.md) | 8 个场景 × 8 个指标的实测报告（含与上次的趋势对比） |
+| [evals/reports/mutations.md](evals/reports/mutations.md) | 变异测试：弄坏 6 个护栏，评测必须全抓住 |
+| [evals/reports/latest.json](evals/reports/latest.json) | 机器可读版，给 CI / 趋势图用 |
+
+```bash
+cd backend
+python -m app.evals            # 跑 8 场景 → latest.{json,md}，并追加一行历史
+python -m app.evals --mutants  # 跑变异测试 → mutations.{json,md}
+python -m app.evals --only E04,E07   # 只跑子集（写 partial-*，不覆盖 latest）
+```
+
+指标：`safety_violation_rate` / `verification_pass_rate` / `approval_coverage` /
+`plan_churn` / `context_dropped_required` / `fallback_success` /
+`duplicate_commit_rate` / `avg_cost_cny_per_run` / `fallback_rate` / `p95_latency_ms`。
+
+Console 里还有「场景回放」：点 E01–E08 任一个，服务端跑一次评测并当场展示断言与成本
+（用临时库 + mock 模型，不写你的数据）。
+
+设计说明见 [04 评测与交付 §8.5](docs/04-evals-and-delivery.md)。
+
 ## 文档索引
 
 - [01 产品与 MVP](docs/01-product-and-mvp.md)：定位、范围、用户旅程、演示脚本、验收
@@ -112,7 +140,11 @@ npm run dev:h5
 - [11 进度复盘](docs/11-progress-review.md)：这两天做了什么、完整链路图、LangGraph 缺口与下一步
 - [13 LangGraph 接入](docs/13-langgraph-integration.md)：状态设计、节点包装、interrupt/checkpoint、API 改法与测试
 - [14 Harness 控制平面](docs/14-harness-control-plane.md)：生命周期、上下文、状态、验证、工具治理、审计、成本的差距与路线
+- [16 Graph API 接入模板](docs/16-graph-wiring-template.md)：patch_id/thread_id、路由改写、resume、测试模板
+- [17 Run 生命周期与 Verifier](docs/17-run-lifecycle-and-verifier.md)：AgentRun 状态机、独立验收、测试模板
+- [18 剩余工作清单](docs/18-remaining-work.md)：Evals、Console Trace、token/cost、audit、生产收口与优先级
 - [12 架构总结](docs/12-architecture.md)：**架构风格判定**（分层单体/贫血模型，不是 DDD）、分层与依赖规则、聚合边界、状态机、9 条 ADR、技术债与演进路线、面试讲稿
+- [15 上线前修改清单](docs/15-prelaunch-checklist.md)：**上线前逐条过**：10 个阻断项 + 8 个建议项 + 验证/回滚；配套 `deploy/preflight.sh` 自检
 - [生产部署模板](deploy/README.md)：systemd + Nginx + 现有 Postgres 容器（当前实际方案）
 
 ## 已锁定决策

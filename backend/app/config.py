@@ -40,6 +40,22 @@ class Settings(BaseSettings):
     # 演示/测试时可用 CONTEXT_TOKEN_BUDGET 调小，观察裁剪行为。
     context_token_budget: int = 2000
 
+    # ---- LLM 成本控制（单次运行）----
+    # 超过任一上限 → 不调用模型 / 标记 stop_reason=budget_exceeded
+    max_tokens_per_run: int = 20000
+    max_cost_cny_per_run: float = 0.05
+    # 价格按当期官方定价填（这里只是量级参考）
+    llm_price_in_cny_per_mtok: float = 2.0
+    llm_price_out_cny_per_mtok: float = 8.0
+
+    # LangGraph checkpointer 后端：auto（prod→postgres，其它→memory）/ memory / postgres。
+    # 审核挂起状态要靠它活过进程重启，所以生产必须用 postgres。
+    checkpointer_backend: str = "auto"  # 环境变量 CHECKPOINTER_BACKEND
+    # 留空则从 database_url 推导（会把 SQLAlchemy 的 "+psycopg" 前缀去掉）
+    checkpointer_dsn: str = ""
+    # 连接池上限：checkpointer 的读写都走这个池，别和应用自身的 SQLAlchemy 池抢满连接
+    checkpointer_pool_size: int = 5
+
     @property
     def cors_origin_list(self) -> list[str]:
         """把逗号分隔的 CORS 白名单切成列表，直接喂给 CORSMiddleware。"""

@@ -154,3 +154,37 @@ class RegisterIn(BaseModel):
 class LoginIn(BaseModel):
     phone: str
     password: str
+
+class TraceEntryOut(BaseModel):
+    """trace 里的一步：哪个节点、什么状态、什么时候。"""
+
+    node: str
+    status: str
+    ts: str
+    detail: dict | None = None
+
+
+class RunSummaryOut(BaseModel):
+    """run 列表项：够 Console 列表用即可。"""
+
+    id: str
+    kind: str
+    mode: str
+    status: str
+    stop_reason: str | None = None
+    patch_id: str | None = None
+    created_at: datetime
+    finished_at: datetime | None = None
+    latency_ms: int = 0
+    error_code: str | None = None
+
+
+class RunDetailOut(RunSummaryOut):
+    """run 详情：trace + 补丁 diff + 上下文快照 + 验证结论。"""
+
+    trace: list[TraceEntryOut] = Field(default_factory=list)
+    input: dict = Field(default_factory=dict)
+    output: dict = Field(default_factory=dict)
+    patch: dict | None = None
+    context: dict | None = None
+    verification: dict | None = None

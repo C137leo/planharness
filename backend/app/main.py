@@ -6,15 +6,20 @@ create_app 负责：建 Engine/Session 工厂 → 建表 → 灌 demo 种子数�
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401 - register SQLAlchemy models
+from app.agent.checkpointer import make_checkpointer
+from app.agent.patch_graph import build_patch_graph
 from app.api.routes import router
 from app.config import Settings, get_settings
 from app.db import Base, make_engine, make_session_factory
+from app.llm.deepseek import explainer_from_settings
+from app.llm.types import LlmBudget
 from app.openapi_docs import mount_api_docs
 from app.seed import seed_demo
 
@@ -31,13 +36,45 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     with session_factory() as session:
         seed_demo(session)
 
+    # LangGraph 的挂起状态靠 checkpointer 活着：dev 用内存，prod 用 Postgres。
+    # 生产选 postgres 时连不上会直接启动失败 —— 不静默降级（否则审批会悄悄丢）。
+    checkpointer, close_checkpointer = make_checkpointer(settings)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        """应用退出时关掉 checkpointer 的连接（Postgres 模式才需要）。"""
+        try:
+            yield
+        finally:
+            close_checkpointer()
+
     # docs_url/redoc_url 置空：默认的 /docs 依赖 cdn.jsdelivr.net，国内常被重置导致白屏，
     # 改由 mount_api_docs() 用本地静态文件提供（见 app/openapi_docs.py）
-    app = FastAPI(title=settings.app_name, version="0.1.0", docs_url=None, redoc_url=None)
+    app = FastAPI(
+        title=settings.app_name,
+        version="0.1.0",
+        docs_url=None,
+        redoc_url=None,
+        lifespan=lifespan,
+    )
     # 运行期共享的单例挂在 app.state，供依赖注入（get_db/get_current_user）取用
     app.state.settings = settings
     app.state.engine = engine
     app.state.session_factory = session_factory
+
+    app.state.checkpointer = checkpointer
+    app.state.patch_graph = build_patch_graph(
+        session_factory,
+        explainer=explainer_from_settings(settings).explain,
+        checkpointer=checkpointer,
+        token_budget=settings.context_token_budget,
+        llm_budget=LlmBudget(
+            max_tokens_per_run=settings.max_tokens_per_run,
+            max_cost_cny_per_run=settings.max_cost_cny_per_run,
+            price_in_cny_per_mtok=settings.llm_price_in_cny_per_mtok,
+            price_out_cny_per_mtok=settings.llm_price_out_cny_per_mtok,
+        ),
+    )
 
     app.add_middleware(
         CORSMiddleware,

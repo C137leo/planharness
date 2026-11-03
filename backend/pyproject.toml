@@ -12,7 +12,8 @@ dependencies = [
   "psycopg[binary]>=3.2",
   "httpx>=0.27",
   "langgraph>=1.2.19",
-  "checkpointer>=2.14.12",
+  "langgraph-checkpoint-postgres>=3",
+  "psycopg-pool>=3",   # checkpointer 直接用连接池；虽然它是上面包的传递依赖，但我们要 import，显式声明
 ]
 
 [dependency-groups]

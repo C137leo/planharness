@@ -8,12 +8,16 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from langgraph.prebuilt import interrupt
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
+from langgraph.types import Command
 
+from app import config
 from app.auth import get_current_user, get_db, hash_password, issue_token, verify_password
 from app.domain.patches import (
     PatchValidationError,
@@ -24,7 +28,19 @@ from app.domain.patches import (
 )
 from app.domain.planning import PlanValidationError, generate_plan as generate_plan_service
 from app.llm.deepseek import DeepSeekExplainer
-from app.models import Checkin, Plan, PlanAction, PlanPatch, PlanVersion, Profile, User
+from app.audit import verify_stream
+from app.models import (
+    AgentRun,
+    AuditEvent,
+    Checkin,
+    ContextSnapshot,
+    Plan,
+    PlanAction,
+    PlanPatch,
+    PlanVersion,
+    Profile,
+    User,
+)
 from app.schemas import (
     ActionOut,
     CurrentPlanOut,
@@ -36,6 +52,8 @@ from app.schemas import (
     PatchOut,
     ProfileOut,
     RollbackIn,
+    RunDetailOut,
+    RunSummaryOut,
     TokenOut,
     WeChatLoginIn, RegisterIn, LoginIn,
 )
@@ -43,6 +61,11 @@ from app.seed import DEMO_USER_ID
 
 router = APIRouter(prefix="/api/v1")
 
+def _graph_config(patch_id: str) -> dict:
+    return {
+        "configurable": {"thread_id": patch_id},
+        "recursion_limit": 20,
+    }
 
 def ok(request: Request, data, message: str = "ok"):
     """统一成功响应包装；trace_id 由 add_trace_id 中间件写入 request.state。"""
@@ -194,6 +217,25 @@ def create_patch(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=["MVP 只实现了 injury 补丁"],
         )
+    # 同一份计划同时只允许一个待审批补丁：
+    # 否则用户连点两次「生成补丁」会留下两条永远没人处理的 pending。
+    existing = db.scalar(
+        select(PlanPatch)
+        .where(
+            PlanPatch.plan_id == plan_id,
+            PlanPatch.status == "pending_approval",
+        )
+        .order_by(PlanPatch.created_at.desc())
+    )
+    # 只在「请求完全一样」时才复用；参数不同就照常往下走，
+    # 让安全门/校验器有机会给出 422（否则同一个计划永远改不了参数）。
+    if existing is not None and (existing.diff or {}).get("available_days") == payload.available_days:
+        return ok(
+            request,
+            _patch_payload(existing),
+            message="existing_pending_patch",
+        )
+
     try:
         settings = request.app.state.settings
         explainer = DeepSeekExplainer(
@@ -202,20 +244,184 @@ def create_patch(
             model=settings.deepseek_model,
             timeout_s=8,
         )
-        patch = create_knee_patch(
-            db,
-            user,
-            plan_id,
-            available_days=payload.available_days,
-            idempotency_key=payload.idempotency_key,
-            explainer=explainer.explain,
-            token_budget=settings.context_token_budget,
-        )
+        patch_id = str(uuid.uuid4())
+        config = _graph_config(patch_id)
+        try:
+            out = request.app.state.patch_graph.invoke(
+                {
+                    "user_id": user.id,
+                    "plan_id": plan_id,
+                    "available_days": payload.available_days,
+                    "patch_id":patch_id
+                },
+                config=config,
+            )
+        except PatchValidationError as exc:
+            raise HTTPException(422, detail=exc.errors) from exc
+        if "__interrupt__" not in out:
+            raise HTTPException(500, detail="graph did not reach approval interrupt")
+
+        patch = _owned_patch(db, user, patch_id)
     except PatchValidationError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors
         ) from exc
     return ok(request, _patch_payload(patch), message="pending_approval")
+
+
+@router.get("/audit/{stream_id}")
+def get_audit_stream(
+    stream_id: str,
+    request: Request,
+    limit: int = 200,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """按 stream（plan_id）读整条审计链。"""
+    # 归属校验：stream 就是 plan_id，只能看自己的计划
+    plan = db.get(Plan, stream_id)
+    if plan is None or plan.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="audit stream not found")
+
+    limit = max(1, min(limit, 500))
+    events = db.scalars(
+        select(AuditEvent)
+        .where(AuditEvent.stream_id == stream_id)
+        .order_by(AuditEvent.seq.asc())
+        .limit(limit)
+    ).all()
+    return ok(
+        request,
+        [
+            {
+                "seq": e.seq,
+                "action": e.action,
+                "actor_type": e.actor_type,
+                "actor_id": e.actor_id,
+                "payload": e.payload,
+                "payload_hash": e.payload_hash,
+                "prev_hash": e.prev_hash,
+                "hash": e.hash,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+            }
+            for e in events
+        ],
+    )
+
+
+@router.get("/audit/{stream_id}/verify")
+def verify_audit_stream(
+    stream_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """重算整条链：valid / broken_at / reason。"""
+    plan = db.get(Plan, stream_id)
+    if plan is None or plan.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="audit stream not found")
+    return ok(request, verify_stream(db, stream_id).to_dict())
+
+
+@router.get("/evals/scenarios")
+def list_eval_scenarios(
+    request: Request,
+    user: User = Depends(get_current_user),
+):
+    """可回放的评测场景清单（Console 的场景按钮用它渲染）。"""
+    from app.evals.scenarios import SCENARIOS
+
+    return ok(
+        request,
+        [
+            {"id": s.id, "title": s.title, "description": s.description}
+            for s in SCENARIOS
+        ],
+    )
+
+
+@router.post("/evals/scenarios/{scenario_id}/run")
+def run_eval_scenario(
+    scenario_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+):
+    """在服务端跑一次评测场景并返回结果。
+
+    注意：场景自带临时数据库、mock 模型，**不会写用户的数据**；
+    这里只是把「评测」这个能力暴露给 Console，方便现场演示。
+    """
+    from app.evals.runner import run_all as run_evals
+    from app.evals.scenarios import SCENARIOS
+
+    known = {s.id for s in SCENARIOS}
+    if scenario_id not in known:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"unknown scenario: {scenario_id}"
+        )
+
+    run = run_evals(only=[scenario_id])
+    result = run.results[0]
+    sample = result.sample
+    return ok(
+        request,
+        {
+            "id": result.id,
+            "title": result.title,
+            "passed": result.passed,
+            "error": result.error,
+            "latency_ms": result.latency_ms,
+            "checks": [
+                {"name": c.name, "ok": c.ok, "detail": c.detail} for c in result.checks
+            ],
+            "metrics": {
+                "tokens_in": sample.tokens_in,
+                "tokens_out": sample.tokens_out,
+                "cost_cny": sample.cost_cny,
+                "llm_fallback": sample.llm_fallback,
+                "churn": sample.churn,
+                "safety_violations": sample.safety_violations,
+            },
+        },
+        message="ok" if result.passed else "failed",
+    )
+
+
+@router.get("/patches")
+def list_patches(
+    request: Request,
+    limit: int = 20,
+    status_filter: str | None = Query(default=None, alias="status"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """补丁历史列表（审批页据此判断「还有没有待审批的」）。"""
+    limit = max(1, min(limit, 100))
+    stmt = (
+        select(PlanPatch)
+        .join(Plan, Plan.id == PlanPatch.plan_id)
+        .where(Plan.user_id == user.id)
+    )
+    if status_filter:
+        stmt = stmt.where(PlanPatch.status == status_filter)
+    patches = db.scalars(stmt.order_by(PlanPatch.created_at.desc()).limit(limit)).all()
+
+    return ok(
+        request,
+        [
+            {
+                "id": p.id,
+                "plan_id": p.plan_id,
+                "base_version": p.base_version,
+                "status": p.status,
+                "reason_code": p.reason_code,
+                "reason_text": p.reason_text,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+                "diff": p.diff or {},
+            }
+            for p in patches
+        ],
+    )
 
 
 @router.get("/patches/{patch_id}")
@@ -238,16 +444,49 @@ def approve(
     db: Session = Depends(get_db),
 ):
     """审批通过：重新跑安全门后提交新版本，并返回提交后的完整计划。"""
+    patch = _owned_patch(db, user, patch_id)
+
+    if patch.status != "pending_approval":
+        raise HTTPException(409,detail=f"patch status is{patch.status}")
     try:
-        _, version = approve_patch(db, user, patch_id, payload.comment)
+        out = request.app.state.patch_graph.invoke(
+            Command(resume={"decision": "approve", "comment": payload.comment}),
+            _graph_config(patch_id),
+        )
     except PatchValidationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors
-        ) from exc
+        raise HTTPException(422, detail=exc.errors) from exc
+    except Exception as exc:
+        raise HTTPException(409, detail=f"cannot resume graph: {exc}") from exc
+
+    # 图在 commit 节点里用另一个 Session 提交，这里重新读一遍最新状态
+    db.expire_all()
     plan = _current_plan_payload(db, user)
+    committed_version = int(out.get("version") or plan.version)
+    verification = (out or {}).get("verification") or {}
+
+    # 提交后验证不通过：图已经自动回滚，这里仍然不能当成功返回
+    if verification and not verification.get("passed", True):
+        failed = [c["name"] for c in verification.get("checks", []) if not c.get("passed")]
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "post-commit verification failed",
+                "status": (out or {}).get("status"),
+                "rolled_back": (out or {}).get("status") == "rolled_back",
+                "rollback_version": (out or {}).get("rollback_version"),
+                "failed_checks": failed,
+                "verification": verification,
+            },
+        )
+
     return ok(
         request,
-        {"patch_id": patch_id, "committed_version": version.version, "plan": plan.model_dump()},
+        {
+            "patch_id": patch_id,
+            "committed_version": committed_version,
+            "plan": plan.model_dump(),
+            "verification": verification,
+        },
         message="committed",
     )
 
@@ -262,12 +501,112 @@ def reject(
 ):
     """驳回补丁：只改补丁状态并留痕，计划版本保持不变。"""
     try:
-        patch = reject_patch(db, user, patch_id, payload.comment)
+        request.app.state.patch_graph.invoke(
+            Command(resume={"decision": "reject", "comment": payload.comment}),
+            _graph_config(patch_id)
+        )
     except PatchValidationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors
-        ) from exc
+        raise HTTPException(422, detail=exc.errors) from exc
+    except Exception as exc:
+        raise HTTPException(409, detail=f"cannot resume graph:{exc}") from exc
+    db.expire_all()
+    patch = _owned_patch(db, user,patch_id)
     return ok(request, _patch_payload(patch), message="rejected")
+
+
+def _run_summary(run: AgentRun) -> RunSummaryOut:
+    output = run.output or {}
+    return RunSummaryOut(
+        id=run.id,
+        kind=run.kind,
+        mode=run.mode,
+        status=run.status,
+        stop_reason=output.get("stop_reason"),
+        patch_id=output.get("patch_id"),
+        created_at=run.created_at,
+        finished_at=run.finished_at,
+        latency_ms=run.latency_ms,
+        error_code=run.error_code,
+    )
+
+
+@router.get("/runs")
+def list_runs(
+    request: Request,
+    limit: int = 20,
+    status_filter: str | None = Query(default=None, alias="status"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """最近的 Agent 运行列表（Console 左侧列表用）。
+
+    `status` 可按 succeeded / failed / rejected / running 过滤。
+    注意参数名用 status_filter：`status` 是 fastapi 的模块名，不能覆盖。
+    """
+    limit = max(1, min(limit, 100))
+    stmt = select(AgentRun).where(AgentRun.user_id == user.id)
+    if status_filter:
+        stmt = stmt.where(AgentRun.status == status_filter)
+    runs = db.scalars(stmt.order_by(AgentRun.created_at.desc()).limit(limit)).all()
+    return ok(request, [item.model_dump() for item in map(_run_summary, runs)])
+
+
+@router.get("/runs/{run_id}")
+def get_run(
+    run_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """一次运行的全部证据：trace 时间线 + 补丁 diff + 上下文快照 + 验证结论。"""
+    run = db.get(AgentRun, run_id)
+    if run is None or run.user_id != user.id:
+        # 不区分「不存在」和「不是你的」，避免探测
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
+
+    summary = _run_summary(run)
+    output = run.output or {}
+    patch = db.get(PlanPatch, output.get("patch_id")) if output.get("patch_id") else None
+
+    snapshot = db.scalar(
+        select(ContextSnapshot)
+        .where(ContextSnapshot.run_id == run.id)
+        .order_by(ContextSnapshot.created_at.desc())
+    )
+
+    detail = RunDetailOut(
+        **summary.model_dump(),
+        trace=run.trace or [],
+        input=run.input or {},
+        output=output,
+        patch=(
+            {
+                "id": patch.id,
+                "status": patch.status,
+                "base_version": patch.base_version,
+                "reason_code": patch.reason_code,
+                "reason_text": patch.reason_text,
+                "diff": patch.diff or {},
+                "operations": patch.operations or [],
+            }
+            if patch is not None
+            else None
+        ),
+        context=(
+            {
+                "token_count": snapshot.token_count,
+                "token_budget": snapshot.token_budget,
+                "dropped": snapshot.dropped or [],
+                "compressed": snapshot.compressed,
+                "compression_method": snapshot.compression_method,
+                "sections": snapshot.sections or [],
+            }
+            if snapshot is not None
+            else None
+        ),
+        verification=output.get("verification"),
+    )
+    return ok(request, detail.model_dump())
 
 
 @router.post("/plans/{plan_id}/rollback")

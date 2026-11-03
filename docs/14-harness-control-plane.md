@@ -197,6 +197,62 @@ verify_plan_state(db, plan_id, expected):
 - 测试可以注入非法计划，验证器必须抓住；
 - 面试可以讲“独立 verifier”。
 
+### 2.4.1 已落地：提交 → 独立验证 → 失败自动回滚
+
+这一节不是设计稿，是**已经在跑的代码**（`app/agent/patch_graph.py` + `app/agent/verify.py`）。
+
+```mermaid
+flowchart TD
+    A["prepare<br/>生成补丁草稿（不写版本）"] --> B["human_approval<br/>interrupt 挂起等人"]
+    B -->|"approve"| C["commit<br/>提交新版本"]
+    B -->|"reject"| R["reject<br/>只改补丁状态"]
+    C --> D["verify<br/>8 条确定性断言"]
+    D -->|"全部通过"| E(["END<br/>run=succeeded"])
+    D -->|"任一失败"| F["rollback<br/>回滚到 base_version"]
+    F --> G(["END<br/>run=failed<br/>error_code=VERIFICATION_FAILED"])
+    R --> H(["END<br/>run=rejected"])
+```
+
+**为什么把 verify 从 commit 里拆出来**
+
+| 之前 | 现在 |
+| --- | --- |
+| commit 又写又验，两种失败混在一起 | commit 只写，verify 只查，各自可测 |
+| 验证失败后计划停在错误状态 | 失败 → rollback 节点自动退回提交前 |
+| run 卡在 `running` | 每条路径都有明确终态 |
+
+**8 条断言**（全部查数据库，不调模型）：
+
+| 断言 | 在防什么 |
+| --- | --- |
+| `patch_committed` | 补丁状态没真的变 committed |
+| `approval_recorded` | 没有人工审批记录 —— 绕过审批的直接证据 |
+| `current_version_matches` | 计划指针没指向新版本 |
+| `version_active` | 新版本状态不对 |
+| `previous_superseded` | 旧版本没被标 superseded（历史链断裂） |
+| `no_forbidden_actions` | 提交后的动作里混进了膝痛禁忌动作 |
+| `churn_matches_recorded_diff` | 重算 churn 与补丁记录不一致（被偷偷改过） |
+| `strength_days_within_limit` | 力量训练日超过可用天数 |
+
+**回滚语义**：回滚不是删除，而是**再提交一个新版本**（append-only）：
+
+```
+v1（12 动作）→ v2（补丁后 11 动作，验证失败）→ v3（回到 v1 内容，12 动作）
+                ↑ 失败记录仍然保留，可追溯
+```
+
+**对外表现**：
+
+- 验证通过 → `200`，body 带 `verification`
+- 验证失败 → `409`，带 `rolled_back: true`、`rollback_version`、`failed_checks`
+- `agent_runs` 记录 `status=failed`、`error_code=VERIFICATION_FAILED`、`output.verification` 全量断言
+
+**故障注入测试**（证明验证器不是摆设）：
+
+- `test_verify_detects_missing_approval_record`：删掉审批记录，验证器必须抓
+- `test_verify_failure_triggers_auto_rollback`：注入验证失败，计划必须回到 12 动作、v3 的 parent 是 v2
+- `test_approve_returns_409_and_rolls_back_when_verification_fails`：接口层 409 + 回滚信息
+
 ### 2.5 工具治理
 
 现在只有 DeepSeek 解释器，没有工具层。  
@@ -319,7 +375,7 @@ id, run_id, seq, actor, action, payload_hash, prev_hash, hash, created_at
 | 生命周期 | max_steps/deadline/stop_reason | 注入死循环/超时，能停 |
 | 上下文 | ContextBuilder + snapshot | 预算超限时，约束仍在 |
 | 状态 | LangGraph checkpoint + TaskState | 重启后能 resume |
-| 验证 | 独立 verifier | 注入非法计划，必须失败 |
+| 验证 | 独立 verifier + 自动回滚（**已实现**） | 注入非法计划，必须失败并回滚 |
 | 工具 | Registry + allowlist | 未注册工具被拒绝 |
 | 审计 | hash chain | 篡改一条，verify 失败 |
 | 成本 | token 统计 + 预算 | 超预算停止 |

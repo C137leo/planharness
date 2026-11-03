@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { api, type PlanPatch } from '../../api'
+import { api, type PlanPatch, type PlanPatchSummary } from '../../api'
 
-const patch = ref<PlanPatch | null>(null)
+const pending = ref<PlanPatch | null>(null)
+const history = ref<PlanPatchSummary[]>([])
 const loading = ref(true)
 const busy = ref(false)
 const error = ref('')
-const patchId = ref('')
-const PATCH_KEY = 'planharness_patch_id'
+const notice = ref('')
+// 审批是高风险动作：进入页面先冷却 800ms，并要求显式勾选，防止「连点穿透」误提交
+const cooldown = ref(true)
+const confirmed = ref(false)
 
 const actionNames: Record<string, string> = {
   goblet_squat: '高脚杯深蹲',
@@ -19,9 +22,16 @@ const actionNames: Record<string, string> = {
   easy_walk: '低冲击快走',
 }
 
+const STATUS_LABEL: Record<string, string> = {
+  pending_approval: '待审批',
+  committed: '已提交',
+  rejected: '已拒绝',
+  draft: '草稿',
+}
+
 const changes = computed(() => {
-  if (!patch.value) return []
-  return patch.value.operations.map((op) => {
+  if (!pending.value) return []
+  return pending.value.operations.map((op) => {
     if (op.op === 'remove_action') {
       return {
         key: op.slot_key,
@@ -39,15 +49,32 @@ const changes = computed(() => {
   })
 })
 
+function label(status: string): string {
+  return STATUS_LABEL[status] || status
+}
+
+function clock(iso?: string | null): string {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
 async function load() {
-  if (!patchId.value) {
-    error.value = '缺少 patch id'
-    loading.value = false
-    return
-  }
   loading.value = true
+  error.value = ''
   try {
-    patch.value = await api.getPatch(patchId.value)
+    // 服务端是唯一真相：先看待审批，再看历史
+    const list = await api.listPatches(50)
+    const waiting = list.find((item) => item.status === 'pending_approval')
+    history.value = list.filter((item) => item.status !== 'pending_approval')
+    pending.value = waiting ? await api.getPatch(waiting.id) : null
+    confirmed.value = false
+    cooldown.value = true
+    setTimeout(() => {
+      cooldown.value = false
+    }, 800)
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载失败'
   } finally {
@@ -56,20 +83,25 @@ async function load() {
 }
 
 async function approve() {
-  if (!patch.value || busy.value) return
-  const confirmed = await new Promise<boolean>((resolve) => {
+  if (!pending.value || busy.value) return
+  const accepted = await new Promise<boolean>((resolve) => {
     uni.showModal({
-      title: '确认提交 v2？',
+      title: '确认提交新版本？',
       content: '提交后旧版本仍可回滚。',
+      confirmText: '确认提交',
+      cancelText: '再看看',
+      confirmColor: '#176b52',
       success: (result) => resolve(result.confirm),
+      fail: () => resolve(false),
     })
   })
-  if (!confirmed) return
+  if (!accepted) return
   busy.value = true
+  notice.value = ''
   try {
-    const result = await api.approvePatch(patch.value.id, '前端审批通过')
-    uni.showToast({ title: `已提交 v${result.committed_version}`, icon: 'success' })
-    setTimeout(() => uni.switchTab({ url: '/pages/today/index' }), 700)
+    const result = await api.approvePatch(pending.value.id, '前端审批通过')
+    notice.value = `已提交 v${result.committed_version}。如需再次审批，请先到「今天」页生成新的补丁。`
+    await load()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '审批失败'
   } finally {
@@ -77,14 +109,28 @@ async function approve() {
   }
 }
 
-async function reject() {
-  if (!patch.value || busy.value) return
+async function regenerate() {
+  if (busy.value) return
   busy.value = true
+  notice.value = ''
   try {
-    await api.rejectPatch(patch.value.id, '前端拒绝')
-    uni.removeStorageSync(PATCH_KEY)
-    uni.showToast({ title: '已拒绝', icon: 'none' })
-    setTimeout(() => uni.switchTab({ url: '/pages/today/index' }), 700)
+    const plan = await api.generatePlan()
+    notice.value = `已重新生成 v${plan.version}。现在可以再次生成膝痛补丁。`
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '重新生成失败'
+  } finally {
+    busy.value = false
+  }
+}
+
+async function reject() {
+  if (!pending.value || busy.value) return
+  busy.value = true
+  notice.value = ''
+  try {
+    await api.rejectPatch(pending.value.id, '前端拒绝')
+    notice.value = '已拒绝。计划保持原版本，可随时生成新补丁。'
+    await load()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '拒绝失败'
   } finally {
@@ -92,48 +138,40 @@ async function reject() {
   }
 }
 
-onShow(() => {
-  const id = String(uni.getStorageSync(PATCH_KEY) || '')
-  if (!id) {
-    loading.value = false
-    error.value = '暂无待审批补丁，请先在“今天”页生成膝痛补丁。'
-    return
-  }
-  if (id !== patchId.value) {
-    patchId.value = id
-    load()
-  }
-})
+onShow(load)
 </script>
 
 <template>
   <view class="page">
     <view class="eyebrow">APPROVAL</view>
-    <view class="title">这次只改 3 个槽位。</view>
-    <view class="subtitle">审批前不会写入新版本；拒绝后 v1 保持不变。</view>
+    <view class="title">{{ pending ? '这次只改 3 个槽位。' : '没有待审批的补丁。' }}</view>
+    <view class="subtitle">审批前不会写入新版本；拒绝后计划保持不变。</view>
 
-    <view v-if="loading" class="card muted">加载补丁…</view>
+    <view v-if="notice" class="notice">{{ notice }}</view>
+
+    <view v-if="loading" class="card muted">加载中…</view>
     <view v-else-if="error" class="error">{{ error }}</view>
 
-    <template v-else-if="patch">
+    <!-- 有 pending：只显示审批卡，不显示历史 -->
+    <template v-else-if="pending">
       <view class="card">
         <view class="row">
-          <view class="chip">v{{ patch.base_version }} → v{{ patch.base_version + 1 }}</view>
-          <view class="status">{{ patch.status }}</view>
+          <view class="chip">v{{ pending.base_version }} → v{{ pending.base_version + 1 }}</view>
+          <view class="status">待审批</view>
         </view>
-        <view class="subtitle" style="margin-top: 10px">{{ patch.reason_text }}</view>
+        <view class="subtitle" style="margin-top: 10px">{{ pending.reason_text }}</view>
 
         <view class="diff-grid">
           <view class="diff-cell">
-            <text class="diff-value">{{ patch.diff.changed_slots }}/{{ patch.diff.total_slots }}</text>
+            <text class="diff-value">{{ pending.diff.changed_slots }}/{{ pending.diff.total_slots }}</text>
             <text class="diff-label">变更槽位</text>
           </view>
           <view class="diff-cell">
-            <text class="diff-value">{{ Math.round(patch.diff.churn * 100) }}%</text>
+            <text class="diff-value">{{ Math.round(pending.diff.churn * 100) }}%</text>
             <text class="diff-label">churn</text>
           </view>
           <view class="diff-cell">
-            <text class="diff-value">{{ Math.round(patch.diff.unchanged_ratio * 100) }}%</text>
+            <text class="diff-value">{{ Math.round(pending.diff.unchanged_ratio * 100) }}%</text>
             <text class="diff-label">保留</text>
           </view>
         </view>
@@ -151,21 +189,81 @@ onShow(() => {
         </view>
       </view>
 
-      <view v-if="patch.validation.explanation" class="notice">
-        {{ patch.validation.explanation }}
+      <view v-if="pending.validation.explanation" class="notice">
+        {{ pending.validation.explanation }}
       </view>
 
-      <button class="btn" :disabled="busy || patch.status !== 'pending_approval'" @click="approve">
-        {{ busy ? '提交中…' : '通过并提交 v' + (patch.base_version + 1) }}
+      <view class="confirm-row" @click="confirmed = !confirmed">
+        <view class="checkbox" :class="{ on: confirmed }">{{ confirmed ? '✓' : '' }}</view>
+        <text class="muted small">我已核对以上 3 处变更，确认提交 v{{ pending.base_version + 1 }}</text>
+      </view>
+
+      <button class="btn" :disabled="busy || cooldown || !confirmed" @click="approve">
+        {{ busy ? '处理中…' : cooldown ? '请先核对变更…' : '通过并提交 v' + (pending.base_version + 1) }}
       </button>
-      <button class="btn danger" :disabled="busy || patch.status !== 'pending_approval'" @click="reject">
-        拒绝
-      </button>
+      <button class="btn danger" :disabled="busy || cooldown" @click="reject">拒绝</button>
+    </template>
+
+    <!-- 没有 pending：只有历史，给出「去生成补丁」的入口 -->
+    <template v-else>
+      <view class="card">
+        <view class="muted">
+          当前没有等待审批的补丁。审批按钮只会在有新补丁时出现。
+        </view>
+        <button class="btn" style="margin-top: 14px" @click="uni.switchTab({ url: '/pages/today/index' })">
+          去「今天」页生成膝痛补丁
+        </button>
+        <button class="btn secondary" style="margin-top: 10px" :disabled="busy" @click="regenerate">
+          {{ busy ? '生成中…' : '重新生成计划（换一版再打补丁）' }}
+        </button>
+        <view class="muted small" style="margin-top: 8px">
+          打完一次补丁后，风险动作已被替换；要再演示一遍，先全量重新生成计划。
+        </view>
+      </view>
+
+      <view class="card">
+        <view class="row">
+          <view class="eyebrow">HISTORY</view>
+          <view class="chip">{{ history.length }} 条</view>
+        </view>
+        <view v-if="history.length === 0" class="muted">还没有历史补丁。</view>
+        <view v-for="item in history" :key="item.id" class="history-item">
+          <view class="history-main">
+            <view class="change-line">
+              <text class="status">{{ label(item.status) }}</text>
+              <text class="muted small">v{{ item.base_version }} → v{{ item.base_version + 1 }}</text>
+            </view>
+            <view class="muted small">{{ item.reason_text }}</view>
+          </view>
+          <view class="muted small">{{ clock(item.created_at) }}</view>
+        </view>
+      </view>
     </template>
   </view>
 </template>
 
 <style>
+.confirm-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  padding: 6px 0 14px;
+}
+.checkbox {
+  align-items: center;
+  border: 1px solid #b9c6ca;
+  border-radius: 4px;
+  display: flex;
+  height: 18px;
+  justify-content: center;
+  width: 18px;
+  font-size: 13px;
+}
+.checkbox.on {
+  background: #176b52;
+  border-color: #176b52;
+  color: #fff;
+}
 .status {
   color: #8a6d1d;
   font-size: 12px;
@@ -220,5 +318,21 @@ onShow(() => {
   color: #6b7c85;
   font-size: 12px;
   margin-top: 5px;
+}
+.history-item {
+  align-items: center;
+  border-bottom: 1px solid #edf1f1;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+.history-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.small {
+  font-size: 12px;
 }
 </style>

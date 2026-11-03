@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily PlanHarness database backup
+
+[Timer]
+# 每天 03:30；错开 checkpoint 清理（周日 04:00）
+OnCalendar=*-*-* 03:30:00
+# 机器关机错过了也会在开机后补跑
+Persistent=true
+
+[Install]
+WantedBy=timers.target

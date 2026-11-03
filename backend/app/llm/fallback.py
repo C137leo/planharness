@@ -1,4 +1,5 @@
-def fallback_explanation(operations: list[dict], diff:dict)->str:
+def fallback_explanation(operations: list[dict], diff: dict) -> str:
+    """确定性兜底文案：不调模型、不花钱，保证用户总能看到解释。"""
     parts: list[str] = []
 
     for op in operations:

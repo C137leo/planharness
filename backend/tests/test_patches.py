@@ -14,6 +14,7 @@ from app.main import create_app
 def _client_and_token(tmp_path):
     """返回指向临时库的 TestClient 与已鉴权请求头。"""
     settings = Settings(
+        env="dev",
         database_url=f"sqlite:///{tmp_path}/test.db",
         secret_key="test-secret-0123456789abcdef0123456789",
     )

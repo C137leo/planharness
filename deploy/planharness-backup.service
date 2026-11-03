@@ -1,0 +1,12 @@
+[Unit]
+Description=PlanHarness database backup
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/opt/planharness/deploy/db-backup.sh
+# 备份失败要能在 journalctl 里看到
+StandardOutput=journal
+StandardError=journal

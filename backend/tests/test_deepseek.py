@@ -11,7 +11,7 @@ def test_explain_without_key_uses_fallback():
         model="deepseek-chat",
         timeout_s=1,
     )
-    text = explainer.explain(
+    result = explainer.explain(
         messages=[{"role": "system", "content": "你是教练"}, {"role": "user", "content": "膝痛"}],
         operations=[
             {
@@ -22,8 +22,11 @@ def test_explain_without_key_uses_fallback():
         ],
         diff={"changed_slots": 3, "total_slots": 12, "unchanged_ratio": 0.75},
     )
-    assert "本次计划调整" in text
-    assert "goblet_squat" in text
+    assert result.fallback is True
+    assert result.error == "no_api_key"
+    assert result.tokens_in == 0
+    assert "本次计划调整" in result.text
+    assert "goblet_squat" in result.text
 
 def test_explain_parses_json(monkeypatch):
     def handler(request):
@@ -49,9 +52,10 @@ def test_explain_parses_json(monkeypatch):
         timeout_s=1,
         client=client,
     )
-    text = explainer.explain(
+    result = explainer.explain(
         messages=[{"role": "user", "content": "膝痛"}],
         operations=[],
         diff={},
     )
-    assert "改动：改了3处" in text
+    assert result.fallback is False
+    assert "改动：改了3处" in result.text

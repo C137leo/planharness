@@ -39,5 +39,26 @@ ProtectControlGroups=true
 RestrictSUIDSGID=true
 LockPersonality=true
 
+# --- 进一步加固（Ubuntu 24.04 / systemd 255 支持） ---
+PrivateDevices=true
+ProtectKernelLogs=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+UMask=0077
+
+# 让本服务看不到其它进程的 /proc/<pid>，降低「环境变量里带密钥」时的暴露面
+ProtectProc=invisible
+ProcSubset=pid
+
+# 系统调用白名单：更严，但个别依赖可能不兼容。
+# 如果启动失败且日志里出现 SECCOMP / status=2xx，先注释掉这两行再排查。
+# SystemCallFilter=@system-service
+# SystemCallErrorNumber=EPERM
+
 [Install]
 WantedBy=multi-user.target

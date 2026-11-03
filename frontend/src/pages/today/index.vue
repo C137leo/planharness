@@ -7,6 +7,7 @@ const plan = ref<CurrentPlan | null>(null)
 const loading = ref(true)
 const busy = ref(false)
 const error = ref('')
+const createdPatchId = ref('')
 
 const slotLabels: Record<string, string> = {
   warmup: '热身',
@@ -64,9 +65,10 @@ async function makeKneePatch() {
   error.value = ''
   try {
     const patch = await api.createKneePatch(plan.value.plan_id, 2)
-    // Approval is a tabBar page; tab pages cannot receive query strings.
-    uni.setStorageSync('planharness_patch_id', patch.id)
-    uni.switchTab({ url: '/pages/approval/index' })
+    // 不再自动跳转：跳转后审批按钮通常就在刚才点击的位置，
+    // 连点两下很容易直接点穿到「通过」并一路确认掉。
+    createdPatchId.value = patch.id
+    uni.showToast({ title: '补丁已生成', icon: 'success' })
   } catch (err) {
     error.value = err instanceof Error ? err.message : '生成补丁失败'
   } finally {
@@ -151,6 +153,14 @@ onShow(load)
 
       <button class="btn" :disabled="busy" @click="makeKneePatch">
         {{ busy ? '生成补丁…' : '生成膝痛补丁（3/12）' }}
+      </button>
+      <button
+        v-if="createdPatchId"
+        class="btn secondary"
+        style="margin-top: 10px"
+        @click="uni.switchTab({ url: '/pages/approval/index' })"
+      >
+        补丁已生成 → 去审批
       </button>
       <button class="btn secondary" @click="openCheckin">去打卡</button>
 

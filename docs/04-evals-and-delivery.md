@@ -202,6 +202,86 @@ Console 的失败列表可点击进入 Trace，直接定位。
 
 ---
 
+## 8.5 已落地：8 场景最小评测（`app/evals`）
+
+上面的 20 场景是完整版设计；**当前已实现 8 个**，能跑、有指标、有报告。
+
+### 怎么跑
+
+```bash
+cd backend
+python -m app.evals                 # 全量，写 evals/reports/latest.{json,md}
+python -m app.evals --only E04,E07  # 子集，写 partial-E04-E07.{json,md}
+```
+
+### 场景
+
+| ID | 场景 | 断言重点 |
+| --- | --- | --- |
+| E01 | 正常计划 | 12 槽位、热量 1800、每槽有 slot_key、力量日 ≥ 2 |
+| E02 | 膝痛补丁 | 3 个操作、churn 25%、**审批前计划仍是 v1** |
+| E03 | 审批拒绝 | 补丁 rejected、计划留 v1、`AgentRun` 记 rejected |
+| E04 | 审批通过 | v2、11 个动作、独立验证通过、无禁忌动作 |
+| E05 | 上下文预算不足 | 预算装不下 required → 降级模板文案，**required 一条不丢** |
+| E06 | LLM 超时 / 无 Key | 模型抛异常 → 仍返回可用的模板文案 |
+| E07 | 非法补丁 → verifier fail | 自动回滚：恢复 12 动作、逐槽位与提交前一致、run=failed |
+| E08 | 重复审批 | 第二次 409，**不多造版本** |
+
+### 指标与实测
+
+| 指标 | 目标 | 当前 |
+| --- | --- | --- |
+| `safety_violation_rate` | 0 | 0 |
+| `verification_pass_rate` | 1.0 | 1.0 |
+| `approval_coverage` | 1.0（每次提交都有审批记录） | 1.0 |
+| `plan_churn` | ≤ 0.30 | 0.25 |
+| `context_dropped_required` | 0 | 0 |
+| `fallback_success` | 1.0 | 1.0 |
+| `duplicate_commit_rate` | 0 | 0 |
+| `avg_cost_cny_per_run` | ≤ 0.01 | 0.002392（mock 812/96 tokens） |
+| `fallback_rate` | ≤ 0.5 | 0.4（E05/E06 故意触发降级） |
+| `p95_latency_ms` | ≤ 2000 | ~125 |
+
+### 三个设计要点
+
+1. **E07 的失败是"预期失败"**：注入 verifier 失败来验证回滚路径，所以它不参与 `verification_pass_rate`；
+   否则指标会被自己制造的故障拉低。
+2. **`approval_coverage` 不是 decisions/patches**：E02 故意停在 pending，用它当分母会失真。
+   正确口径是「每次产生新版本的提交，都必须有审批记录」。
+3. **子集运行不覆盖 `latest`**：`--only` 写 `partial-*.json`，避免把全量报告覆盖成残缺版。
+
+### 变异测试：证明这些指标不是装饰
+
+`python -m app.evals --mutants` 会**故意弄坏 6 个护栏**，然后看评测能不能抓住：
+
+| 变异体 | 弄坏了什么 | 预期被杀 |
+| --- | --- | --- |
+| M1 | `_diff` 退化成"全量重生成"（churn=1.0） | E02 |
+| M2 | `reject_patch` 实际调用 `approve_patch` | E03 |
+| M3 | `verify_commit` 恒返回 passed | E07 |
+| M4 | 上下文装配忽略预算 | E05 |
+| M5 | `fallback_explanation` 返回空串 | E05、E06 |
+| M6 | `_safety_check` 恒返回空 | E02 |
+
+当前 **6/6 被杀，变异得分 100%**。任何一个存活 = 对应的场景断言失效，
+也就是说"你以为有保护、其实没有" —— 这比代码 bug 更危险，所以 `tests/test_mutations.py` 会守住它。
+
+### 趋势对比：每次跑都留一行
+
+- 全量运行会往 `evals/history.jsonl` 追加一条记录（指标快照 + 各场景通过状态）；
+- 报告里自动生成「与上次对比」表，看得到每个指标 ↑↓ 和哪些场景 **regressed / fixed**；
+- `--no-history` 可以跳过（比如只想看单次结果）。
+
+### 产物
+
+- `evals/reports/latest.json`：机器读（CI 比对、趋势图）
+- `evals/reports/latest.md`：人读（指标表 + 趋势 + 场景表 + 失败归因）
+- `evals/reports/mutations.{json,md}`：变异测试报告
+- `evals/history.jsonl`：历次全量运行的指标快照
+- `tests/test_evals.py` / `tests/test_mutations.py`：把两者接进 pytest
+
+---
+
 ## 9. 3 周交付计划
 
 | 周 | 交付 | 验收 |

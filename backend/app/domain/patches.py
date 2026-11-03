@@ -12,13 +12,16 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.llm.context import ContextBudgetError, ContextBuilder, ContextBundle
+from app.audit import append_event
 from app.llm.fallback import fallback_explanation
+from app.llm.types import LlmBudget, as_explain_result
 from app.llm.prompts import SYSTEM_PROMPT, build_explanation_payload
 from app.models import (
     AgentRun,
@@ -32,6 +35,8 @@ from app.models import (
     PlanVersion,
     User,
 )
+
+logger = logging.getLogger(__name__)
 
 # 膝痛场景的确定性禁忌动作集：出现即拒绝，不交给模型判断
 FORBIDDEN_KNEE_REFS = {"squat", "goblet_squat", "run", "jump", "lunge"}
@@ -263,10 +268,12 @@ def create_knee_patch(
     user: User,
     plan_id: str | None=None,
     *,
+    patch_id: str | None = None,
     available_days: int = 2,
     idempotency_key: str | None = None,
-    explainer: Callable[[list[dict], list[dict], dict], str] | None = None,
+    explainer: Callable[[list[dict], list[dict], dict], object] | None = None,
     token_budget: int = 2000,
+    llm_budget: LlmBudget | None = None,
 ) -> PlanPatch:
     """生成"膝痛 + 只能练 N 天"的最小补丁草稿。
 
@@ -301,7 +308,14 @@ def create_knee_patch(
     ]
     row = max(row_candidates, key=lambda item: item["day_index"]) if row_candidates else None
     if squat is None or walk is None or row is None:
-        raise PatchValidationError(["当前计划没有可演示的 squat/brisk_walk/row 槽位"])
+        # 打完一次补丁后，risky 动作就被换掉了；再打一次自然「无可替换槽位」。
+        # 这不是错误，而是提示调用方：要重走演示，先全量重新生成计划。
+        raise PatchValidationError(
+            [
+                "当前计划已不含可替换的 squat/brisk_walk/row 槽位；"
+                "如需再次演示膝痛补丁，请先全量重新生成计划（POST /api/v1/plans/generate）"
+            ]
+        )
 
     operations = [
         {
@@ -375,13 +389,42 @@ def create_knee_patch(
         # 上下文配错了：计划照常生成，只把「解释」降级成模板文案
         context_error = str(exc)
 
-    if explainer is not None and bundle is not None:
+    budget = llm_budget or LlmBudget()
+    explain_result = None
+    budget_reason: str | None = None
+
+    # 调用前先看 prompt 估算：明显超预算就别花这笔钱
+    if bundle is not None:
+        budget_reason = budget.check_prompt(bundle.token_estimate)
+
+    if explainer is not None and bundle is not None and budget_reason is None:
         try:
-            explanation = explainer(bundle.messages, operations, diff)
-        except Exception:
-            explanation = fallback_explanation(operations, diff)
+            explain_result = as_explain_result(
+                explainer(bundle.messages, operations, diff)
+            )
+        except Exception as exc:  # noqa: BLE001 - 解释失败不能影响补丁
+            explain_result = None
+            budget_reason = None
+            logger.warning("explainer failed: %s", exc)
+
+    if explain_result is None:
+        explain_result = as_explain_result(fallback_explanation(operations, diff))
+        tokens_in = tokens_out = latency_ms = 0
     else:
-        explanation = fallback_explanation(operations, diff)
+        tokens_in = explain_result.tokens_in
+        tokens_out = explain_result.tokens_out
+        latency_ms = explain_result.latency_ms
+
+    explanation = explain_result.text
+
+    # 调用后核对实际用量/成本（只有真调了模型才有数）
+    if budget_reason is None and explain_result.tokens_in + explain_result.tokens_out > 0:
+        budget_reason = budget.check_usage(tokens_in, tokens_out)
+
+    cost_cny = budget.cost_cny(tokens_in, tokens_out)
+    run.tokens_in = tokens_in
+    run.tokens_out = tokens_out
+    run.latency_ms = latency_ms
 
     # 无论是否裁剪都写快照：否则你永远不知道「裁剪发生率」的分母是多少
     snapshot_fields = (
@@ -407,9 +450,12 @@ def create_knee_patch(
     db.add(snapshot)
     db.flush()
     run.context_snapshot_id = snapshot.id
-    run.status = "succeeded"
+    run.status = "waiting_approval"
 
+    # patch_id 允许外部指定：REST 层把它同时用作 LangGraph 的 thread_id，
+    # 不指定时由模型的 default=new_id 生成。
     patch = PlanPatch(
+        **({"id": patch_id} if patch_id else {}),
         plan_id=plan.id,
         base_version=plan.current_version,
         goal_id=plan.goal_id,
@@ -429,6 +475,7 @@ def create_knee_patch(
                 "compressed": snapshot.compressed,
                 "error": context_error,
             },
+            "run_id": run.id,
         },
         diff=diff,
         status="pending_approval",
@@ -436,7 +483,43 @@ def create_knee_patch(
         idempotency_key=idempotency_key,
         created_by="agent",
     )
+
     db.add(patch)
+    db.flush()
+    run.output = {
+        "patch_id": patch.id,
+        "diff": diff,
+        "explanation_fallback": explain_result.fallback,
+        "explanation_error": explain_result.error,
+        "tokens_in": tokens_in,
+        "tokens_out": tokens_out,
+        "cost_cny": cost_cny,
+        "budget": {
+            "max_tokens_per_run": budget.max_tokens_per_run,
+            "max_cost_cny_per_run": budget.max_cost_cny_per_run,
+            "exceeded": budget_reason,
+        },
+        "stop_reason": "budget_exceeded" if budget_reason else "waiting_approval",
+    }
+    if budget_reason:
+        run.status = "budget_exceeded"
+        run.error_code = "BUDGET_EXCEEDED"
+
+    append_event(
+        db,
+        plan.id,
+        "patch_created",
+        {
+            "patch_id": patch.id,
+            "base_version": patch.base_version,
+            "changed_slots": diff.get("changed_slots"),
+            "churn": diff.get("churn"),
+            "operations": len(operations),
+            "run_id": run.id,
+        },
+        actor_type="agent",
+        actor_id="planharness",
+    )
     db.commit()
     db.refresh(patch)
     return patch
@@ -549,6 +632,26 @@ def approve_patch(
             comment=comment,
         )
     )
+    append_event(
+        db,
+        plan.id,
+        "approval_granted",
+        {"patch_id": patch.id, "comment": comment, "base_version": patch.base_version},
+        actor_type="user",
+        actor_id=user.id,
+    )
+    append_event(
+        db,
+        plan.id,
+        "patch_committed",
+        {
+            "patch_id": patch.id,
+            "version": version.version,
+            "parent_version": version.parent_version,
+        },
+        actor_type="agent",
+        actor_id="planharness",
+    )
     db.commit()
     db.refresh(version)
     return plan, version
@@ -559,7 +662,7 @@ def reject_patch(db: Session, user: User, patch_id: str, comment: str = "") -> P
     patch = db.get(PlanPatch, patch_id)
     if patch is None:
         raise PatchValidationError(["patch not found"])
-    _load_plan(db, user, patch.plan_id)
+    plan = _load_plan(db, user, patch.plan_id)
     if patch.status != "pending_approval":
         raise PatchValidationError([f"patch status is {patch.status}"])
     patch.status = "rejected"
@@ -570,6 +673,14 @@ def reject_patch(db: Session, user: User, patch_id: str, comment: str = "") -> P
             decision="rejected",
             comment=comment,
         )
+    )
+    append_event(
+        db,
+        plan.id,
+        "approval_rejected",
+        {"patch_id": patch.id, "comment": comment},
+        actor_type="user",
+        actor_id=user.id,
     )
     db.commit()
     db.refresh(patch)
@@ -596,6 +707,18 @@ def rollback_plan(db: Session, user: User, plan_id: str, target_version: int) ->
     actions = [_action_dict(item) for item in _actions_for_version(db, target.id)]
     version, _ = _new_version_from_actions(
         db, plan, current, actions, summary_prefix=f"回滚到 v{target_version}"
+    )
+    append_event(
+        db,
+        plan.id,
+        "rollback_committed",
+        {
+            "from_version": current.version,
+            "target_version": target_version,
+            "new_version": version.version,
+        },
+        actor_type="system",
+        actor_id="planharness",
     )
     db.commit()
     db.refresh(version)

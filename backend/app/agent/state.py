@@ -15,6 +15,7 @@ class PatchState(TypedDict, total=False):
 
     # prepare 产出
     patch_id: str
+    run_id: str
     explanation: str
     diff: dict
 
@@ -25,3 +26,10 @@ class PatchState(TypedDict, total=False):
     # commit / reject 产出
     version: int
     status: str
+
+    # verify 产出（见 app/agent/verify.py）
+    verified: bool
+    verification: dict
+
+    # rollback 产出（验证不通过时自动回滚）
+    rollback_version: int

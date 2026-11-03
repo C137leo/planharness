@@ -1,0 +1,567 @@
+{
+  "generated_at": "2026-11-03T16:04:12+00:00",
+  "duration_ms": 579.93,
+  "python": "3.14.6",
+  "summary": {
+    "total": 8,
+    "passed": 8,
+    "failed": 0,
+    "all_targets_met": true
+  },
+  "metrics": [
+    {
+      "name": "safety_violation_rate",
+      "value": 0.0,
+      "target": "== 0",
+      "ok": true,
+      "detail": "0 次违规 / 14 个动作"
+    },
+    {
+      "name": "verification_pass_rate",
+      "value": 1.0,
+      "target": "== 1.0",
+      "ok": true,
+      "detail": "1/1 次验证通过"
+    },
+    {
+      "name": "approval_coverage",
+      "value": 1.0,
+      "target": "== 1.0",
+      "ok": true,
+      "detail": "3/3 次提交有审批记录"
+    },
+    {
+      "name": "plan_churn",
+      "value": 0.25,
+      "target": "<= 0.30",
+      "ok": true,
+      "detail": "2 个补丁的均值"
+    },
+    {
+      "name": "context_dropped_required",
+      "value": 0.0,
+      "target": "== 0",
+      "ok": true,
+      "detail": "必需段落（安全边界/约束/目标）从未被丢弃"
+    },
+    {
+      "name": "fallback_success",
+      "value": 1.0,
+      "target": "== 1.0",
+      "ok": true,
+      "detail": "2/2 次降级拿到可用文案"
+    },
+    {
+      "name": "duplicate_commit_rate",
+      "value": 0.0,
+      "target": "== 0",
+      "ok": true,
+      "detail": "0 个多余版本 / 1 次重复审批"
+    },
+    {
+      "name": "avg_cost_cny_per_run",
+      "value": 0.002392,
+      "target": "<= 0.01",
+      "ok": true,
+      "detail": "3 次调用模型的运行"
+    },
+    {
+      "name": "fallback_rate",
+      "value": 0.4,
+      "target": "<= 0.5",
+      "ok": true,
+      "detail": "2/5 次运行降级"
+    },
+    {
+      "name": "p95_latency_ms",
+      "value": 125.55,
+      "target": "<= 2000",
+      "ok": true,
+      "detail": "8 个场景"
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "E01",
+      "title": "正常计划",
+      "passed": true,
+      "latency_ms": 50.72,
+      "error": null,
+      "checks": [
+        {
+          "name": "版本为 v1",
+          "ok": true,
+          "detail": "version=1"
+        },
+        {
+          "name": "12 个动作槽位",
+          "ok": true,
+          "detail": "n=12"
+        },
+        {
+          "name": "热量目标 1800",
+          "ok": true,
+          "detail": "1800.0"
+        },
+        {
+          "name": "每个动作都有 slot_key",
+          "ok": true,
+          "detail": "缺失=0"
+        },
+        {
+          "name": "力量训练日 ≥ 2",
+          "ok": true,
+          "detail": "天数=3"
+        },
+        {
+          "name": "含餐食槽位",
+          "ok": true,
+          "detail": ""
+        }
+      ],
+      "metrics": {
+        "churn": null,
+        "safety_violations": 0,
+        "actions_checked": 0,
+        "verifications": 0,
+        "patches_created": 0,
+        "fallbacks": "0/0",
+        "duplicates": "0/0",
+        "required_dropped": 0
+      }
+    },
+    {
+      "id": "E02",
+      "title": "膝痛补丁",
+      "passed": true,
+      "latency_ms": 72.29,
+      "error": null,
+      "checks": [
+        {
+          "name": "状态 pending_approval",
+          "ok": true,
+          "detail": "pending_approval"
+        },
+        {
+          "name": "改动 3 个槽位",
+          "ok": true,
+          "detail": "3"
+        },
+        {
+          "name": "churn 25%",
+          "ok": true,
+          "detail": "0.25"
+        },
+        {
+          "name": "补丁操作数 3",
+          "ok": true,
+          "detail": "3"
+        },
+        {
+          "name": "替换目标不含禁忌动作",
+          "ok": true,
+          "detail": "命中=[]"
+        },
+        {
+          "name": "审批前计划仍是 v1",
+          "ok": true,
+          "detail": "version=1"
+        },
+        {
+          "name": "安全门拦截非法可用天数",
+          "ok": true,
+          "detail": "HTTP 422"
+        }
+      ],
+      "metrics": {
+        "churn": 0.25,
+        "safety_violations": 0,
+        "actions_checked": 3,
+        "verifications": 0,
+        "patches_created": 1,
+        "fallbacks": "0/0",
+        "duplicates": "0/0",
+        "required_dropped": 0
+      }
+    },
+    {
+      "id": "E03",
+      "title": "审批拒绝",
+      "passed": true,
+      "latency_ms": 68.14,
+      "error": null,
+      "checks": [
+        {
+          "name": "驳回返回 200",
+          "ok": true,
+          "detail": "200"
+        },
+        {
+          "name": "补丁状态 rejected",
+          "ok": true,
+          "detail": "rejected"
+        },
+        {
+          "name": "计划仍为 v1",
+          "ok": true,
+          "detail": "v1"
+        },
+        {
+          "name": "AgentRun 记录 rejected",
+          "ok": true,
+          "detail": "rejected"
+        }
+      ],
+      "metrics": {
+        "churn": null,
+        "safety_violations": 0,
+        "actions_checked": 0,
+        "verifications": 0,
+        "patches_created": 1,
+        "fallbacks": "0/0",
+        "duplicates": "0/0",
+        "required_dropped": 0
+      }
+    },
+    {
+      "id": "E04",
+      "title": "审批通过",
+      "passed": true,
+      "latency_ms": 72.84,
+      "error": null,
+      "checks": [
+        {
+          "name": "审批返回 200",
+          "ok": true,
+          "detail": "200"
+        },
+        {
+          "name": "提交版本为 v2",
+          "ok": true,
+          "detail": "2"
+        },
+        {
+          "name": "独立验证通过",
+          "ok": true,
+          "detail": "True"
+        },
+        {
+          "name": "计划变 11 个动作",
+          "ok": true,
+          "detail": "11"
+        },
+        {
+          "name": "提交后无禁忌动作",
+          "ok": true,
+          "detail": "命中=[]"
+        },
+        {
+          "name": "run 记录了真实 token",
+          "ok": true,
+          "detail": "812"
+        },
+        {
+          "name": "成本已记账",
+          "ok": true,
+          "detail": "¥0.002392"
+        }
+      ],
+      "metrics": {
+        "churn": 0.25,
+        "safety_violations": 0,
+        "actions_checked": 11,
+        "verifications": 1,
+        "patches_created": 1,
+        "fallbacks": "0/0",
+        "duplicates": "0/0",
+        "required_dropped": 0
+      }
+    },
+    {
+      "id": "E05",
+      "title": "上下文预算不足",
+      "passed": true,
+      "latency_ms": 55.97,
+      "error": null,
+      "checks": [
+        {
+          "name": "记录上下文错误",
+          "ok": true,
+          "detail": "必需内容 120 token 超过预算 10"
+        },
+        {
+          "name": "required 未被丢弃",
+          "ok": true,
+          "detail": "['context']"
+        },
+        {
+          "name": "解释降级为非空文本",
+          "ok": true,
+          "detail": "本次计划调整：goblet_squat替换为 glute_bridge；bris"
+        },
+        {
+          "name": "计划仍为 v1",
+          "ok": true,
+          "detail": "v1"
+        }
+      ],
+      "metrics": {
+        "churn": null,
+        "safety_violations": 0,
+        "actions_checked": 0,
+        "verifications": 0,
+        "patches_created": 1,
+        "fallbacks": "1/1",
+        "duplicates": "0/0",
+        "required_dropped": 0
+      }
+    },
+    {
+      "id": "E06",
+      "title": "LLM 超时 / 无 Key",
+      "passed": true,
+      "latency_ms": 63.11,
+      "error": null,
+      "checks": [
+        {
+          "name": "补丁仍创建成功",
+          "ok": true,
+          "detail": "pending_approval"
+        },
+        {
+          "name": "解释降级为非空文本",
+          "ok": true,
+          "detail": "本次计划调整：goblet_squat替换为 glute_bridge；bris"
+        },
+        {
+          "name": "降级文案提到本次调整",
+          "ok": true,
+          "detail": "本次计划调整：goblet_squat替换为 glute_bridge；bris"
+        }
+      ],
+      "metrics": {
+        "churn": null,
+        "safety_violations": 0,
+        "actions_checked": 0,
+        "verifications": 0,
+        "patches_created": 1,
+        "fallbacks": "1/1",
+        "duplicates": "0/0",
+        "required_dropped": 0
+      }
+    },
+    {
+      "id": "E07",
+      "title": "非法补丁 → 自动回滚",
+      "passed": true,
+      "latency_ms": 125.55,
+      "error": null,
+      "checks": [
+        {
+          "name": "审批返回 409",
+          "ok": true,
+          "detail": "409"
+        },
+        {
+          "name": "标记已回滚",
+          "ok": true,
+          "detail": "True"
+        },
+        {
+          "name": "回滚版本号存在",
+          "ok": true,
+          "detail": "3"
+        },
+        {
+          "name": "回滚后 12 个动作",
+          "ok": true,
+          "detail": "12"
+        },
+        {
+          "name": "回滚内容与提交前一致",
+          "ok": true,
+          "detail": "逐槽位比对 slot_key/action_ref"
+        },
+        {
+          "name": "run 标记 VERIFICATION_FAILED",
+          "ok": true,
+          "detail": "VERIFICATION_FAILED"
+        }
+      ],
+      "metrics": {
+        "churn": null,
+        "safety_violations": 0,
+        "actions_checked": 0,
+        "verifications": 0,
+        "patches_created": 1,
+        "fallbacks": "0/0",
+        "duplicates": "0/0",
+        "required_dropped": 0
+      }
+    },
+    {
+      "id": "E08",
+      "title": "重复审批",
+      "passed": true,
+      "latency_ms": 70.54,
+      "error": null,
+      "checks": [
+        {
+          "name": "首次审批 200",
+          "ok": true,
+          "detail": "200"
+        },
+        {
+          "name": "重复审批 409",
+          "ok": true,
+          "detail": "409"
+        },
+        {
+          "name": "版本数仍为 2",
+          "ok": true,
+          "detail": "n=2"
+        },
+        {
+          "name": "计划停在 v2",
+          "ok": true,
+          "detail": "2"
+        }
+      ],
+      "metrics": {
+        "churn": null,
+        "safety_violations": 0,
+        "actions_checked": 0,
+        "verifications": 0,
+        "patches_created": 1,
+        "fallbacks": "0/0",
+        "duplicates": "0/1",
+        "required_dropped": 0
+      }
+    }
+  ],
+  "trend": {
+    "previous_ts": "2026-11-03T16:04:07+00:00",
+    "metrics": [
+      {
+        "name": "safety_violation_rate",
+        "current": 0.0,
+        "previous": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "name": "verification_pass_rate",
+        "current": 1.0,
+        "previous": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "name": "approval_coverage",
+        "current": 1.0,
+        "previous": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "name": "plan_churn",
+        "current": 0.25,
+        "previous": 0.25,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "name": "context_dropped_required",
+        "current": 0.0,
+        "previous": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "name": "fallback_success",
+        "current": 1.0,
+        "previous": 1.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "name": "duplicate_commit_rate",
+        "current": 0.0,
+        "previous": 0.0,
+        "delta": 0.0,
+        "status": "same"
+      },
+      {
+        "name": "avg_cost_cny_per_run",
+        "current": 0.002392,
+        "previous": null,
+        "delta": null,
+        "status": "new"
+      },
+      {
+        "name": "fallback_rate",
+        "current": 0.4,
+        "previous": null,
+        "delta": null,
+        "status": "new"
+      },
+      {
+        "name": "p95_latency_ms",
+        "current": 125.55,
+        "previous": 89.58,
+        "delta": 35.97,
+        "status": "up"
+      }
+    ],
+    "scenarios": [
+      {
+        "id": "E01",
+        "previous": true,
+        "current": true,
+        "status": "same"
+      },
+      {
+        "id": "E02",
+        "previous": true,
+        "current": true,
+        "status": "same"
+      },
+      {
+        "id": "E03",
+        "previous": true,
+        "current": true,
+        "status": "same"
+      },
+      {
+        "id": "E04",
+        "previous": true,
+        "current": true,
+        "status": "same"
+      },
+      {
+        "id": "E05",
+        "previous": true,
+        "current": true,
+        "status": "same"
+      },
+      {
+        "id": "E06",
+        "previous": true,
+        "current": true,
+        "status": "same"
+      },
+      {
+        "id": "E07",
+        "previous": true,
+        "current": true,
+        "status": "same"
+      },
+      {
+        "id": "E08",
+        "previous": true,
+        "current": true,
+        "status": "same"
+      }
+    ]
+  }
+}

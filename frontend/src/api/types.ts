@@ -80,3 +80,105 @@ export interface ApiEnvelope<T> {
   data: T
   trace_id: string
 }
+
+// ---------------- Run 观测（Console） ----------------
+
+export interface TraceEntry {
+  node: string
+  status: string
+  ts: string
+  detail?: Record<string, unknown> | null
+}
+
+export interface RunSummary {
+  id: string
+  kind: string
+  mode: string
+  status: string
+  stop_reason: string | null
+  patch_id: string | null
+  created_at: string
+  finished_at: string | null
+  latency_ms: number
+  error_code: string | null
+}
+
+export interface VerificationCheck {
+  name: string
+  passed: boolean
+  detail: string
+}
+
+export interface RunVerification {
+  passed: boolean
+  checks: VerificationCheck[]
+}
+
+export interface RunPatch {
+  id: string
+  status: string
+  base_version: number
+  reason_code: string
+  reason_text: string
+  diff: Record<string, number>
+  operations: PatchOperation[]
+}
+
+export interface RunContextSection {
+  name: string
+  tokens: number
+  priority?: number
+  truncated?: boolean
+}
+
+export interface RunContext {
+  token_count: number
+  token_budget: number
+  dropped: Array<{ name?: string; reason?: string; tokens?: number }>
+  compressed: boolean
+  compression_method: string | null
+  sections: RunContextSection[]
+}
+
+export interface RunDetail extends RunSummary {
+  trace: TraceEntry[]
+  input: Record<string, unknown>
+  output: Record<string, unknown>
+  patch: RunPatch | null
+  context: RunContext | null
+  verification: RunVerification | null
+}
+
+export interface PlanPatchSummary {
+  id: string
+  plan_id: string
+  base_version: number
+  status: string
+  reason_code: string
+  reason_text: string
+  created_at: string | null
+  diff: Record<string, number>
+}
+
+export interface EvalScenario {
+  id: string
+  title: string
+  description: string
+}
+
+export interface EvalScenarioResult {
+  id: string
+  title: string
+  passed: boolean
+  error: string | null
+  latency_ms: number
+  checks: Array<{ name: string; ok: boolean; detail: string }>
+  metrics: {
+    tokens_in: number
+    tokens_out: number
+    cost_cny: number | null
+    llm_fallback: boolean | null
+    churn: number | null
+    safety_violations: number
+  }
+}

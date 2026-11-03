@@ -64,6 +64,7 @@ def test_allergen_filter() -> None:
 def test_generate_plan_creates_next_version(tmp_path) -> None:
     """重新生成应把 v1 顶成 v2，并让 /plans/current 指向新版本。"""
     settings = Settings(
+        env="dev",
         database_url=f"sqlite:///{tmp_path}/test.db",
         secret_key="test-secret-0123456789abcdef0123456789",
     )

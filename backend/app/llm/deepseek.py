@@ -1,7 +1,10 @@
-import httpx
 import json
-from app import config
+import time
+
+import httpx
+
 from app.llm.fallback import fallback_explanation
+from app.llm.types import ExplainResult
 
 
 class DeepSeekExplainer:
@@ -17,14 +20,20 @@ class DeepSeekExplainer:
     def available(self)-> bool:
         return bool(self.api_key and self.base_url)
 
-    def explain(self, messages:list[dict], operations:list[dict], diff:dict) -> str:
+    def explain(self, messages:list[dict], operations:list[dict], diff:dict) -> ExplainResult:
         """用装配好的 messages 调用模型；任何异常都降级为模板文案。
 
-        messages 由 ContextBuilder.build() 产出（已按预算裁剪），
-        所以这里不再自己拼 prompt —— 拼装与裁剪的职责全部留在上下文层。
+        返回值带用量与耗时 —— 这些是「成本控制」的原始数据，
+        不能只在日志里打一行就算完。
         """
         if not self.available():
-            return fallback_explanation(operations, diff)
+            return ExplainResult(
+                text=fallback_explanation(operations, diff),
+                fallback=True,
+                error="no_api_key",
+            )
+
+        started = time.perf_counter()
         try:
             body = {
                 "model": self.model,
@@ -33,15 +42,27 @@ class DeepSeekExplainer:
                 "max_tokens": 300,
                 "response_format": {"type": "json_object"},
             }
-            raw = self.call_deepseek(body)
-            return self.format_explanation(raw)
-        except Exception:
-            return fallback_explanation(operations,diff)
+            content, usage = self.call_deepseek(body)
+            text = self.format_explanation(content)
+            return ExplainResult(
+                text=text,
+                tokens_in=usage.get("prompt_tokens", 0) or 0,
+                tokens_out=usage.get("completion_tokens", 0) or 0,
+                fallback=False,
+                latency_ms=int((time.perf_counter() - started) * 1000),
+                model=self.model,
+            )
+        except Exception as exc:  # noqa: BLE001 - 任何失败都必须能降级
+            return ExplainResult(
+                text=fallback_explanation(operations, diff),
+                fallback=True,
+                latency_ms=int((time.perf_counter() - started) * 1000),
+                model=self.model,
+                error=f"{type(exc).__name__}: {str(exc)[:120]}",
+            )
 
-
-
-
-    def call_deepseek(self,body:dict) -> str:
+    def call_deepseek(self, body: dict) -> tuple[str, dict]:
+        """返回 (content, usage)。usage 里的 token 数是唯一可信的用量来源。"""
         url = f"{self.base_url.rstrip('/')}/chat/completions"
         response = self._client.post(
             url,
@@ -55,8 +76,8 @@ class DeepSeekExplainer:
         if response.status_code != 200:
             raise RuntimeError(f"deepseek {response.status_code}: {response.text[:200]}")
         data = response.json()
-        return (data["choices"][0]["message"].get("content") or "").strip()
-
+        content = (data["choices"][0]["message"].get("content") or "").strip()
+        return content, dict(data.get("usage") or {})
 
 
     def format_explanation(self,raw: str) -> str:
@@ -97,3 +118,12 @@ def _strip_fence(raw: str) -> str:
     if s.rstrip().endswith("```"):  # 去掉结尾围栏
         s = s.rstrip()[:-3]
     return s.strip()
+
+def explainer_from_settings(settings) -> "DeepSeekExplainer":
+    """按配置构造 explainer；路由和图共用同一份装配逻辑。"""
+    return DeepSeekExplainer(
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
+        model=settings.deepseek_model,
+        timeout_s=8,
+    )
