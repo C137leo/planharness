@@ -64,6 +64,9 @@ class Settings(BaseSettings):
     register_per_ip_day: int = 15
     # 同一手机号每天最多提交几次注册（防占号/重放）
     register_per_phone_day: int = 3
+    # 尝试频率（包含失败请求）：只防刷接口，不惩罚"密码填错/点太快"
+    register_try_per_ip_hour: int = 20
+    register_try_per_ip_day: int = 60
     # 全站注册熔断：一小时内最多注册多少个账号
     register_global_hour: int = 200
     # 登录失败阈值（同 IP + 同手机号，窗口内）

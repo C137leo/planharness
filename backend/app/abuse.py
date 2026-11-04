@@ -125,6 +125,23 @@ class RateLimiter:
         return Decision(allowed=used <= limit, limit=limit, used=used,
                         retry_after=retry_after if used > limit else 0)
 
+    def peek(self, key: str, limit: int, window_seconds: int, *,
+             now: float | None = None) -> Decision:
+        """只看当前窗口用了多少，不计数。
+
+        用途：注册配额应该只统计**成功写入数据库**的请求。
+        若连"提交太快""密码太弱"这种失败也扣成功配额，用户重试几次就把自己锁死了，
+        攻击者反而可以用失败请求把别人的配额耗尽。
+        """
+        stamp = time.time() if now is None else now
+        window_start = int(stamp // window_seconds * window_seconds)
+        retry_after = int(window_start + window_seconds - stamp) + 1
+        with self.session_factory() as db:
+            row = db.get(RateLimitBucket, self._bucket_key(key, window_start))
+            used = int(row.count) if row is not None else 0
+        return Decision(allowed=used < limit, limit=limit, used=used,
+                        retry_after=retry_after if used >= limit else 0)
+
     def clear(self, key: str) -> None:
         """成功登录后清掉失败计数（只清当前窗口，历史窗口不影响）。"""
         with self.session_factory() as db:

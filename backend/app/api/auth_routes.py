@@ -122,19 +122,27 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
     if user_count(request.app.state.session_factory) >= settings.max_users:
         raise HTTPException(503, "演示环境已满，暂时无法注册")
 
-    # 2) 限流：三层，任何一层超限都直接 429，不再查库
-    global_decision = limiter.hit("register:global", settings.register_global_hour, 3600)
-    if not global_decision.allowed:
-        raise _too_many(global_decision.retry_after, "注册通道繁忙，请稍后再试")
-
+    # 2a) 尝试频率：宽一些，只防"刷接口"，不惩罚填错/点太快
     for key, limit, window in (
-        (f"register:ip:{ip}", settings.register_per_ip_hour, 3600),
-        (f"register:ipday:{ip}", settings.register_per_ip_day, 86400),
-        (f"register:phone:{phone}", settings.register_per_phone_day, 86400),
+        (f"register:try:ip:{ip}", settings.register_try_per_ip_hour, 3600),
+        (f"register:try:ipday:{ip}", settings.register_try_per_ip_day, 86400),
     ):
         decision = limiter.hit(key, limit, window)
         if not decision.allowed:
-            raise _too_many(decision.retry_after, "注册太频繁，请稍后再试")
+            raise _too_many(decision.retry_after, "提交太频繁，请稍后再试")
+
+    # 2b) 成功配额：只统计真正写入数据库的注册（下面 peek 检查、成功后计数）
+    quota_checks = (
+        ("register:global", settings.register_global_hour, 3600, "注册通道繁忙，请稍后再试"),
+        (f"register:ip:{ip}", settings.register_per_ip_hour, 3600, "这个 IP 注册次数已用完"),
+        (f"register:ipday:{ip}", settings.register_per_ip_day, 86400, "这个 IP 今天注册次数已用完"),
+        (f"register:phone:{phone}", settings.register_per_phone_day, 86400,
+         "这个手机号今天提交注册的次数已用完"),
+    )
+    for key, limit, window, message in quota_checks:
+        decision = limiter.peek(key, limit, window)
+        if not decision.allowed:
+            raise _too_many(decision.retry_after, message)
 
     # 3) 票据：证明这一次提交来自真实页面，且不是机器瞬时填表
     challenge_error = verify_challenge(
@@ -165,6 +173,10 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
     db.flush()
     db.add(Profile(user_id=user.id))  # 必须同时建画像，否则 /me/profile 404
     db.commit()
+
+    # 写入成功才记"成功配额"：失败请求不占用注册额度
+    for key, limit, window, _message in quota_checks:
+        limiter.hit(key, limit, window)
 
     return ok(
         request,

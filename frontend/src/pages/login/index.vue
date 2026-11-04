@@ -221,13 +221,6 @@ onMounted(() => {
       {{ isRegister ? '注册后填画像，教练会按你的目标和限制排计划。' : '登录后继续你的计划与打卡。' }}
     </view>
 
-    <view class="hero" style="margin-top: 16px">
-      <view class="hero-sub" style="margin-top: 0">
-        这个 demo 有防滥用限制：单 IP 每小时最多注册 5 次，同号每天 3 次，
-        全站每小时 200 个上限；登录连续失败 8 次会锁 15 分钟。
-      </view>
-    </view>
-
     <view class="card">
       <view class="tabs">
         <view class="tab" :class="{ active: mode === 'login' }" @click="switchMode('login')">登录</view>
@@ -262,7 +255,7 @@ onMounted(() => {
 
       <view v-if="error" class="error" style="margin-top: 12px">{{ error }}</view>
       <view v-if="lockedSeconds" class="notice" style="margin-top: 12px">
-        尝试次数过多，请 {{ lockedSeconds }} 秒后再试。
+        {{ error || '提交太频繁' }}（还剩 {{ lockedSeconds }} 秒）
       </view>
 
       <view class="btn-row">
@@ -279,35 +272,6 @@ onMounted(() => {
       </view>
     </view>
 
-    <view class="card">
-      <view class="section-title">为什么这么设计</view>
-      <view class="list">
-        <view class="list-row">
-          <view class="list-main">
-            <text class="list-title">一次性票据</text>
-            <text class="list-meta">提交前申请、服务端签名、只能用一次，脚本没法伪造"填表耗时"</text>
-          </view>
-        </view>
-        <view class="list-row">
-          <view class="list-main">
-            <text class="list-title">分层限流</text>
-            <text class="list-meta">IP / 手机号 / 全站三层固定窗口，超限返回 429 + Retry-After</text>
-          </view>
-        </view>
-        <view class="list-row">
-          <view class="list-main">
-            <text class="list-title">失败的请求也计数</text>
-            <text class="list-meta">计数器独立提交，不会跟着业务事务回滚，没法靠"故意失败"刷</text>
-          </view>
-        </view>
-        <view class="list-row">
-          <view class="list-main">
-            <text class="list-title">账号总量上限</text>
-            <text class="list-meta">到顶直接 503，数据库不会无限增长</text>
-          </view>
-        </view>
-      </view>
-    </view>
   </view>
 </template>
 

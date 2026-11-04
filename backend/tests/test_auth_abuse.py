@@ -131,7 +131,7 @@ def test_register_per_ip_limit_returns_429() -> None:
         blocked = _register(client, "13911112229", password="fitplan2026")
         assert blocked.status_code == 429, blocked.text
         assert int(blocked.headers["Retry-After"]) > 0
-        assert "频繁" in blocked.json()["detail"]
+        assert "已用完" in blocked.json()["detail"] or "频繁" in blocked.json()["detail"]
 
 
 def test_register_per_phone_limit() -> None:
@@ -251,3 +251,27 @@ def test_slow_retry_with_same_challenge_succeeds(monkeypatch) -> None:
 
         slow = client.post(f"{API}/auth/register", json=body)
         assert slow.status_code == 200, slow.text
+
+
+def test_failed_attempts_do_not_consume_success_quota(monkeypatch) -> None:
+    """关键回归：填错/点太快不能把自己的注册额度扣光。
+
+    之前每次失败（比如"提交太快"）都扣 1 次注册配额，用户重试几次就被锁一小时。
+    现在成功配额只在**写库成功**后计数。
+    """
+    import time as time_module
+
+    app = _app(auth_min_fill_ms=5000, register_per_ip_hour=2, register_try_per_ip_hour=50)
+    with TestClient(app) as client:
+        # 3 次"太快"失败：只消耗尝试额度，不消耗注册配额
+        for _ in range(3):
+            assert _register(client, "13911110000").status_code == 400
+
+        base = time_module.time()
+        monkeypatch.setattr("app.abuse.time.time", lambda: base + 6)
+
+        # 配额还有 2 个，应该都能成功
+        assert _register(client, "13911110001").status_code == 200
+        assert _register(client, "13911110002").status_code == 200
+        third = _register(client, "13911110003")
+        assert third.status_code == 429, third.text
