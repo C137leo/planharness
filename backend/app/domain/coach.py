@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agent.planning_agent import PlanningAgent, PlanProposal, skill_profile
+from app.domain.draft_edits import apply_explicit_edits
 from app.domain.revisions import apply_feedback
 from app.audit import append_event
 from app.domain.patches import PatchValidationError, _action_dict, _load_plan
@@ -89,6 +90,17 @@ def create_draft(
     agent = PlanningAgent(bridge or get_bridge(), client=client)
     proposal: PlanProposal = agent.propose(profile, instruction or "", previous_feedback=feedback)
 
+    # 用户在第一句话里就可能写了具体编辑（"加个练背动作"），同样要落到计划上
+    if proposal.payload.get("status") == "ready" and (instruction or "").strip():
+        edited, edit_changes = apply_explicit_edits(proposal.payload, instruction)
+        if edit_changes:
+            proposal.payload = edited
+            proposal.trace = list(proposal.trace) + [{
+                "node": "apply_explicit_edits",
+                "status": "applied",
+                "detail": {"changes": edit_changes[:10]},
+            }]
+
     plan = db.scalar(
         select(Plan).where(Plan.user_id == user.id, Plan.status == "active")
     )
@@ -151,19 +163,32 @@ def add_feedback(
                              previous_feedback=[str(item) for item in (parent.feedback or [])])
 
     # 关键：反馈必须落到计划内容上，而不是只改解释文案。
-    # skill 的训练结构由画像确定，模型改不动它，所以这里做确定性变换。
+    # 顺序：具体编辑（换食材/加动作/删动作）→ 模糊变换（换一批/加强度/避膝）。
     if proposal.payload.get("status") == "ready" and text:
-        revised, changes = apply_feedback(proposal.payload, text)
-        proposal.payload = revised
+        revised, changes = apply_explicit_edits(proposal.payload, text)
+        if not changes:
+            revised, changes = apply_feedback(proposal.payload, text)
+            node = "apply_feedback"
+        else:
+            node = "apply_explicit_edits"
         proposal.trace = list(proposal.trace) + [{
-            "node": "apply_feedback",
+            "node": node,
             "status": "applied" if changes else "no_match",
             "detail": {"changes": changes[:10]},
         }]
-        if not changes:
+        if changes:
+            proposal.payload = revised
+        else:
+            # 没改就别让摘要替你吹：模型经常在文案里说"已经换了"，
+            # 但结构没动，这是最糟糕的一种"看起来做了"。
+            proposal.payload = dict(proposal.payload)
+            proposal.payload["summary"] = (
+                str(proposal.payload.get("summary") or "") + "（本轮没有改动计划内容）"
+            )
             proposal.payload.setdefault("cautions", []).append(
-                "这句话没匹配到可以自动执行的调整，计划内容保持不变；"
-                "换个更具体的说法（例如「动作别重复」「膝盖少蹲一点」）会更有效。"
+                "这句话没匹配到可以自动执行的调整，计划内容保持不变。"
+                "可以试试更具体的说法：「把红薯换成土豆」「新增一个练背动作」「去掉臀桥」"
+                "「动作别重复」「膝盖少蹲一点」「加强度」。"
             )
 
     child = PlanDraft(

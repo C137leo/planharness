@@ -243,3 +243,37 @@ def test_unmatched_allergen_is_surfaced_not_ignored() -> None:
                "screen": {}, "cautions": []}
     _local_gate(base, payload)
     assert any("没能自动识别" in item for item in payload["cautions"])
+
+
+@needs_skill
+def test_explicit_edit_in_feedback_changes_days_and_meals(client, auth_headers) -> None:
+    """「把红薯换成土豆 + 新增练背」必须真的改到 day/meal，而不是只改摘要。"""
+    _setup(client, auth_headers)
+    draft = _draft(client, auth_headers)
+    resp = client.post(
+        f"{API}/plans/drafts/{draft['draft_id']}/feedback",
+        headers=auth_headers,
+        json={"text": "把红薯换成土豆，并新增一个练背动作"},
+    )
+    assert resp.status_code == 200, resp.text
+    revised = resp.json()["data"]
+
+    assert any("row" in action["action_ref"] for day in revised["days"] for action in day["actions"])
+    names = {item["name"] for meal in revised["meals"] for item in meal["items"]}
+    assert "土豆" in names and "红薯" not in names
+    assert revised["revisions"], "要能告诉用户这一轮改了什么"
+
+
+@needs_skill
+def test_unmatched_feedback_is_honest(client, auth_headers) -> None:
+    """认不出来的反馈：摘要要标注没改，而不是让模型吹一遍。"""
+    _setup(client, auth_headers)
+    draft = _draft(client, auth_headers)
+    resp = client.post(
+        f"{API}/plans/drafts/{draft['draft_id']}/feedback",
+        headers=auth_headers,
+        json={"text": "随便改改"},
+    )
+    revised = resp.json()["data"]
+    assert "没有改动计划内容" in revised["summary"]
+    assert revised["cautions"], "要有一句人话解释为什么没改"
