@@ -67,6 +67,13 @@ export function thumbOf(action: {
   action_ref?: string
   meta?: Record<string, unknown>
 }): string {
+  // 先按动作 ref 查：动作是什么，图就该是什么。
+  // meta 有可能是补丁残留（例如休息补丁只改了 duration/meta，没换 action_ref），
+  // 用 meta 优先会让"高脚杯深蹲"显示成拉伸图。
+  const rawRef = String(action.action_ref || '')
+  const refKey = REF_TO_THUMB[rawRef] || REF_TO_THUMB[rawRef.replace(/-/g, '_').toLowerCase()]
+  if (refKey) return THUMBS[refKey]
+
   const meta = action.meta || {}
   const mode = String(meta.movement_mode || '').toLowerCase()
   if (mode && MODE_TO_THUMB[mode]) return THUMBS[MODE_TO_THUMB[mode]]
@@ -74,9 +81,6 @@ export function thumbOf(action: {
   const muscle = String(meta.primary_muscle || '').toLowerCase()
   if (muscle && MUSCLE_TO_THUMB[muscle]) return THUMBS[MUSCLE_TO_THUMB[muscle]]
 
-  const ref = String(action.action_ref || '').replace(/-/g, '_').toLowerCase()
-  const key = REF_TO_THUMB[ref]
-  if (key) return THUMBS[key]
   return THUMBS.legs
 }
 
