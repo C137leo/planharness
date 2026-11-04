@@ -138,6 +138,32 @@ async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: strin
   }
 }
 
+/** 后端版本可能比前端旧：把可能缺失的数组字段补成空数组。
+    这一步是白屏的最后一道防线——组件里任何一个 `.length` 都可能直接炸掉整页。 */
+function normalizeDraft(draft: PlanDraft): PlanDraft {
+  return {
+    ...draft,
+    days: draft.days ?? [],
+    meals: draft.meals ?? [],
+    revisions: draft.revisions ?? [],
+    cautions: draft.cautions ?? [],
+    highlights: draft.highlights ?? [],
+    warnings: draft.warnings ?? [],
+    feedback: draft.feedback ?? [],
+    trace: draft.trace ?? [],
+  }
+}
+
+function normalizePlan(plan: CurrentPlan): CurrentPlan {
+  return {
+    ...plan,
+    actions: plan.actions ?? [],
+    meals: plan.meals ?? [],
+    nutrition: plan.nutrition ?? {},
+    program: plan.program ?? {},
+  }
+}
+
 export const api = {
   // ---- 账号 ----
   authChallenge: (purpose: 'register' | 'login' = 'register') =>
@@ -152,7 +178,8 @@ export const api = {
     clearToken()
   },
 
-  getCurrentPlan: () => request<CurrentPlan>('GET', '/plans/current'),
+  getCurrentPlan: async () =>
+    normalizePlan(await request<CurrentPlan>('GET', '/plans/current')),
   generatePlan: () => request<CurrentPlan>('POST', '/plans/generate'),
   createKneePatch: (planId: string, availableDays = 2) =>
     request<PlanPatch>('POST', `/plans/${planId}/patches`, {
@@ -209,11 +236,12 @@ export const api = {
   listCheckins: () => request<CheckinRecord[]>('GET', '/checkins'),
   getProfile: () => request<Profile>('GET', '/me/profile'),
   updateProfile: (payload: ProfileUpdate) => request<Profile>('PUT', '/me/profile', payload),
-  createPlanDraft: (instruction: string) =>
-    request<PlanDraft>('POST', '/plans/drafts', { instruction }),
-  getPlanDraft: (draftId: string) => request<PlanDraft>('GET', `/plans/drafts/${draftId}`),
-  feedbackPlanDraft: (draftId: string, text: string) =>
-    request<PlanDraft>('POST', `/plans/drafts/${draftId}/feedback`, { text }),
+  createPlanDraft: async (instruction: string) =>
+    normalizeDraft(await request<PlanDraft>('POST', '/plans/drafts', { instruction })),
+  getPlanDraft: async (draftId: string) =>
+    normalizeDraft(await request<PlanDraft>('GET', `/plans/drafts/${draftId}`)),
+  feedbackPlanDraft: async (draftId: string, text: string) =>
+    normalizeDraft(await request<PlanDraft>('POST', `/plans/drafts/${draftId}/feedback`, { text })),
   confirmPlanDraft: (draftId: string, comment = '') =>
     request<{ draft_id: string; committed_version: number; plan: CurrentPlan }>(
       'POST',

@@ -25,6 +25,15 @@ const error = ref('')
 const draft = ref<PlanDraft | null>(null)
 const feedback = ref('')
 
+/* 后端版本可能落后于前端（字段没跟上），这里全部兜底成空数组：
+   一个 undefined.length 就足以让整个组件渲染失败、页面变白。 */
+const revisions = computed(() => draft.value?.revisions ?? [])
+const cautions = computed(() => draft.value?.cautions ?? [])
+const highlights = computed(() => draft.value?.highlights ?? [])
+const warnings = computed(() => draft.value?.warnings ?? [])
+const draftDays = computed(() => draft.value?.days ?? [])
+const draftMeals = computed(() => draft.value?.meals ?? [])
+
 const roundsLeft = computed(() => Math.max(0, 3 - ((draft.value?.round || 1) - 1)))
 const proteinTarget = computed(() => {
   const macros = draft.value?.nutrition?.macros || {}
@@ -36,11 +45,23 @@ const todayWeekday = computed(() => {
   return day === 0 ? 7 : day
 })
 const todayMeals = computed(() =>
-  (draft.value?.meals || []).filter((meal) => meal.day_index === todayWeekday.value),
+  draftMeals.value.filter((meal) => meal.day_index === todayWeekday.value),
 )
 const todayDay = computed(() =>
-  (draft.value?.days || []).find((day) => day.day_index === todayWeekday.value),
+  draftDays.value.find((day) => day.day_index === todayWeekday.value),
 )
+
+/** 三种非 ready 状态含义不同，文案不能都写"生成失败"。 */
+const failureTitle = computed(() => {
+  switch (draft.value?.status) {
+    case 'needs_input':
+      return '需要你再确认一下'
+    case 'blocked':
+      return '先暂停生成'
+    default:
+      return '这个方案我没法直接执行'
+  }
+})
 
 watch(
   () => props.visible,
@@ -148,12 +169,12 @@ function describeError(err: unknown): string {
 
       <!-- 没生成出来 -->
       <template v-else-if="draft.status !== 'ready'">
-        <view class="sheet-title">这次没能生成</view>
+        <view class="sheet-title">{{ failureTitle }}</view>
         <view class="notice" style="margin-top: 10px">
           {{ draft.question || '信息不够，再补充一句目标或身体情况。' }}
         </view>
-        <view v-if="draft.warnings.length" class="error" style="margin-top: 10px">
-          <text v-for="(item, i) in draft.warnings" :key="i">· {{ item }}
+        <view v-if="warnings.length" class="error" style="margin-top: 10px">
+          <text v-for="(item, i) in warnings" :key="i">· {{ item }}
 </text>
         </view>
         <view class="btn-row">
@@ -169,10 +190,10 @@ function describeError(err: unknown): string {
         </view>
         <view class="draft-summary">{{ draft.summary }}</view>
 
-        <view v-if="draft.revisions.length" class="block">
+        <view v-if="revisions.length" class="block">
           <view class="section-title">这一轮改了什么</view>
           <view class="list">
-            <view v-for="(item, index) in draft.revisions" :key="index" class="list-row">
+            <view v-for="(item, index) in revisions" :key="index" class="list-row">
               <text class="list-meta" style="font-size: 13px">· {{ item }}</text>
             </view>
           </view>
@@ -188,7 +209,7 @@ function describeError(err: unknown): string {
             <text class="stat-label">蛋白 g 起</text>
           </view>
           <view class="stat">
-            <text class="stat-value">{{ draft.days.length }}</text>
+            <text class="stat-value">{{ draftDays.length }}</text>
             <text class="stat-label">训练日 / 周</text>
           </view>
         </view>
@@ -221,13 +242,13 @@ function describeError(err: unknown): string {
           </view>
         </view>
 
-        <view v-if="draft.cautions.length" class="notice" style="margin-top: 14px">
-          <text v-for="(item, i) in draft.cautions" :key="i">· {{ item }}
+        <view v-if="cautions.length" class="notice" style="margin-top: 14px">
+          <text v-for="(item, i) in cautions" :key="i">· {{ item }}
 </text>
         </view>
-        <view v-if="draft.highlights.length" class="block">
+        <view v-if="highlights.length" class="block">
           <view class="section-title">注意</view>
-          <view v-for="(item, i) in draft.highlights" :key="i" class="list-row">
+          <view v-for="(item, i) in highlights" :key="i" class="list-row">
             <text class="list-title" style="font-weight: 400">{{ item }}</text>
           </view>
         </view>
