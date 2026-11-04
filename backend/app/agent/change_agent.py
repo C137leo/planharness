@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 
 from app.domain.catalog import is_knee_risky_ref, name_of, refs_for_actions
+from app.domain.exercise_catalog import EXERCISE_CATALOG
 from app.domain.patches import is_knee_risky
 from app.domain.planner import QUICK_ACTIONS, Intent, parse_intent, plan_operations
 
@@ -126,6 +127,7 @@ def validate_operations(operations: list[dict], actions: list[dict],
             errors.append(f"膝盖不适时不能用 {ref}")
             continue
 
+        catalog_item = EXERCISE_CATALOG.get(ref) or {}
         normalized.append({
             "op": "replace_action",
             "slot_key": slot_key,
@@ -136,7 +138,13 @@ def validate_operations(operations: list[dict], actions: list[dict],
                 "sets": int(want_sets) if want_sets is not None else current.get("sets"),
                 "reps": int(want_reps) if want_reps is not None else current.get("reps"),
                 "duration_min": current.get("duration_min"),
-                "meta": {"name_zh": name_of(ref), "source": "change_agent"},
+                "meta": {
+                    "name_zh": name_of(ref),
+                    "source": "change_agent",
+                    # 缩略图按肌群选图，没这个字段就只能退回默认图
+                    "primary_muscle": catalog_item.get("primary_muscle") or current.get("meta", {}).get("primary_muscle"),
+                    "movement_mode": current.get("meta", {}).get("movement_mode"),
+                },
             },
             "reason": str(op.get("reason") or "")[:120],
         })

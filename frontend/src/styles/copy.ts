@@ -35,6 +35,18 @@ export const ACTION_NAMES: Record<string, string> = {
   'chest-supported-row': '胸支撑划船',
   'inverted-row': '反向划船',
   'banded-row': '弹力带划船',
+  'banded-face-pull': '弹力带面拉',
+  'banded-lat-pulldown': '弹力带下拉',
+  'inverted-row': '反向划船',
+  'doorway-row': '门框划船',
+  'seated-row': '坐姿绳索划船',
+  'dumbbell-bent-over-row': '哑铃俯身划船',
+  'chest-supported-row': '胸支撑划船',
+  'straight-arm-pulldown': '直臂下拉',
+  'seated-leg-curl': '坐姿腿弯举',
+  'back-extension': '山羊挺身',
+  'arnold-press': '阿诺德推举',
+  'smith-machine-bench-press': '史密斯卧推',
   'doorway-row': '门框划船',
   'lat-pulldown': '高位下拉',
   'banded-lat-pulldown': '弹力带下拉',
@@ -96,10 +108,10 @@ export function actionName(ref: string): string {
 /** 优先用计划里带的 meta.name_zh（skill 生成的动作名都在那里）。 */
 export function actionLabel(action: { action_ref: string; meta?: Record<string, unknown> }): string {
   const named = (action.meta || {}).name_zh
-  if (typeof named === 'string' && named.trim()) {
-    // 老数据里 meta.name_zh 可能被写成了 slug（push-up），这里翻译一下
-    return ACTION_NAMES[named] || named
-  }
+  // 1) 先查 ref 映射：最可靠（meta 里可能存了 slug 或英文名）
+  if (ACTION_NAMES[action.action_ref]) return ACTION_NAMES[action.action_ref]
+  // 2) 再查 meta：它可能是 slug 或中文名
+  if (typeof named === 'string' && named.trim()) return ACTION_NAMES[named] || named
   return actionName(action.action_ref)
 }
 

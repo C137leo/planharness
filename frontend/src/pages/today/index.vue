@@ -11,7 +11,7 @@ import { api, ApiError, type CurrentPlan, type PatchPreset } from '../../api'
 import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
 import { QUICK_ACTIONS, actionLabel, slotLabel } from '../../styles/copy'
-import { thumbOf } from '../../styles/thumbs'
+import { THUMBS, thumbOf } from '../../styles/thumbs'
 import { WEEKDAY_LABELS, isoWeekday } from '../../styles/dates'
 
 const plan = ref<CurrentPlan | null>(null)
@@ -40,6 +40,15 @@ const macro = computed(() => {
   }
 })
 const eatenKcal = computed(() => meals.value.reduce((sum, meal) => sum + meal.kcal, 0))
+/** 所有动作都被换成了拉伸 = 今天是休息日：显示成一条，而不是三行拉伸。 */
+const restMode = computed(
+  () =>
+    training.value.length > 0 &&
+    training.value.every((action) =>
+      ['stretch', 'full_body_stretch'].includes(action.action_ref),
+    ),
+)
+
 const totalMinutes = computed(() =>
   training.value.reduce((sum, action) => sum + (action.duration_min || 0), 0),
 )
@@ -204,10 +213,10 @@ onShow(() => {
       <view class="hero">
         <view class="row">
           <text class="badge">{{ WEEKDAY_LABELS[weekday - 1] }} · v{{ plan.version }}</text>
-          <text v-if="training.length" class="badge">约 {{ totalMinutes }} 分钟</text>
+          <text v-if="training.length && !restMode" class="badge">约 {{ totalMinutes }} 分钟</text>
         </view>
         <view class="hero-title">
-          {{ training.length ? training.length + ' 个动作，练完就吃。' : '今天休息。' }}
+          {{ restMode || !training.length ? '今天休息。' : training.length + ' 个动作，练完就吃。' }}
         </view>
         <view class="hero-sub">
           {{ training.length
@@ -225,6 +234,20 @@ onShow(() => {
 
         <view v-if="!training.length" class="muted" style="margin-top: 10px">
           今天没有安排训练。
+        </view>
+        <!-- 休息日：一条就够，别摆三行"拉伸" -->
+        <view v-else-if="restMode" class="list">
+          <view class="list-row">
+            <view class="list-body">
+              <view class="thumb">
+                <image class="thumb-img" :src="THUMBS.stretch" mode="aspectFill" />
+              </view>
+              <view class="list-main">
+                <text class="list-title">休息</text>
+                <text class="list-meta">今天以恢复为主，散步或轻度拉伸即可</text>
+              </view>
+            </view>
+          </view>
         </view>
         <view v-else class="list">
           <view v-for="action in training" :key="action.id" class="list-row">

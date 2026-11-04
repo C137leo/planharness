@@ -13,6 +13,23 @@ from app.domain.planning import EXERCISES, MEALS
 
 MEAL_CATALOG = {meal["ref"]: meal for meal in MEALS}
 
+# skill 动作目录里有一部分动作没有中文名（只有英文），
+# 但它们会被"加个背部动作/换动作"用到，所以这里补齐常用项。
+EXTRA_ZH: dict[str, str] = {
+    "banded-row": "弹力带划船",
+    "banded-face-pull": "弹力带面拉",
+    "banded-lat-pulldown": "弹力带下拉",
+    "inverted-row": "反向划船",
+    "doorway-row": "门框划船",
+    "dumbbell-bent-over-row": "哑铃俯身划船",
+    "chest-supported-row": "胸支撑划船",
+    "straight-arm-pulldown": "直臂下拉",
+    "seated-leg-curl": "坐姿腿弯举",
+    "back-extension": "山羊挺身",
+    "arnold-press": "阿诺德推举",
+    "smith-machine-bench-press": "史密斯卧推",
+}
+
 
 def all_exercise_refs() -> list[str]:
     """可选动作 = skill 目录 + 模板动作，去重后排序，方便模型挑。"""
@@ -32,6 +49,8 @@ def name_of(ref: str) -> str:
     item = EXERCISE_CATALOG.get(ref) or {}
     if item.get("name_zh"):
         return str(item["name_zh"])
+    if ref in EXTRA_ZH:
+        return EXTRA_ZH[ref]
     if item.get("name_en"):
         return str(item["name_en"])
     meal = MEAL_CATALOG.get(ref) or {}

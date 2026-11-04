@@ -149,6 +149,39 @@ def create_request(
 
     operations = proposal["operations"]
     risks = list(proposal.get("risks") or [])
+
+    # 「今天想休息」必须落在**今天**：模型有时会改第 1 天，用户打开今天页却毫无变化。
+    if intent.kind == "rest":
+        from datetime import date as _date
+
+        weekday = _date.today().isoweekday()
+        todays = [
+            item for item in base
+            if item["day_index"] == weekday and item["action_type"] == "exercise"
+        ]
+        if not todays:
+            request.status = "clarifying"
+            request.question = "今天本来就没有训练安排，不需要休息调整。"
+            db.commit()
+            db.refresh(request)
+            return request
+        operations = [
+            {
+                "op": "replace_action",
+                "slot_key": item["slot_key"],
+                "before_action_ref": item["action_ref"],
+                "after_action": {
+                    "action_ref": "stretch",
+                    "duration_min": 15,
+                    "sets": None,
+                    "reps": None,
+                    "meta": {"name_zh": "全身拉伸", "movement_mode": "mobility"},
+                },
+                "reason": "今天以休息为主，训练换成拉伸",
+            }
+            for item in todays
+        ]
+        risks.append("休息日仍建议保持轻度活动（散步/拉伸），避免完全静止。")
     # 模型可能只改了一部分；硬约束必须被补齐（模型提议 + 代码补全）
     extra = cover_injured_slots(intent, base, operations)
     if extra:
