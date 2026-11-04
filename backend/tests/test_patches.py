@@ -118,13 +118,14 @@ def test_patch_version_keeps_meals_and_uses_reason_in_summary(client, auth_heade
     assert body["plan"]["meals"], "确认后应该有餐食"
     meals_before = len(body["plan"]["meals"])
 
-    # 提一个"今天想休息"的补丁并应用
+    # 提一个补丁并应用（用"加强度"，不依赖今天是不是训练日）
     plan = body["plan"]
     req = client.post(
         f"/api/v1/plans/{plan['plan_id']}/patch-requests",
         headers=auth_headers,
-        json={"text": "今天想休息"},
+        json={"text": "这周感觉轻松，想加一点强度"},
     ).json()["data"]
+    assert req["status"] == "ready", req.get("question")
     approved = client.post(
         f"/api/v1/patch-requests/{req['request_id']}/approve",
         headers=auth_headers,
@@ -135,7 +136,7 @@ def test_patch_version_keeps_meals_and_uses_reason_in_summary(client, auth_heade
 
     assert len(merged["meals"]) == meals_before, "改训练不该弄丢食谱"
     assert "膝痛" not in merged["summary"], merged["summary"]
-    assert "休息" in merged["summary"] or "计划" in merged["summary"], merged["summary"]
+    assert "强度" in merged["summary"] or "计划" in merged["summary"], merged["summary"]
 
 
 def create_draft_through_api(client, auth_headers) -> dict:
