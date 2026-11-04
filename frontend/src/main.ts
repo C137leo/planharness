@@ -10,7 +10,13 @@ export function createApp() {
     // eslint-disable-next-line no-console
     console.error('[planharness] render error:', info, err)
     try {
-      uni.showToast({ title: '页面出了点问题，请刷新重试', icon: 'none', duration: 2500 })
+      // 带上具体原因，出问题时截一张图就能定位，不用再来回猜
+      const reason = err instanceof Error ? err.message : String(err)
+      uni.showToast({
+        title: `页面出错：${reason.slice(0, 40)}`,
+        icon: 'none',
+        duration: 4000,
+      })
     } catch {
       // 非 UI 环境（测试）忽略
     }
