@@ -84,11 +84,8 @@ def test_run_of_another_user_is_404(client: TestClient, auth_headers) -> None:
     _create_and_approve(client, auth_headers)
     run_id = client.get("/api/v1/runs", headers=auth_headers).json()["data"][0]["id"]
 
-    other = client.post(
-        "/api/v1/auth/register",
-        json={"phone": "13900001111", "password": "another-pass-2026", "nickname": "other"},
-    )
-    assert other.status_code == 200
+    other = register_user(client, phone="13900001111", password="another-pass-2026")
+    assert other.status_code == 200, other.text
     other_headers = {"Authorization": f"Bearer {other.json()['data']['access_token']}"}
 
     assert client.get(f"/api/v1/runs/{run_id}", headers=other_headers).status_code == 404
@@ -178,6 +175,7 @@ from sqlalchemy import select as _select  # noqa: E402
 from app.agent.patch_graph import build_patch_graph  # noqa: E402
 from app.llm.deepseek import DeepSeekExplainer  # noqa: E402
 from app.llm.types import LlmBudget  # noqa: E402
+from tests.conftest import register_user
 from app.models import AgentRun  # noqa: E402
 
 

@@ -56,6 +56,27 @@ class Settings(BaseSettings):
     # 连接池上限：checkpointer 的读写都走这个池，别和应用自身的 SQLAlchemy 池抢满连接
     checkpointer_pool_size: int = 5
 
+    # ---- 注册 / 登录防滥用 ----
+    # 账号总量硬天花板：到顶就拒绝注册，避免被刷爆磁盘
+    max_users: int = 5000
+    # 单 IP 每小时 / 每天最多成功注册几次
+    register_per_ip_hour: int = 5
+    register_per_ip_day: int = 15
+    # 同一手机号每天最多提交几次注册（防占号/重放）
+    register_per_phone_day: int = 3
+    # 全站注册熔断：一小时内最多注册多少个账号
+    register_global_hour: int = 200
+    # 登录失败阈值（同 IP + 同手机号，窗口内）
+    login_fail_per_window: int = 8
+    login_window_minutes: int = 15
+    # 触发阈值后锁多久（返回 429 + Retry-After）
+    login_lock_minutes: int = 15
+    # 一次性校验票据：有效期与"最短填表耗时"
+    auth_challenge_ttl_seconds: int = 600
+    auth_min_fill_ms: int = 1200
+    # 部署在 Nginx 后面时才会信任 X-Forwarded-For
+    trust_proxy: bool = False
+
     @property
     def cors_origin_list(self) -> list[str]:
         """把逗号分隔的 CORS 白名单切成列表，直接喂给 CORSMiddleware。"""

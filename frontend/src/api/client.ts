@@ -5,7 +5,12 @@ import type {
   AuditEvent,
   CompareResult,
   AuditVerify,
+  AuthChallenge,
   CalorieStats,
+  LoginPayload,
+  Me,
+  RegisterPayload,
+  TokenPayload,
   CheckinRecord,
   PatchPreset,
   PlanDraft,
@@ -87,29 +92,66 @@ async function rawRequest<T>(
   })
 }
 
+/** 只读已保存的 token；没有就抛 401，由页面引导去登录页。
+    不再自动用 demo 账号登录——那会让"注册/登录"形同虚设。 */
 export async function ensureToken(): Promise<string> {
   const existing = getStoredToken()
   if (existing) return existing
-  const data = await rawRequest<{ access_token: string }>('POST', '/auth/demo', {})
-  setStoredToken(data.access_token)
-  return data.access_token
+  throw new ApiError('请先登录', 401)
+}
+
+/** 清掉本地登录态（退出登录 / token 失效时调用）。 */
+export function clearToken(): void {
+  uni.removeStorageSync(TOKEN_KEY)
+}
+
+/** 登录态失效时的统一处理：清 token → 回登录页（已经在登录页就不跳，避免循环）。 */
+export function handleUnauthorized(): void {
+  clearToken()
+  const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+  const current = pages.length ? pages[pages.length - 1].route || '' : ''
+  if (current.includes('pages/login')) return
+  uni.reLaunch({ url: '/pages/login/index' })
+}
+
+/** 挑战接口不需要登录态，所以直接走 rawRequest（不带 Authorization）。 */
+async function rawGetChallenge(purpose: 'register' | 'login') {
+  return rawRequest<AuthChallenge>('GET', `/auth/challenge?purpose=${purpose}`)
 }
 
 async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, data?: unknown): Promise<T> {
-  let token = await ensureToken()
+  let token: string
+  try {
+    token = await ensureToken()
+  } catch (err) {
+    if (err instanceof ApiError && err.statusCode === 401) handleUnauthorized()
+    throw err
+  }
   try {
     return await rawRequest<T>(method, path, data, token)
   } catch (error) {
     if (error instanceof ApiError && error.statusCode === 401) {
-      uni.removeStorageSync(TOKEN_KEY)
-      token = await ensureToken()
-      return await rawRequest<T>(method, path, data, token)
+      // 不再悄悄换一个身份重试：把用户送回登录页，由他决定登哪个账号
+      handleUnauthorized()
     }
     throw error
   }
 }
 
 export const api = {
+  // ---- 账号 ----
+  authChallenge: (purpose: 'register' | 'login' = 'register') =>
+    rawGetChallenge(purpose),
+  register: (payload: RegisterPayload) =>
+    rawRequest<TokenPayload>('POST', '/auth/register', payload),
+  login: (payload: LoginPayload) =>
+    rawRequest<TokenPayload>('POST', '/auth/login', payload),
+  demoLogin: () => rawRequest<TokenPayload>('POST', '/auth/demo', {}),
+  me: () => request<Me>('GET', '/auth/me'),
+  logout: () => {
+    clearToken()
+  },
+
   getCurrentPlan: () => request<CurrentPlan>('GET', '/plans/current'),
   generatePlan: () => request<CurrentPlan>('POST', '/plans/generate'),
   createKneePatch: (planId: string, availableDays = 2) =>

@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.models import User
+from tests.conftest import register_user
 
 PHONE = "13800000000"
 PASSWORD = "s3cure-pass-2026"
@@ -21,10 +22,7 @@ def _register(
     client: TestClient, phone: str = PHONE, password: str = PASSWORD
 ):
     """注册一个账号，返回原始响应（不同用例关心不同字段）。"""
-    return client.post(
-        "/api/v1/auth/register",
-        json={"phone": phone, "password": password, "nickname": "Leo"},
-    )
+    return register_user(client, phone=phone, password=password)
 
 
 def _login(client: TestClient, phone: str = PHONE, password: str = PASSWORD):
@@ -57,7 +55,7 @@ def test_register_duplicate_phone_is_409(client: TestClient) -> None:
     assert _register(client).status_code == 200
     duplicate = _register(client)
     assert duplicate.status_code == 409
-    assert "registered" in duplicate.json()["detail"]
+    assert "已注册" in duplicate.json()["detail"]
 
 
 def test_register_rejects_short_password(client: TestClient) -> None:

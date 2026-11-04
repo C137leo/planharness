@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
 
 from app.audit import GENESIS_HASH, verify_stream
+from tests.conftest import register_user
 from app.models import AuditEvent
 
 
@@ -152,10 +153,9 @@ def test_rollback_is_recorded(client: TestClient, auth_headers) -> None:
 
 def test_audit_stream_of_other_user_is_404(client: TestClient, auth_headers) -> None:
     plan_id = _make_events(client, auth_headers)
-    other = client.post(
-        "/api/v1/auth/register",
-        json={"phone": "13900002222", "password": "another-pass-2026"},
-    ).json()["data"]["access_token"]
+    other = register_user(client, phone="13900002222", password="another-pass-2026").json()[
+        "data"
+    ]["access_token"]
     other_headers = {"Authorization": f"Bearer {other}"}
     assert client.get(f"/api/v1/audit/{plan_id}", headers=other_headers).status_code == 404
     assert client.get(f"/api/v1/audit/{plan_id}/verify", headers=other_headers).status_code == 404

@@ -55,7 +55,10 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/demo -H 'Content-Type: applicatio
 当前已实现：
 
 - `GET /api/v1/health`
-- `POST /api/v1/auth/demo`（demo JWT）
+- `GET /api/v1/auth/challenge`（一次性票据：服务端签名 + 最短填表耗时）
+- `POST /api/v1/auth/register` / `POST /api/v1/auth/login`（手机号 + 密码，带分层限流与登录锁定）
+- `GET /api/v1/auth/me`（当前账号）
+- `POST /api/v1/auth/demo`（demo JWT，同样按 IP 限流）
 - `POST /api/v1/auth/wechat`（无 AppID，返回 501）
 - `GET /api/v1/me/profile`
 - `GET /api/v1/plans/current`（seed 的 v1，12 个 action）
@@ -106,7 +109,8 @@ npm run dev:h5
 - 今天：今天练什么（动作/组次/肌群）、今天吃什么（食材克数/热量）、推荐摄入、六个改动预设 + 「自己说一句」
 - 计划：整周明细、今日餐食、待确认改动、撤销上一次改动、换一份计划
 - 进展：近 7 天消耗、体重、训练记录（附热量公式与口径）
-- 我的：目标 / 体型 / 器械 / 过敏原 / 饮食偏好可编辑，保存后直接生成计划
+- 登录 / 注册：手机号 + 密码、密码强度提示、429 倒计时；防刷细节见 [docs/22](docs/22-auth-and-abuse.md)
+- 我的：账号信息与退出登录；目标 / 体型 / 器械 / 过敏原 / 饮食偏好可编辑，保存后直接生成计划
 - 打卡：体重/睡眠/饥饿/酸痛/执行率 + 记一条训练（实时算 kcal）
 - Console（H5）：场景回放、Trace、Diff、上下文、成本、审计链、A/B/C 对比
 - 待确认补丁：旧的独立审批页保留，作为抽屉之外的兜底入口
@@ -166,6 +170,7 @@ Console 里还有「场景回放」：点 E01–E08 任一个，服务端跑一�
 - [19 当前阶段与最终优先级](docs/19-final-priorities.md)：90 tests/8 Evals/6 变异已完成，剩余前端账号、CI、部署、演示
 - [12 架构总结](docs/12-architecture.md)：**架构风格判定**（分层单体/贫血模型，不是 DDD）、分层与依赖规则、聚合边界、状态机、9 条 ADR、技术债与演进路线、面试讲稿
 - [15 上线前修改清单](docs/15-prelaunch-checklist.md)：**上线前逐条过**：10 个阻断项 + 8 个建议项 + 验证/回滚；配套 `deploy/preflight.sh` 自检
+- [22 注册登录与防刷](docs/22-auth-and-abuse.md)：**本轮**：威胁模型、四道闸口（总量上限/熔断/分层限流/一次性票据）、密码策略、实测结果与没做的部分
 - [21 skill 驱动的计划生成](docs/21-skill-driven-plan.md)：**本轮**：Node 桥接 healthy-fitness-coach、模型编排 + 本地安全门、生成草案 → 确认 → 落版本、补丁改为用户自定义
 - [20 一句话改计划](docs/20-flexible-patch-flow.md)：**本轮改版**：可协商草案、新增 3 张表与 7 个接口、热量口径、TabBar 与抽屉交互、已验证/未验证
 - [生产部署模板](deploy/README.md)：systemd + Nginx + 现有 Postgres 容器（当前实际方案）
@@ -193,7 +198,7 @@ Console 里还有「场景回放」：点 E01–E08 任一个，服务端跑一�
 
 ## 下一步
 
-已完成：教练 skill 桥接（训练 + 食谱 + 摄入）、画像录入、计划草案多轮确认、
+已完成：注册登录 + 防刷（分层限流 / 全站熔断 / 一次性票据 / 账号上限）、教练 skill 桥接（训练 + 食谱 + 摄入）、画像录入、计划草案多轮确认、
 用户自定义补丁（预设 + 自由文本，模型定向修改 + 确定性校验）、训练记录与热量统计、
 TabBar 四页、Console 观测面、11 场景 Evals + 6 变异体、审计链。
 

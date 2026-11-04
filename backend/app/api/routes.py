@@ -100,6 +100,18 @@ def health(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/auth/demo", response_model=None)
 def demo_login(payload: DemoLoginIn, request: Request, db: Session = Depends(get_db)):
+    # 演示账号是公开入口，按 IP 限流，避免被脚本当成发 token 的机器
+    from app.abuse import RateLimiter
+    from app.api.auth_routes import client_ip
+
+    limiter = RateLimiter(request.app.state.session_factory)
+    decision = limiter.hit(f"demo:ip:{client_ip(request)}", 10, 300)
+    if not decision.allowed:
+        raise HTTPException(
+            429,
+            "请求太频繁，请稍后再试",
+            headers={"Retry-After": str(max(1, decision.retry_after))},
+        )
     """demo 登录：校验预置用户后签发 JWT，用于本地演示与自动化测试。"""
     user_id = payload.user_id or DEMO_USER_ID
     user = db.get(User, user_id)

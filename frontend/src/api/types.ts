@@ -470,3 +470,43 @@ export interface ProfileUpdate {
   diet_preferences?: string[]
   dislikes?: string[]
 }
+
+// ---------------- 账号 ----------------
+
+export interface AuthChallenge {
+  challenge_id: string
+  token: string
+  expires_in: number
+  min_fill_ms: number
+}
+
+export interface RegisterPayload {
+  phone: string
+  password: string
+  nickname?: string
+  challenge_id: string
+  challenge_token: string
+  /** 蜜罐字段：正常用户不会填，脚本往往会把所有 input 填满 */
+  company?: string
+}
+
+export interface LoginPayload {
+  phone: string
+  password: string
+  challenge_id?: string
+  challenge_token?: string
+}
+
+export interface TokenPayload {
+  access_token: string
+  token_type: string
+  user_id: string
+}
+
+export interface Me {
+  user_id: string
+  phone: string
+  nickname: string
+  goal: string
+  has_profile: boolean
+}

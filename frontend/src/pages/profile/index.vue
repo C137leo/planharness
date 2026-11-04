@@ -7,7 +7,7 @@
  */
 import { computed, reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { api, type Profile } from '../../api'
+import { api, type Me, type Profile } from '../../api'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
 
 const loading = ref(true)
@@ -15,6 +15,7 @@ const busy = ref(false)
 const error = ref('')
 const toast = ref('')
 const draftOpen = ref(false)
+const me = ref<Me | null>(null)
 const saved = ref(false)
 
 const form = reactive({
@@ -72,6 +73,7 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
+    me.value = await api.me()
     applyProfile(await api.getProfile())
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载失败'
@@ -135,6 +137,11 @@ async function onConfirmed() {
   uni.showToast({ title: '计划已生效', icon: 'success' })
 }
 
+function logout() {
+  api.logout()
+  uni.reLaunch({ url: '/pages/login/index' })
+}
+
 function openConsole() {
   uni.navigateTo({ url: '/pages/console/index' })
 }
@@ -152,6 +159,22 @@ onShow(load)
     <view v-else>
       <view v-if="toast" class="notice" style="margin-top: 14px">{{ toast }}</view>
       <view v-if="error" class="error" style="margin-top: 14px">{{ error }}</view>
+
+      <view class="card">
+        <view class="row">
+          <view class="section-title">账号</view>
+          <text class="link" @click="logout">退出登录</text>
+        </view>
+        <view class="list" v-if="me">
+          <view class="list-row">
+            <text class="list-title">{{ me.nickname || '未命名' }}</text>
+            <text class="list-meta">{{ me.phone }}</text>
+          </view>
+        </view>
+        <view class="muted" style="margin-top: 8px">
+          账号只用于登录；计划、打卡、审计都按这个账号隔离。
+        </view>
+      </view>
 
       <view class="card">
         <view class="section-title">目标</view>

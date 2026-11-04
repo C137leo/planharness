@@ -192,13 +192,44 @@ class CheckinOut(BaseModel):
     note: str
 
 class RegisterIn(BaseModel):
-    phone: str = Field(min_length=6, max_length=32)
-    password: str = Field(min_length=8, max_length=72)
+    """注册入参。
+
+    多出来的三个字段都是防机器注册用的：
+    - challenge_id / challenge_token：服务端签发的票据，用来证明"确实打开过页面"；
+    - company：蜜罐字段，正常用户看不见也不会填，脚本往往会把所有 input 填满。
+    """
+
+    phone: str = Field(min_length=1, max_length=32)
+    # 长度策略放在 abuse.password_problem 里，这样错误信息是中文、口径统一
+    password: str = Field(min_length=1, max_length=200)
     nickname: str = Field(default="新用户", max_length=64)
+    challenge_id: str = Field(default="", max_length=64)
+    challenge_token: str = Field(default="", max_length=128)
+    company: str = Field(default="", max_length=64)
+
 
 class LoginIn(BaseModel):
+    phone: str = Field(min_length=1, max_length=32)
+    password: str = Field(min_length=1, max_length=200)
+    challenge_id: str = Field(default="", max_length=64)
+    challenge_token: str = Field(default="", max_length=128)
+
+
+class ChallengeOut(BaseModel):
+    """一次性校验票据。token 由服务端 HMAC 签发，客户端只负责原样带回。"""
+
+    challenge_id: str
+    token: str
+    expires_in: int
+    min_fill_ms: int
+
+
+class MeOut(BaseModel):
+    user_id: str
     phone: str
-    password: str
+    nickname: str
+    goal: str = ""
+    has_profile: bool = False
 
 class TraceEntryOut(BaseModel):
     """trace 里的一步：哪个节点、什么状态、什么时候。"""

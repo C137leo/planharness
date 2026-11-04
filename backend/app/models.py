@@ -367,6 +367,39 @@ class PlanDraft(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class AuthChallenge(Base):
+    """注册/登录前的一次性校验票据。
+
+    客户端先申请票据，再带着票据提交；服务端校验签名、有效期、是否已用，
+    以及"从签发到提交"的耗时是否过短（机器提交通常只有几十毫秒）。
+    过期行会被限流器顺手清理，表不会无限增长。
+    """
+
+    __tablename__ = "auth_challenges"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    # register / login
+    purpose: Mapped[str] = mapped_column(String(16))
+    ip: Mapped[str] = mapped_column(String(64), default="")
+    issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class RateLimitBucket(Base):
+    """固定窗口计数桶：key 里带窗口起点，过期窗口由清理任务删除。
+
+    主键是 "scope:identifier@window_start"，所以同一键在不同窗口是不同的行，
+    不需要额外的窗口比较逻辑，也不会出现"跨窗口累加"的问题。
+    """
+
+    __tablename__ = "rate_limit_buckets"
+
+    key: Mapped[str] = mapped_column(String(200), primary_key=True)
+    window_start: Mapped[int] = mapped_column(Integer, index=True)
+    count: Mapped[int] = mapped_column(Integer, default=0)
+
+
 class AgentRun(Base):
     """一次 Agent 运行的观测记录：输入、输出、trace、token 与耗时，供 Console 展示。"""
 

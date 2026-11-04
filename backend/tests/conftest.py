@@ -33,6 +33,9 @@ def client(tmp_path):
         database_url=f"sqlite:///{tmp_path}/test.db",
         secret_key="test-secret-0123456789abcdef0123456789",
         cors_origins="http://localhost:5173",
+        # 一次性票据的"最短填表耗时"由 tests/test_auth_abuse.py 专门测；
+        # 其余用例不需要为此真的 sleep 一两秒。
+        auth_min_fill_ms=0,
     )
     app = create_app(settings)
     with TestClient(app) as test_client:
@@ -41,6 +44,27 @@ def client(tmp_path):
 
 DEMO_PHONE = "13800000000"
 DEMO_PASSWORD = "test-pass-2026"
+
+
+def register_user(
+    client: TestClient,
+    phone: str = DEMO_PHONE,
+    password: str = DEMO_PASSWORD,
+    **extra,
+):
+    """申请一次性票据再注册（注册接口要求票据，测试也走真实路径）。"""
+    challenge = client.get("/api/v1/auth/challenge", params={"purpose": "register"}).json()["data"]
+    return client.post(
+        "/api/v1/auth/register",
+        json={
+            "phone": phone,
+            "password": password,
+            "nickname": "测试用户",
+            "challenge_id": challenge["challenge_id"],
+            "challenge_token": challenge["token"],
+            **extra,
+        },
+    )
 
 
 def register_and_login(
@@ -53,10 +77,7 @@ def register_and_login(
     为什么必须"先注册再登录"：`/auth/login` 只做校验，不会创建账号；
     库里没有这个手机号时，登录一定是 401。
     """
-    reg = client.post(
-        "/api/v1/auth/register",
-        json={"phone": phone, "password": password, "nickname": "测试用户"},
-    )
+    reg = register_user(client, phone=phone, password=password)
     assert reg.status_code == 200, f"注册失败：{reg.status_code} {reg.text}"
 
     resp = client.post(

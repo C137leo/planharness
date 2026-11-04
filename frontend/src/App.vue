@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { onLaunch } from '@dcloudio/uni-app'
-import { ensureToken } from './api'
+import { getStoredToken } from './api'
 
 onLaunch(() => {
-  ensureToken().catch(() => {
-    // The pages show a retry state; do not crash the app on cold start.
-  })
+  // 冷启动没有 token 就直接去登录页；有 token 时让目标页自己校验有效性
+  if (getStoredToken()) return
+  const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+  const current = pages.length ? pages[pages.length - 1].route || '' : ''
+  if (!current.includes('pages/login')) {
+    uni.reLaunch({ url: '/pages/login/index' })
+  }
 })
 </script>
 

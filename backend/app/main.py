@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import app.models  # noqa: F401 - register SQLAlchemy models
 from app.agent.checkpointer import make_checkpointer
 from app.agent.patch_graph import build_patch_graph
+from app.api.auth_routes import router as auth_router
 from app.api.routes import router
 from app.config import Settings, get_settings
 from app.db import Base, make_engine, make_session_factory
@@ -93,6 +94,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         response.headers["X-Trace-Id"] = trace_id
         return response
 
+    app.include_router(auth_router)
     app.include_router(router)
 
     # 离线 API 文档：/docs + /static/swagger/*，不依赖外网 CDN
