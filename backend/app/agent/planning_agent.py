@@ -21,6 +21,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.domain.allergens import describe_tags, resolve_tags
 from app.skill.bridge import SkillBridge
 
 MAX_STEPS = 6
@@ -464,9 +465,11 @@ def _build_meals(profile_payload: dict, nutrition: dict) -> list[dict]:
     if target_kcal <= 0:
         return []
 
-    avoid = set()
-    for item in (profile_payload.get("allergies") or []) + (profile_payload.get("diet_preferences") or []):
-        avoid.add(ALLERGEN_KEYS.get(str(item), str(item).lower()))
+    # 过敏原用关键词匹配（"海鲜过敏""甲壳类"都要能认出来），不再精确查字典
+    avoid, _unmatched = resolve_tags(
+        list(profile_payload.get("allergies") or [])
+        + list(profile_payload.get("diet_preferences") or [])
+    )
 
     meals: list[dict] = []
     for day_index in range(1, 8):
@@ -575,18 +578,6 @@ def _item(food: dict, grams: int) -> dict:
     }
 
 
-ALLERGEN_KEYS = {
-    "乳制品": "dairy", "牛奶": "dairy", "乳糖": "dairy", "dairy": "dairy",
-    "鸡蛋": "egg", "蛋类": "egg", "egg": "egg",
-    "花生": "peanut", "peanut": "peanut",
-    "坚果": "nuts", "nuts": "nuts",
-    "海鲜": "seafood", "虾": "seafood", "贝壳": "seafood", "seafood": "seafood",
-    "鱼": "fish", "鱼类": "fish", "fish": "fish",
-    "大豆": "soy", "豆制品": "soy", "豆腐": "soy", "soy": "soy",
-    "小麦": "gluten", "麸质": "gluten", "gluten": "gluten",
-}
-
-
 def _local_gate(profile_payload: dict, payload: dict) -> list[str]:
     """本地确定性安全门（第三道）：即使模型/skill 都放行，这里还要再验一次。"""
     problems: list[str] = []
@@ -597,11 +588,16 @@ def _local_gate(profile_payload: dict, payload: dict) -> list[str]:
     if weekly and len(days) > weekly:
         problems.append(f"训练日 {len(days)} 天，超过你填的每周 {weekly} 天")
 
-    # 2) 过敏原/忌口不能出现在食谱里
-    avoid = set()
-    for item in (profile_payload.get("allergies") or []) + (profile_payload.get("diet_preferences") or []):
-        key = ALLERGEN_KEYS.get(str(item), str(item).lower())
-        avoid.add(key)
+    # 2) 过敏原/忌口不能出现在食谱里（与生成时用同一套解析，避免两处口径不一致）
+    avoid, unmatched = resolve_tags(
+        list(profile_payload.get("allergies") or [])
+        + list(profile_payload.get("diet_preferences") or [])
+    )
+    if unmatched:
+        # 识别不了就不假装安全：提示人工确认，而不是当没填
+        payload.setdefault("cautions", []).append(
+            "这些忌口我没能自动识别，请确认是否需要避开：" + "、".join(unmatched)
+        )
     for meal in payload.get("meals") or []:
         for food in meal.get("items") or []:
             tags = next((f["tags"] for f in FOODS if f["name"] == food["name"]), set())

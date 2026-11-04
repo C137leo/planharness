@@ -9,7 +9,8 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from app.agent.planning_agent import _local_gate, skill_profile
+from app.agent.planning_agent import _build_meals, _local_gate, skill_profile
+from app.domain.allergens import resolve_tags
 from app.skill.bridge import SkillBridge
 
 API = "/api/v1"
@@ -192,3 +193,43 @@ def test_local_gate_blocks_allergen_and_low_calories() -> None:
     problems = _local_gate(profile, payload)
     assert any("乳制品" in item or "dairy" in item for item in problems)
     assert any("基础代谢" in item for item in problems)
+
+
+NUTRITION = {"status": "ready", "target_kcal": 2230,
+             "macros": {"protein_g": {"low_g": 109, "high_g": 156}}}
+
+
+def _week_meals(allergies: list[str]) -> list[dict]:
+    base = {"allergies": allergies, "diet_preferences": [], "training_days_per_week": 3}
+    return _build_meals(base, NUTRITION)
+
+
+def test_allergen_phrases_are_recognized() -> None:
+    """「海鲜过敏 / 对海鲜过敏 / 甲壳类」都要能识别成 seafood。"""
+    for phrase in ("海鲜过敏", "对海鲜过敏", "甲壳类", "海产品", "shellfish"):
+        tags, unmatched = resolve_tags([phrase])
+        assert "seafood" in tags, phrase
+        assert unmatched == [], phrase
+
+
+def test_seafood_allergy_removes_shrimp_and_salmon() -> None:
+    """这是真实踩过的坑：用户写「海鲜过敏」，食谱却推荐了虾。"""
+    meals = _week_meals(["海鲜过敏"])
+    names = {item["name"] for meal in meals for item in meal["items"]}
+    assert "虾" not in names, "海鲜过敏不能出现虾"
+    assert "三文鱼" not in names, "海鲜过敏不能出现三文鱼"
+
+
+def test_dairy_allergy_removes_yogurt() -> None:
+    meals = _week_meals(["乳制品"])
+    names = {item["name"] for meal in meals for item in meal["items"]}
+    assert "希腊酸奶" not in names
+
+
+def test_unmatched_allergen_is_surfaced_not_ignored() -> None:
+    """认不出来的忌口不能当没填：要出现在 cautions 里让人确认。"""
+    base = {"allergies": ["某种奇怪的东西"], "diet_preferences": [], "training_days_per_week": 3}
+    payload = {"days": [], "meals": [], "nutrition": NUTRITION,
+               "screen": {}, "cautions": []}
+    _local_gate(base, payload)
+    assert any("没能自动识别" in item for item in payload["cautions"])
