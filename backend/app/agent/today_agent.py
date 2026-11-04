@@ -32,7 +32,9 @@ SYSTEM_PROMPT = """你是今日活动规划 Agent。你可以按任意顺序调�
 5. 只推荐，不代下单；只返回平台链接。
 6. 不做诊断，不给药物建议。
 7. 最终只输出 JSON，不要 Markdown。
-8. meals 必须覆盖工具返回的每一餐（早/午/晚），每餐 options 原样复制工具结果的 3 个选项，
+8. 必须为今天的每个动作给出「动作要领」tips（调用 search_knowledge 取依据），
+   并把依据 id 写进这条 tip 的 source_ids。
+9. meals 必须覆盖工具返回的每一餐（早/午/晚），每餐 options 原样复制工具结果的 3 个选项，
    不要省略、不要改写标题和链接；citations 里放上所有被引用条目的 id/title/source_url。
 
 输出结构：
@@ -200,6 +202,19 @@ def _deterministic(db, ctx: dict, text: str) -> TodayResult:
     citations = {item["id"]: item for item in (
         (knowledge.get("citations") or []) + (recovery.get("citations") or []))}
 
+    # 动作要领：逐个动作查知识库，作为 tips 给出来（Agent 没讲时由这里兜底）
+    cue_tips: list[dict] = []
+    for action in actions[:3]:
+        cue = dispatch("search_knowledge",
+                       {"query": action.get("name") or action.get("ref") or "动作要领"}, ctx, db)
+        trace.append(_step("search_knowledge", str(cue.get("status")), target=action.get("name")))
+        for item in cue.get("citations") or []:
+            citations[item["id"]] = item
+        data = cue.get("data") or []
+        if data:
+            cue_tips.append({"text": f"{action.get('name')}：{data[0]['content'][:80]}",
+                             "source_ids": [data[0]["id"]]})
+
     final = {
         "summary": (
             f"今天 {len(actions)} 个动作；{len(meals)} 餐各给了 3 个替换选项，"
@@ -210,7 +225,7 @@ def _deterministic(db, ctx: dict, text: str) -> TodayResult:
              "why": "按当前计划版本执行"},
         ],
         "meals": meals,
-        "tips": (recovery.get("data") or {}).get("tips", []),
+        "tips": cue_tips + (recovery.get("data") or {}).get("tips", []),
         "nutrition_notes": [
             {"text": f"今日热量目标 {nutrition.get('data', {}).get('target_kcal', 0)} kcal，"
                      f"蛋白 {nutrition.get('data', {}).get('protein_g', 0)}g。",

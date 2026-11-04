@@ -237,14 +237,17 @@ def get_recovery_tips(args: dict, ctx: dict, db) -> dict:
     training = str(args.get("training_time") or "18:30")
     meal_time = str(args.get("meal_time") or "19:00")
     hits = kb_search(db, "饭后 训练 时间 恢复", limit=2, min_score=1.5)
-    tips = [
-        {"text": f"训练安排在 {training}，餐后建议休息 60-90 分钟再开始力量训练。"},
-        {"text": f"如果 {meal_time} 才吃饭，优先把训练放到餐前或餐后 1.5 小时。"},
-        {"text": "训练后 1-2 小时内补充蛋白质和主食，恢复更稳。"},
-    ]
     citations = [_citation(hit.chunk) for hit in hits]
-    for tip in tips:
-        tip["source_ids"] = [citation["id"] for citation in citations[:1]]
+    # 每条建议对应它自己的来源，而不是统一指向第一条
+    tips = [
+        {"text": f"训练安排在 {training}，餐后建议休息 60-90 分钟再开始力量训练。",
+         "source_ids": [citations[0]["id"]] if citations else []},
+        {"text": f"如果 {meal_time} 才吃饭，优先把训练放到餐前或餐后 1.5 小时。",
+         "source_ids": [citations[1]["id"]] if len(citations) > 1 else (
+             [citations[0]["id"]] if citations else [])},
+        {"text": "训练后 1-2 小时内补充蛋白质和主食，恢复更稳。",
+         "source_ids": [citations[0]["id"]] if citations else []},
+    ]
     return {"status": "ok", "data": {"tips": tips}, "citations": citations}
 
 

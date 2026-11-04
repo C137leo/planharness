@@ -43,7 +43,54 @@ const agentResult = ref<TodayAgentResult | null>(null)
 const agentRunId = ref('')
 const agentError = ref('')
 
+const MEAL_TITLES: Record<string, string> = {
+  breakfast: '早餐',
+  lunch: '午餐',
+  dinner: '晚餐',
+  snack: '加餐',
+}
+
 const AGENT_PRESETS = ['帮我规划今天', '今天想休息', '午餐换清淡一点', '膝盖不舒服，别安排深蹲']
+const selectedMeals = ref<Record<string, string>>({})
+const applying = ref(false)
+
+function toggleMeal(slot: string, title: string) {
+  selectedMeals.value = {
+    ...selectedMeals.value,
+    [slot]: selectedMeals.value[slot] === title ? '' : title,
+  }
+}
+
+function citationById(id: string) {
+  return (agentResult.value?.citations || []).find((item) => item.id === id)
+}
+
+async function applySelections() {
+  if (applying.value || !agentResult.value) return
+  const meals = agentResult.value.meals || []
+  const selections = meals
+    .map((meal) => {
+      const title = selectedMeals.value[meal.slot]
+      const option = (meal.options || []).find((item) => item.title === title)
+      return option ? { slot: meal.slot, ...option } : null
+    })
+    .filter(Boolean)
+  if (!selections.length) {
+    uni.showToast({ title: '先选每餐想要的选项', icon: 'none' })
+    return
+  }
+  applying.value = true
+  try {
+    const result = await api.applyAgentMeals(agentRunId.value, selections, todayStr())
+    uni.showToast({ title: `已替换今日餐食（v${result.new_version}）`, icon: 'none' })
+    selectedMeals.value = {}
+    await load()
+  } catch (err) {
+    uni.showToast({ title: err instanceof Error ? err.message : '保存失败', icon: 'none' })
+  } finally {
+    applying.value = false
+  }
+}
 
 function openAgent(text = '') {
   agentText.value = text
@@ -526,9 +573,18 @@ onShow(() => {
             </view>
           </view>
 
-          <view v-for="meal in agentResult.meals" :key="meal.slot" class="block">
-            <view class="section-title">{{ meal.slot }} · 目标 {{ meal.target_kcal }} kcal</view>
-            <view v-for="option in meal.options" :key="option.title" class="food-card">
+          <view v-for="meal in agentResult.meals" :key="meal.slot" class="agent-meal">
+            <view class="agent-meal-head">
+              <text class="list-title">{{ MEAL_TITLES[meal.slot] || meal.slot }}</text>
+              <text class="list-meta">目标 {{ meal.target_kcal }} kcal</text>
+            </view>
+            <view
+              v-for="option in meal.options"
+              :key="option.title"
+              class="food-card"
+              :class="{ chosen: selectedMeals[meal.slot] === option.title }"
+              @click="toggleMeal(meal.slot, option.title)"
+            >
               <view class="row">
                 <text class="list-title">{{ option.title }}</text>
                 <text class="list-value">{{ option.kcal }} kcal</text>
@@ -549,8 +605,18 @@ onShow(() => {
 
           <view v-if="agentResult.tips.length" class="block">
             <view class="section-title">注意事项</view>
-            <view v-for="(tip, index) in agentResult.tips" :key="index" class="list-row">
+            <view v-for="(tip, index) in agentResult.tips" :key="index" class="tip-row">
               <text class="list-meta">{{ tip.text }}</text>
+              <view class="tip-sources">
+                <text
+                  v-for="sourceId in tip.source_ids || []"
+                  :key="sourceId"
+                  class="link"
+                  @click="openAgentLink(citationById(sourceId)?.source_url || '')"
+                >
+                  {{ citationById(sourceId)?.title || sourceId }} →
+                </text>
+              </view>
             </view>
           </view>
 
@@ -564,7 +630,12 @@ onShow(() => {
 
           <view class="muted" style="margin-top: 12px">{{ agentResult.disclaimer }}</view>
           <view class="btn-row">
-            <view class="btn-sm" @click="agentResult = null; agentTrace = []">重新规划</view>
+            <view class="btn-sm primary" @click="applySelections">
+              {{ applying ? '保存中…' : '应用选中的餐食' }}
+            </view>
+            <view class="btn-sm" @click="agentResult = null; agentTrace = []; selectedMeals = {}">
+              重新规划
+            </view>
           </view>
         </template>
       </view>
@@ -625,5 +696,41 @@ onShow(() => {
 
 .intake .stat-value {
   color: var(--primary-deep);
+}
+.agent-meal {
+  border: 1px solid var(--line-soft);
+  border-radius: 16px;
+  margin-top: 14px;
+  overflow: hidden;
+}
+.agent-meal-head {
+  align-items: baseline;
+  background: var(--primary-soft);
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+}
+.food-card {
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+}
+.food-card.chosen {
+  background: var(--primary-soft);
+  box-shadow: inset 0 0 0 2px var(--primary);
+}
+.tip-row {
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 0;
+}
+.tip-sources {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 </style>

@@ -28,6 +28,11 @@ class FeedbackIn(BaseModel):
     text: str = Field(min_length=1, max_length=300)
 
 
+class ApplyIn(BaseModel):
+    selections: list[dict] = Field(default_factory=list)
+    date: str | None = None
+
+
 def _run_agent(run_id: str, user_id: str, day: dt.date, text: str, session_factory, settings) -> None:
     """后台执行：独立 session，结束后写回 run。"""
     with session_factory() as db:
@@ -82,6 +87,34 @@ def create_today_plan(
         request.app.state.session_factory, request.app.state.settings,
     )
     return ok(request, {"run_id": run.id, "status": run.status}, message="accepted")
+
+
+@router.post("/agent/today-plan/{run_id}/apply")
+def apply_today_plan(
+    run_id: str,
+    payload: ApplyIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """把选中的餐食写回计划（新版本，可回滚）。"""
+    from app.domain.meal_choice import apply_meal_choices
+    from app.domain.patches import PatchValidationError
+
+    run = db.get(AgentRun, run_id)
+    if run is None or run.user_id != user.id:
+        raise HTTPException(404, "run not found")
+    # 计划 id 从当前 active 计划取（一个用户一份）
+    from app.models import Plan
+    plan = db.query(Plan).filter(Plan.user_id == user.id, Plan.status == "active").first()
+    if plan is None:
+        raise HTTPException(404, "no active plan")
+    day = dt.date.fromisoformat(payload.date) if payload.date else dt.date.today()
+    try:
+        version = apply_meal_choices(db, user, plan.id, payload.selections, day)
+    except PatchValidationError as exc:
+        raise HTTPException(422, detail=exc.errors) from exc
+    return ok(request, {"new_version": version.version}, message="applied")
 
 
 @router.post("/agent/today-plan/{run_id}/feedback", status_code=202)

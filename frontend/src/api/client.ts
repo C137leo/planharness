@@ -256,6 +256,11 @@ export const api = {
       `/agent/today-plan/${runId}/feedback`,
       { text },
     ),
+  applyAgentMeals: (runId: string, selections: unknown[], date?: string) =>
+    request<{ new_version: number }>('POST', `/agent/today-plan/${runId}/apply`, {
+      selections,
+      date,
+    }),
   askKnowledge: (question: string, bodyPart?: string) =>
     request<KnowledgeAnswer>('POST', '/knowledge/ask', {
       question,
