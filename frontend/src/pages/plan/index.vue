@@ -75,6 +75,11 @@ const todayMeals = computed(() => {
   return (plan.value?.meals || []).filter((meal) => meal.day_index === day)
 })
 
+/** 待确认补丁的改动数：旧后端没有 operations 字段，不能直接取 .length。 */
+function operationCount(patch: PlanPatchSummary): number {
+  return patch.operations?.length ?? patch.diff?.changed_slots ?? 0
+}
+
 /** 槽位 emoji：训练/餐食一眼能区分，不用真实图片也能看出结构。 */
 function slotEmoji(action: { action_type: string; slot: string }): string {
   if (action.action_type === 'meal') return '🍽️'
@@ -134,7 +139,7 @@ onShow(load)
         <view class="section-title">还有 {{ pending.length }} 个待确认的改动</view>
         <view v-for="patch in pending" :key="patch.id" class="pending">
           <text class="pending-text">{{ patch.reason_text || patch.reason_code }}</text>
-          <text class="pending-meta">{{ patch.operations.length }} 处改动 · 待确认</text>
+          <text class="pending-meta">{{ operationCount(patch) }} 处改动 · 待确认</text>
         </view>
         <view class="btn-row">
           <view class="btn-sm primary" @click="openToday">去今天页修改计划</view>

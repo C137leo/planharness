@@ -123,6 +123,10 @@ MODE_TO_SLUG = {
 SWAP_RE = re.compile(
     r"([\u4e00-\u9fa5A-Za-z0-9]{1,12}?)\s*(?:换成|改成|替换成|改为)\s*([\u4e00-\u9fa5A-Za-z0-9]{1,12})"
 )
+# 「海鲜过敏」「我对花生过敏」→ 抽出过敏原；「不过敏」不算
+ALLERGY_RE = re.compile(r"([\u4e00-\u9fa5]{2,6})\s*过敏")
+ALLERGY_LEAD_WORDS = ("我对", "你对", "他对", "我对", "对", "我", "你", "他", "她", "吃", "喝", "有", "是")
+
 AVOID_RE = re.compile(
     r"(?:不吃|别吃|不能吃|忌口|不喜欢吃|讨厌)\s*([\u4e00-\u9fa5A-Za-z0-9]{1,10})"
 )
@@ -278,6 +282,27 @@ def _avoid_food_in_meals(meals: list[dict], name: str,
                 )
             _recalc_meal(meal)
     return changes
+
+
+def extract_allergy_terms(text: str) -> list[str]:
+    """从一句话里抽出过敏原，例如「减脂，海鲜过敏」→ ["海鲜"]。"""
+    found: list[str] = []
+    body = text or ""
+    for match in ALLERGY_RE.finditer(body):
+        term = match.group(1).strip()
+        # 「我对花生过敏」→ 花生
+        for lead in ALLERGY_LEAD_WORDS:
+            if term.startswith(lead) and len(term) > len(lead):
+                term = term[len(lead):]
+                break
+        before = body[match.start(1) - 1] if match.start(1) > 0 else ""
+        if before in ("不", "没"):
+            continue
+        if len(term) < 2 or term in ("不", "没有"):
+            continue
+        if term not in found:
+            found.append(term)
+    return found
 
 
 def extract_avoided_foods(feedback: str) -> list[str]:

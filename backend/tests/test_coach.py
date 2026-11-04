@@ -242,7 +242,7 @@ def test_unmatched_allergen_is_surfaced_not_ignored() -> None:
     payload = {"days": [], "meals": [], "nutrition": NUTRITION,
                "screen": {}, "cautions": []}
     _local_gate(base, payload)
-    assert any("没能自动识别" in item for item in payload["cautions"])
+    assert any("无法自动排除" in item or "没能自动识别" in item for item in payload["cautions"])
 
 
 @needs_skill
@@ -384,3 +384,24 @@ def test_first_draft_does_not_ask_when_request_is_executable(monkeypatch, client
     assert draft["status"] == "ready", draft.get("question")
     refs = [a["action_ref"] for day in draft["days"] for a in day["actions"]]
     assert any("row" in ref for ref in refs), refs
+
+
+def test_goal_and_avoidance_are_remembered_from_instruction() -> None:
+    """「想减脂 + 不吃红薯 + 海鲜过敏」要写进画像，否则每轮都要重说、模型还会反复追问。"""
+    from app.domain.coach import _remember_allergies, _remember_avoidances, _remember_goal
+
+    class P:
+        goal = "muscle_gain"
+        allergies = ["花生"]
+        diet_preferences = ["香菜"]
+
+    profile = P()
+    _remember_goal(profile, "想减脂，每周3天，海鲜过敏，不吃红薯")
+    _remember_allergies(profile, "想减脂，每周3天，海鲜过敏，不吃红薯")
+    _remember_avoidances(profile, "想减脂，每周3天，海鲜过敏，不吃红薯")
+
+    assert profile.goal == "fat_loss"
+    assert "海鲜" in profile.allergies
+    assert "花生" in profile.allergies
+    assert "红薯" in profile.diet_preferences
+    assert "香菜" in profile.diet_preferences

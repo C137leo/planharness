@@ -215,6 +215,8 @@ export interface PlanPatchSummary {
   reason_code: string
   reason_text: string
   created_at: string | null
+  /** 后端旧版本没有这个字段，前端必须按可选处理 */
+  operations?: PatchOperation[]
   diff: Record<string, number>
 }
 

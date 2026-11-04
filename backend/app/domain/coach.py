@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.agent.planning_agent import PlanningAgent, PlanProposal, skill_profile
 from app.domain.draft_edits import (
     apply_explicit_edits,
+    extract_allergy_terms,
     extract_avoided_foods,
     has_explicit_edits,
 )
@@ -53,6 +54,42 @@ GOAL_TO_SKILL = {
 def coach_profile(profile: Profile) -> dict:
     """画像 → skill 入参（供路由/测试直接复用）。"""
     return skill_profile(profile)
+
+
+GOAL_KEYWORDS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("fat_loss", ("减脂", "减重", "瘦", "掉秤", "降体脂")),
+    ("muscle_gain", ("增肌", "增重", "长肌肉")),
+    ("cardio", ("心肺", "耐力", "有氧能力")),
+    ("health", ("体态", "综合健康")),
+)
+
+
+def _remember_goal(profile: Profile, text: str) -> None:
+    """用户这次说的目标优先于画像里的旧目标。
+
+    不这么做的结果就是：画像写增肌、这次说减脂，模型每轮都反问你"到底哪个"。
+    """
+    body = text or ""
+    for goal, keywords in GOAL_KEYWORDS:
+        if any(keyword in body for keyword in keywords):
+            profile.goal = goal
+            return
+
+
+def _remember_avoidances(profile: Profile, text: str) -> None:
+    avoided = extract_avoided_foods(text)
+    if not avoided:
+        return
+    current = [str(item) for item in (profile.diet_preferences or [])]
+    profile.diet_preferences = current + [item for item in avoided if item not in current]
+
+
+def _remember_allergies(profile: Profile, text: str) -> None:
+    terms = extract_allergy_terms(text)
+    if not terms:
+        return
+    current = [str(item) for item in (profile.allergies or [])]
+    profile.allergies = current + [item for item in terms if item not in current]
 
 
 def _skill_payload(profile: Profile) -> dict:
@@ -91,6 +128,10 @@ def create_draft(
     if round_no > MAX_ROUNDS + 1:
         raise PatchValidationError([f"已经改过 {MAX_ROUNDS} 轮了，请重新描述你的目标"])
 
+    # 用户常在目标里直接写「减脂」「海鲜过敏」「不吃红薯」——先写进画像再生成
+    _remember_goal(profile, instruction or "")
+    _remember_allergies(profile, instruction or "")
+    _remember_avoidances(profile, instruction or "")
     agent = PlanningAgent(bridge or get_bridge(), client=client)
     proposal: PlanProposal = agent.propose(profile, instruction or "", previous_feedback=feedback)
 
@@ -192,12 +233,10 @@ def add_feedback(
                 "detail": {"reason": "反馈里有可执行的编辑，不需要向用户反问"},
             }]
 
-    # 「不吃红薯」这类话要记到画像里，否则下一轮生成又会出现
-    avoided = extract_avoided_foods(text or "")
-    if avoided:
-        current = [str(item) for item in (profile.diet_preferences or [])]
-        merged = current + [item for item in avoided if item not in current]
-        profile.diet_preferences = merged
+    # 「不吃红薯」「海鲜过敏」「改成减脂」这类话要记到画像里，否则下一轮又会出现
+    _remember_goal(profile, text or "")
+    _remember_avoidances(profile, text or "")
+    _remember_allergies(profile, text or "")
 
     # 关键：反馈必须落到计划内容上，而不是只改解释文案。
     # 顺序：具体编辑（换食材/加动作/删动作）→ 模糊变换（换一批/加强度/避膝）。

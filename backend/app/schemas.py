@@ -226,8 +226,9 @@ class ChallengeOut(BaseModel):
 
 class MeOut(BaseModel):
     user_id: str
-    phone: str
-    nickname: str
+    # demo 账号没有手机号，允许为空字符串（不要把"没有"变成 500）
+    phone: str = ""
+    nickname: str = ""
     goal: str = ""
     has_profile: bool = False
 

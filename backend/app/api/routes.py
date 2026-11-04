@@ -743,6 +743,7 @@ def list_patches(
                 "reason_code": p.reason_code,
                 "reason_text": p.reason_text,
                 "created_at": p.created_at.isoformat() if p.created_at else None,
+                "operations": p.operations or [],
                 "diff": p.diff or {},
             }
             for p in patches

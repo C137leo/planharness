@@ -226,8 +226,8 @@ def whoami(
     profile = db.get(Profile, user.id)
     return ok(request, MeOut(
         user_id=user.id,
-        phone=user.phone,
-        nickname=user.nickname,
+        phone=user.phone or "",
+        nickname=user.nickname or "",
         goal=(profile.goal if profile is not None else ""),
         has_profile=profile is not None,
     ).model_dump())

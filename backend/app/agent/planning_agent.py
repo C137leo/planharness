@@ -595,7 +595,8 @@ def _pick_items(meal_kcal: int, meal_protein: int, avoid: set[str], *,
         items.append(_item(veg, 150))
 
     used = sum(item["kcal"] for item in items)
-    carb = choose("carb", carb_pref)
+    # 加餐没给主食偏好时不要硬塞米饭/红薯——那看起来就像"零食吃了一碗饭"
+    carb = choose("carb", carb_pref) if carb_pref else None
     if carb is not None and meal_kcal - used > 60:
         grams = max(20, min(300, round(((meal_kcal - used) / carb["kcal"]) * 100 / 5) * 5))
         items.append(_item(carb, grams))
@@ -632,7 +633,7 @@ def _local_gate(profile_payload: dict, payload: dict) -> list[str]:
     if unmatched:
         # 识别不了就不假装安全：提示人工确认，而不是当没填
         payload.setdefault("cautions", []).append(
-            "这些忌口我没能自动识别，请确认是否需要避开：" + "、".join(unmatched)
+            "这些忌口不在食谱库里，暂时无法自动排除，请人工确认：" + "、".join(unmatched)
         )
     explicit_avoid = {
         str(term)
