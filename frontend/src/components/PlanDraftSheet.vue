@@ -177,8 +177,13 @@ function describeError(err: unknown): string {
           <text v-for="(item, i) in warnings" :key="i">· {{ item }}
 </text>
         </view>
+        <!-- 模型问的问题要能直接回答：回答会作为下一轮反馈重新生成 -->
+        <view class="feedback" style="margin-top: 14px">
+          <input v-model="feedback" class="input" placeholder="直接回答这句话，例如：就按加背部动作来" />
+          <view class="btn-sm primary" @click="revise">{{ busy ? '…' : '回答并继续' }}</view>
+        </view>
         <view class="btn-row">
-          <view class="btn-sm" @click="draft = null">重新描述</view>
+          <view class="btn-sm" @click="draft = null">重新描述目标</view>
         </view>
       </template>
 

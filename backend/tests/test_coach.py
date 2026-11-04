@@ -277,3 +277,66 @@ def test_unmatched_feedback_is_honest(client, auth_headers) -> None:
     revised = resp.json()["data"]
     assert "没有改动计划内容" in revised["summary"]
     assert revised["cautions"], "要有一句人话解释为什么没改"
+
+
+def test_executable_feedback_skips_clarifying_question(monkeypatch, client, auth_headers) -> None:
+    """实盘踩过的坑：模型反问"要不要加背部动作"，但这句话我们自己能执行。
+
+    这种情况下不能只给用户一个问题、却没有确认/回答的入口；
+    后端应当绕开模型，用确定性编排生成，并应用这句编辑。
+    """
+    from app.domain import coach as coach_module
+    from app.agent.planning_agent import PlanProposal
+
+    ready_payload = {
+        "status": "ready",
+        "summary": "确定性编排结果",
+        "highlights": [],
+        "cautions": [],
+        "warnings": [],
+        "days": [{"day_index": 1, "focus": "full_body_a", "actions": [
+            {"slot": "strength", "seq": 1, "action_type": "exercise",
+             "action_ref": "goblet-squat", "sets": 3, "reps": 12, "duration_min": 12,
+             "meta": {"name_zh": "高脚杯深蹲", "movement_mode": "knee_dominant"}},
+        ]}],
+        "meals": [{"day_index": 1, "slot": "dinner", "title": "晚餐",
+                   "items": [{"name": "红薯", "grams": 300, "kcal": 258, "protein": 4.8,
+                              "fat": 0.3, "carb": 60}],
+                   "kcal": 258, "protein_g": 4.8, "fat_g": 0.3, "carb_g": 60}],
+        "nutrition": {},
+        "program": {},
+        "meta": {},
+    }
+    clarifying = {
+        "status": "needs_input",
+        "summary": "",
+        "question": "要不要在 3 个动作上加一个背部动作？",
+        "days": [],
+        "meals": [],
+        "highlights": [],
+        "cautions": [],
+    }
+
+    class FakeAgent:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def propose(self, profile, instruction, previous_feedback=None):
+            return PlanProposal(status="needs_input", payload=clarifying, trace=[])
+
+        def propose_deterministic(self, profile, instruction):
+            return PlanProposal(status="ready", payload=ready_payload, trace=[])
+
+    monkeypatch.setattr(coach_module, "PlanningAgent", FakeAgent)
+
+    _setup(client, auth_headers)
+    draft = client.post(f"{API}/plans/drafts", headers=auth_headers,
+                        json={"instruction": "先来一版"}).json()["data"]
+    resp = client.post(f"{API}/plans/drafts/{draft['draft_id']}/feedback",
+                       headers=auth_headers,
+                       json={"text": "每次动作都不同，另外加个练背动作"})
+    assert resp.status_code == 200, resp.text
+    revised = resp.json()["data"]
+    assert revised["status"] == "ready", "能执行的需求不该停在追问状态"
+    refs = [action["action_ref"] for day in revised["days"] for action in day["actions"]]
+    assert any("row" in ref for ref in refs), f"应该加上背部动作，实际 {refs}"

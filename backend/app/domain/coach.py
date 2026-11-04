@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agent.planning_agent import PlanningAgent, PlanProposal, skill_profile
-from app.domain.draft_edits import apply_explicit_edits
+from app.domain.draft_edits import apply_explicit_edits, has_explicit_edits
 from app.domain.revisions import apply_feedback
 from app.audit import append_event
 from app.domain.patches import PatchValidationError, _action_dict, _load_plan
@@ -161,6 +161,18 @@ def add_feedback(
     agent = PlanningAgent(bridge or get_bridge(), client=client)
     proposal = agent.propose(profile, instruction or "",
                              previous_feedback=[str(item) for item in (parent.feedback or [])])
+
+    # 模型有时会反问"要不要这么做"，但这句反馈其实是可执行的（换食材/加动作/换动作）。
+    # 这种问题我们自己能答：绕开模型，用确定性编排生成，再应用具体编辑。
+    if proposal.payload.get("status") != "ready" and has_explicit_edits(text or ""):
+        retry = agent.propose_deterministic(profile, instruction or "")
+        if retry.payload.get("status") == "ready":
+            proposal = retry
+            proposal.trace = list(proposal.trace) + [{
+                "node": "deterministic_retry",
+                "status": "ready",
+                "detail": {"reason": "反馈里有可执行的编辑，不需要向用户反问"},
+            }]
 
     # 关键：反馈必须落到计划内容上，而不是只改解释文案。
     # 顺序：具体编辑（换食材/加动作/删动作）→ 模糊变换（换一批/加强度/避膝）。

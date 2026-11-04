@@ -18,6 +18,13 @@ import re
 
 from app.agent.planning_agent import FOODS
 from app.domain.exercise_catalog import EXERCISE_CATALOG
+from app.domain.revisions import (
+    EASIER_HINTS,
+    HARDER_HINTS,
+    KNEE_HINTS,
+    PROTEIN_HINTS,
+    VARIETY_HINTS,
+)
 
 FOOD_INDEX = {food["name"]: food for food in FOODS}
 FOOD_ALIASES = {
@@ -158,6 +165,33 @@ def _remove_exercise(days: list[dict], target: str) -> list[str]:
             kept.append(action)
         day["actions"] = kept
     return changes
+
+
+EXPLICIT_HINTS = ADD_HINTS + REMOVE_HINTS + ("换成", "改成", "替换成", "改为", "轮换", "加个")
+
+
+def has_explicit_edits(text: str) -> bool:
+    """这句话能不能被确定性执行（具体编辑或已知的模糊指令）。
+
+    能执行就不该让模型反问你"要不要这么做"——直接做出来给你看。
+    """
+    text = (text or "").strip()
+    if not text:
+        return False
+    if any(hint in text for hint in VARIETY_HINTS + KNEE_HINTS + HARDER_HINTS
+           + EASIER_HINTS + PROTEIN_HINTS):
+        return True
+    if any(hint in text for hint in ("换成", "改成", "替换成", "改为")):
+        return True
+    if any(hint in text for hint in ADD_HINTS) and any(
+        keyword in text for keyword in PART_TO_MODE
+    ):
+        return True
+    if any(hint in text for hint in REMOVE_HINTS) and any(
+        item.get("name_zh") and item["name_zh"] in text for item in EXERCISE_CATALOG.values()
+    ):
+        return True
+    return False
 
 
 def apply_explicit_edits(payload: dict, feedback: str) -> tuple[dict, list[str]]:

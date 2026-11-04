@@ -142,6 +142,10 @@ class PlanningAgent:
                 return proposal
         return self._deterministic_flow(profile_payload, instruction)
 
+    def propose_deterministic(self, profile: Any, instruction: str) -> PlanProposal:
+        """不走模型，直接按 skill 的顺序跑一遍（用于"这个我们自己能做，别问用户"）。"""
+        return self._deterministic_flow(skill_profile(profile), instruction)
+
     # ---- 模型编排 ----
 
     def _llm_flow(self, profile_payload: dict, instruction: str) -> PlanProposal:
