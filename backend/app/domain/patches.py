@@ -192,18 +192,25 @@ def is_knee_risky(item: dict) -> bool:
     return str(meta.get("movement_mode") or "") in KNEE_RISK_MOVEMENTS
 
 
-def _safety_check(proposed: list[dict], available_days: int) -> list[str]:
+def _safety_check(proposed: list[dict], available_days: int, *,
+                  check_knee: bool = True) -> list[str]:
     """确定性安全门（第一道闸口）：膝痛禁忌动作 + 训练日不超过可用天数。
+
+    `check_knee` 只在"膝痛换动作"这类补丁里开启：
+    - 「今天休息」「受伤停练」这类补丁本来就会保留部分原动作（只是删掉当天/部位），
+      用膝痛禁忌去卡它，会让合理的补丁在审批时被 422 拦住；
+    - 模板膝痛补丁和 injury_swap 仍然必须跑这道检查。
 
     返回错误列表，空表示通过。审批时会再跑一次，防止两次审批之间计划被改动。
     """
     errors: list[str] = []
-    for item in proposed:
-        if item["action_type"] != "exercise":
-            continue
-        if is_knee_risky(item):
-            name = (item.get("meta") or {}).get("name_zh") or item["action_ref"]
-            errors.append(f"膝痛禁忌动作: {name}")
+    if check_knee:
+        for item in proposed:
+            if item["action_type"] != "exercise":
+                continue
+            if is_knee_risky(item):
+                name = (item.get("meta") or {}).get("name_zh") or item["action_ref"]
+                errors.append(f"膝痛禁忌动作: {name}")
     strength_days = {
         item["day_index"]
         for item in proposed
@@ -557,6 +564,7 @@ def _new_version_from_actions(
     *,
     patch_id: str | None = None,
     summary_prefix: str = "计划调整",
+    summary_text: str | None = None,
 ) -> tuple[PlanVersion, list[PlanAction]]:
     """用给定动作快照生成新版本，并把计划指针前移。
 
@@ -581,7 +589,7 @@ def _new_version_from_actions(
         calorie_target=base_version.calorie_target,
         protein_target_g=base_version.protein_target_g,
         step_target=base_version.step_target,
-        summary=f"{summary_prefix} v{old_version + 1}：保留热量/蛋白质目标。",
+        summary=summary_text or f"{summary_prefix}（记为 v{old_version + 1}）：保留热量/蛋白质目标。",
     )
     db.add(new_version)
     db.flush()
@@ -637,8 +645,11 @@ def approve_patch(
     base = [_action_dict(item) for item in _actions_for_version(db, base_version.id)]
     proposed = _apply_operations(base, patch.operations)
     available_days = int(patch.diff.get("available_days", 2))
+    intent_kind = str(((patch.validation or {}).get("intent") or {}).get("kind") or "")
+    # 只有"膝痛/换部位"类补丁才用膝痛禁忌卡；休息/停练补丁保留原动作是合理的
+    check_knee = intent_kind in ("", "injury", "injury_swap")
     # 第二道安全门：审批时重跑，防止草稿期与审批期之间的状态漂移
-    safety = _safety_check(proposed, available_days)
+    safety = _safety_check(proposed, available_days, check_knee=check_knee)
     if safety:
         raise PatchValidationError(safety)
 
@@ -730,7 +741,16 @@ def rollback_plan(db: Session, user: User, plan_id: str, target_version: int) ->
     # 复制目标版本的动作快照作为新版本内容
     actions = [_action_dict(item) for item in _actions_for_version(db, target.id)]
     version, _ = _new_version_from_actions(
-        db, plan, current, actions, summary_prefix=f"回滚到 v{target_version}"
+        db,
+        plan,
+        current,
+        actions,
+        summary_prefix=f"回滚到 v{target_version}",
+        # 版本号是审计锚点，不是给用户记的：说清"内容来自 v6、现在记为 v8"
+        summary_text=(
+            f"内容已回滚到 v{target_version}，记为 v{current.version + 1}"
+            f"（热量与蛋白质目标沿用 v{target_version}）"
+        ),
     )
     append_event(
         db,

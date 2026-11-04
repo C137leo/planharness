@@ -23,6 +23,8 @@ from app.domain import coach as coach_plans
 from app.domain import requests as patch_requests
 from app.domain.patches import (
     PatchValidationError,
+    approve_patch,
+    reject_patch,
     rollback_plan,
 )
 from app.domain.planning import PlanValidationError, generate_plan as generate_plan_service
@@ -373,8 +375,10 @@ def generate_plan(
 
 
 def _patch_payload(patch: PlanPatch):
-    """把补丁 ORM 对象转成出参 dict。"""
-    return PatchOut.model_validate(patch).model_dump()
+    """把补丁 ORM 对象转成出参 dict（操作里补上中文名）。"""
+    data = PatchOut.model_validate(patch).model_dump()
+    data["operations"] = _operations_with_names(data.get("operations") or [])
+    return data
 
 
 def _owned_patch(db: Session, user: User, patch_id: str) -> PlanPatch:
@@ -738,7 +742,7 @@ def list_patches(
                 "reason_code": p.reason_code,
                 "reason_text": p.reason_text,
                 "created_at": p.created_at.isoformat() if p.created_at else None,
-                "operations": p.operations or [],
+                "operations": _operations_with_names(p.operations or []),
                 "diff": p.diff or {},
             }
             for p in patches
@@ -777,8 +781,23 @@ def approve(
         )
     except PatchValidationError as exc:
         raise HTTPException(422, detail=exc.errors) from exc
-    except Exception as exc:
-        raise HTTPException(409, detail=f"cannot resume graph: {exc}") from exc
+    except Exception:
+        # 没有 graph 现场（一句话改计划生成的补丁）：走领域层审批，同样会重跑安全门 + 写审计
+        try:
+            _, version = approve_patch(db, user, patch_id, payload.comment)
+        except PatchValidationError as exc:
+            raise HTTPException(422, detail=exc.errors) from exc
+        db.expire_all()
+        plan = _current_plan_payload(db, user)
+        return ok(
+            request,
+            {
+                "patch_id": patch_id,
+                "committed_version": version.version,
+                "plan": plan.model_dump(),
+            },
+            message="committed",
+        )
 
     # 图在 commit 节点里用另一个 Session 提交，这里重新读一遍最新状态
     db.expire_all()
@@ -829,11 +848,37 @@ def reject(
         )
     except PatchValidationError as exc:
         raise HTTPException(422, detail=exc.errors) from exc
-    except Exception as exc:
-        raise HTTPException(409, detail=f"cannot resume graph:{exc}") from exc
+    except Exception:
+        # 这条补丁不是由 graph 生成的（例如一句话改计划），没有可恢复的现场：
+        # 直接走领域层驳回，语义完全一样，只是少了 trace。
+        try:
+            reject_patch(db, user, patch_id, payload.comment)
+        except PatchValidationError as exc:
+            raise HTTPException(422, detail=exc.errors) from exc
     db.expire_all()
-    patch = _owned_patch(db, user,patch_id)
+    patch = _owned_patch(db, user, patch_id)
     return ok(request, _patch_payload(patch), message="rejected")
+
+
+def _operations_with_names(operations: list[dict]) -> list[dict]:
+    """给补丁操作补上中文名。
+
+    前端拿到的操作里只有 slug（goblet-squat），直接展示对用户不友好；
+    名字统一由后端解析，避免前端再维护一份映射。
+    """
+    from app.domain.catalog import name_of
+
+    enriched: list[dict] = []
+    for op in operations or []:
+        item = dict(op)
+        before = item.get("before_action_ref")
+        if before:
+            item["before_name"] = name_of(str(before))
+        after = (item.get("after_action") or {}).get("action_ref")
+        if after:
+            item["after_name"] = name_of(str(after))
+        enriched.append(item)
+    return enriched
 
 
 def _run_summary(run: AgentRun, db: Session | None = None) -> RunSummaryOut:

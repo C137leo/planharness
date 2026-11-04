@@ -121,7 +121,7 @@ def validate_operations(operations: list[dict], actions: list[dict],
             # 空操作：模型表达"别改这个"时会这么写，直接忽略，不算错误
             continue
 
-        candidate = {"action_ref": ref, "meta": {"name_zh": ref}}
+        candidate = {"action_ref": ref, "meta": {"name_zh": name_of(ref)}}
         if "knee" in _injured_parts(text, quick_action) and is_knee_risky(candidate):
             errors.append(f"膝盖不适时不能用 {ref}")
             continue
@@ -136,7 +136,7 @@ def validate_operations(operations: list[dict], actions: list[dict],
                 "sets": int(want_sets) if want_sets is not None else current.get("sets"),
                 "reps": int(want_reps) if want_reps is not None else current.get("reps"),
                 "duration_min": current.get("duration_min"),
-                "meta": {"name_zh": ref, "source": "change_agent"},
+                "meta": {"name_zh": name_of(ref), "source": "change_agent"},
             },
             "reason": str(op.get("reason") or "")[:120],
         })

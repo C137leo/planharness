@@ -2,7 +2,7 @@
 import { reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { api, type WorkoutKind, type WorkoutLogItem } from '../../api'
-import { actionName } from '../../styles/copy'
+import { actionLabel, actionName } from '../../styles/copy'
 import { todayStr } from '../../styles/dates'
 
 const busy = ref(false)
@@ -61,16 +61,51 @@ const workoutBusy = ref(false)
 const workoutError = ref('')
 const workoutLogs = ref<WorkoutLogItem[]>([])
 
-const exerciseOptions = [
-  'brisk_walk',
-  'easy_walk',
-  'bodyweight_squat',
-  'pushup',
-  'row',
-  'backpack_row',
-  'glute_bridge',
-  'stretch',
+type WorkoutOption = { ref: string; label: string; kind: WorkoutKind; duration: number }
+
+// 兜底列表：还没生成计划时也能记一笔
+const FALLBACK_OPTIONS: WorkoutOption[] = [
+  { ref: 'brisk_walk', label: '快走', kind: 'cardio', duration: 30 },
+  { ref: 'easy_walk', label: '低冲击快走', kind: 'cardio', duration: 25 },
+  { ref: 'bodyweight_squat', label: '自重深蹲', kind: 'strength', duration: 12 },
+  { ref: 'pushup', label: '俯卧撑', kind: 'strength', duration: 12 },
+  { ref: 'row', label: '哑铃划船', kind: 'strength', duration: 12 },
+  { ref: 'glute_bridge', label: '臀桥', kind: 'strength', duration: 12 },
+  { ref: 'stretch', label: '全身拉伸', kind: 'stretch' as WorkoutKind, duration: 15 },
 ]
+
+const exerciseOptions = ref<WorkoutOption[]>(FALLBACK_OPTIONS)
+const planHint = ref('')
+
+/** 打卡内容默认对齐今天的训练：从计划里取今天的动作，而不是让用户凭记忆填。 */
+async function loadTodayPlan() {
+  try {
+    const plan = await api.getCurrentPlan()
+    const todayActions = (plan.today?.actions || []).filter(
+      (action) => action.action_type === 'exercise',
+    )
+    if (!todayActions.length) return
+    exerciseOptions.value = todayActions.map((action) => ({
+      ref: action.action_ref,
+      label: actionLabel(action),
+      kind: (action.slot === 'cardio' ? 'cardio' : 'strength') as WorkoutKind,
+      duration: action.duration_min || 12,
+    }))
+    const first = exerciseOptions.value[0]
+    workout.action_ref = first.ref
+    workout.kind = first.kind
+    workout.duration_min = String(first.duration)
+    planHint.value = `已按今天的计划预填 ${exerciseOptions.value.length} 个动作`
+  } catch {
+    // 没有计划就保留兜底列表
+  }
+}
+
+function pickOption(option: WorkoutOption) {
+  workout.action_ref = option.ref
+  workout.kind = option.kind
+  workout.duration_min = String(option.duration)
+}
 
 async function loadWorkouts() {
   try {
@@ -118,6 +153,7 @@ async function removeWorkout(logId: string) {
 onLoad(() => {
   form.date = today()
   loadWorkouts()
+  loadTodayPlan()
 })
 </script>
 
@@ -171,13 +207,13 @@ onLoad(() => {
 
       <view class="option-grid">
         <view
-          v-for="ref in exerciseOptions"
-          :key="ref"
+          v-for="option in exerciseOptions"
+          :key="option.ref"
           class="chip option"
-          :class="{ active: workout.action_ref === ref }"
-          @click="workout.action_ref = ref"
+          :class="{ active: workout.action_ref === option.ref }"
+          @click="pickOption(option)"
         >
-          {{ actionName(ref) }}
+          {{ option.label }}
         </view>
       </view>
 

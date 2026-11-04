@@ -81,6 +81,9 @@ export interface PatchOperation {
   op: 'replace_action' | 'remove_action'
   slot_key: string
   before_action_ref?: string
+  /** 后端解析好的中文名，前端优先用它展示 */
+  before_name?: string
+  after_name?: string
   after_action?: {
     action_ref: string
     sets?: number | null

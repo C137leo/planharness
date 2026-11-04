@@ -11,6 +11,39 @@ export const SLOT_LABELS: Record<string, string> = {
 }
 
 export const ACTION_NAMES: Record<string, string> = {
+  // skill 目录用的连字符写法（旧数据里 meta.name_zh 可能直接存了 slug）
+  'goblet-squat': '高脚杯深蹲',
+  'glute-bridge': '臀桥',
+  'dumbbell-bench-press': '哑铃卧推',
+  'push-up': '俯卧撑',
+  'bench-press': '杠铃卧推',
+  'romanian-deadlift': '罗马尼亚硬拉',
+  'hip-thrust': '杠铃臀推',
+  'leg-press': '腿举',
+  'walking-lunge': '行走弓步',
+  'bulgarian-split-squat': '保加利亚分腿蹲',
+  'back-extension': '山羊挺身',
+  'seated-leg-curl': '坐姿腿弯举',
+  'incline-bench-press': '上斜杠铃卧推',
+  'smith-machine-bench-press': '史密斯卧推',
+  'overhead-press': '杠铃推举',
+  'arnold-press': '阿诺德推举',
+  'lateral-raise': '哑铃侧平举',
+  'one-arm-dumbbell-row': '单臂哑铃划船',
+  'dumbbell-bent-over-row': '哑铃俯身划船',
+  'seated-row': '坐姿绳索划船',
+  'chest-supported-row': '胸支撑划船',
+  'inverted-row': '反向划船',
+  'banded-row': '弹力带划船',
+  'doorway-row': '门框划船',
+  'lat-pulldown': '高位下拉',
+  'banded-lat-pulldown': '弹力带下拉',
+  'pull-up': '引体向上',
+  'straight-arm-pulldown': '直臂下拉',
+  'plank': '平板支撑',
+  'side-plank': '侧平板支撑',
+  'crunch': '卷腹',
+  'russian-twist': '俄罗斯转体',
   dynamic_warmup: '动态热身',
   goblet_squat: '高脚杯深蹲',
   squat: '深蹲',
@@ -63,7 +96,10 @@ export function actionName(ref: string): string {
 /** 优先用计划里带的 meta.name_zh（skill 生成的动作名都在那里）。 */
 export function actionLabel(action: { action_ref: string; meta?: Record<string, unknown> }): string {
   const named = (action.meta || {}).name_zh
-  if (typeof named === 'string' && named.trim()) return named
+  if (typeof named === 'string' && named.trim()) {
+    // 老数据里 meta.name_zh 可能被写成了 slug（push-up），这里翻译一下
+    return ACTION_NAMES[named] || named
+  }
   return actionName(action.action_ref)
 }
 
@@ -76,14 +112,18 @@ export function describeOperation(op: {
   op: string
   slot_key: string
   before_action_ref?: string
+  before_name?: string
+  after_name?: string
   after_action?: { action_ref: string } | null
   reason?: string
 }): string {
   const parts = op.slot_key.split(':')
   const day = Number(parts[0])
+  // 后端会带上中文名（before_name / after_name），没有才退回映射表
+  const before = op.before_name || actionName(op.before_action_ref || '')
   if (op.op === 'remove_action') {
-    return `Day ${day} 删掉「${actionName(op.before_action_ref || '')}」`
+    return `第 ${day} 天删掉「${before}」`
   }
-  const to = op.after_action ? actionName(op.after_action.action_ref) : '新动作'
-  return `Day ${day} 把「${actionName(op.before_action_ref || '')}」换成「${to}」`
+  const to = op.after_name || (op.after_action ? actionName(op.after_action.action_ref) : '新动作')
+  return `第 ${day} 天把「${before}」换成「${to}」`
 }

@@ -10,7 +10,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { api, type CurrentPlan, type PlanAction, type PlanPatchSummary } from '../../api'
 import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
-import { actionLabel, slotLabel } from '../../styles/copy'
+import { actionLabel, describeOperation, slotLabel } from '../../styles/copy'
 import { thumbOf } from '../../styles/thumbs'
 import { WEEKDAY_LABELS } from '../../styles/dates'
 
@@ -81,6 +81,37 @@ function operationCount(patch: PlanPatchSummary): number {
   return patch.operations?.length ?? patch.diff?.changed_slots ?? 0
 }
 
+/** 计划页直接处理「待确认改动」：之前只能看、没法确认，等于把用户困住。 */
+async function approvePending(patch: PlanPatchSummary) {
+  if (busy.value) return
+  busy.value = true
+  error.value = ''
+  try {
+    const result = await api.approvePatch(patch.id, '计划页确认')
+    toast.value = `已应用改动，现在是 v${result.committed_version}`
+    await load()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '应用失败'
+  } finally {
+    busy.value = false
+  }
+}
+
+async function rejectPending(patch: PlanPatchSummary) {
+  if (busy.value) return
+  busy.value = true
+  error.value = ''
+  try {
+    await api.rejectPatch(patch.id, '计划页丢弃')
+    toast.value = '已丢弃这条改动'
+    await load()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '取消失败'
+  } finally {
+    busy.value = false
+  }
+}
+
 function openToday() {
   uni.switchTab({ url: '/pages/today/index' })
 }
@@ -130,11 +161,23 @@ onShow(load)
       <view v-if="pending.length" class="card">
         <view class="section-title">还有 {{ pending.length }} 个待确认的改动</view>
         <view v-for="patch in pending" :key="patch.id" class="pending">
-          <text class="pending-text">{{ patch.reason_text || patch.reason_code }}</text>
-          <text class="pending-meta">{{ operationCount(patch) }} 处改动 · 待确认</text>
+          <view class="row">
+            <text class="pending-text">{{ patch.reason_text || patch.reason_code }}</text>
+            <text class="pending-meta">{{ operationCount(patch) }} 处</text>
+          </view>
+          <view v-for="(op, index) in (patch.operations || []).slice(0, 4)" :key="index" class="pending-op">
+            <text class="list-meta">· {{ describeOperation(op) }}</text>
+          </view>
+          <view v-if="operationCount(patch) > 4" class="pending-op">
+            <text class="list-meta">· 还有 {{ operationCount(patch) - 4 }} 处…</text>
+          </view>
+          <view class="btn-row">
+            <view class="btn-sm primary" @click="approvePending(patch)">确认应用</view>
+            <view class="btn-sm" @click="rejectPending(patch)">不要了</view>
+          </view>
         </view>
         <view class="btn-row">
-          <view class="btn-sm primary" @click="openToday">去今天页修改计划</view>
+          <view class="btn-sm" @click="openToday">去今天页再提一个改动</view>
         </view>
       </view>
 
@@ -229,5 +272,8 @@ onShow(load)
   margin-top: 22px;
   text-align: center;
   text-decoration: underline;
+}
+.pending-op {
+  margin-top: 4px;
 }
 </style>
