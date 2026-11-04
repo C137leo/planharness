@@ -117,7 +117,8 @@ def test_draft_generates_training_menu_and_targets(client, auth_headers) -> None
     assert not (names & dairy), "乳制品过敏必须被排除"
 
     monday = [meal for meal in data["meals"] if meal["day_index"] == 1]
-    assert [meal["slot"] for meal in monday] == ["breakfast", "lunch", "dinner", "snack"]
+    # 减脂目标只有三餐（加餐只给增肌）
+    assert [meal["slot"] for meal in monday] == ["breakfast", "lunch", "dinner"]
 
 
 @needs_skill

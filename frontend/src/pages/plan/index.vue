@@ -105,6 +105,11 @@ function pickDate(date: string) {
   selectedDate.value = date
 }
 
+/** 当天餐食总热量：直接按餐次累加，不在前端重复算营养。 */
+function dayMealKcal(day: { meals: Array<{ kcal: number }> }): number {
+  return day.meals.reduce((sum, meal) => sum + (meal.kcal || 0), 0)
+}
+
 /** 待确认补丁的改动数：旧后端没有 operations 字段，不能直接取 .length。 */
 function operationCount(patch: PlanPatchSummary): number {
   return patch.operations?.length ?? patch.diff?.changed_slots ?? 0
@@ -256,11 +261,25 @@ onShow(load)
           </view>
 
           <view v-if="selectedDay.meals.length" class="cal-meals">
-            <view class="section-title" style="margin-top: 10px">这天吃</view>
-            <view v-for="meal in selectedDay.meals" :key="meal.slot" class="line">
-              <text class="line-name">{{ meal.title }}</text>
-              <text class="line-meta">{{ meal.kcal }} kcal · 蛋白 {{ meal.protein_g }}g</text>
+            <view class="row" style="margin-top: 10px">
+              <text class="section-title">这天吃</text>
+              <text class="list-meta">{{ dayMealKcal(selectedDay) }} kcal</text>
             </view>
+            <view v-for="meal in selectedDay.meals" :key="meal.slot" class="meal-block">
+              <view class="row">
+                <text class="line-name">{{ meal.title }}</text>
+                <text class="list-value">{{ meal.kcal }} kcal</text>
+              </view>
+              <text class="list-meta">
+                {{ meal.items.map((item) => `${item.name} ${item.grams}g`).join(' · ') }}
+              </text>
+              <text class="list-meta">
+                蛋白 {{ meal.protein_g }}g · 脂肪 {{ meal.fat_g }}g · 碳水 {{ meal.carb_g }}g
+              </text>
+            </view>
+          </view>
+          <view v-else-if="selectedDay.actions.length" class="muted" style="margin-top: 8px">
+            这天没有餐食记录。
           </view>
         </view>
       </view>
@@ -411,5 +430,12 @@ onShow(load)
 .line-meta {
   color: var(--muted);
   font-size: 12px;
+}
+.meal-block {
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 0;
 }
 </style>

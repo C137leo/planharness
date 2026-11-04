@@ -531,11 +531,22 @@ def _build_meals(profile_payload: dict, nutrition: dict) -> list[dict]:
     # 像「不吃红薯」这种具体食材，只靠标签过滤不掉，需要按名字排除
     excluded_names = {term for term in map(str, terms) if term in {f["name"] for f in FOODS}}
 
+    # 加餐只给增肌：减脂/心肺目标是控制总热量，多一顿加餐反而更难执行
+    goal_text = str(profile_payload.get("goal") or "")
+    with_snack = "增肌" in goal_text
+    templates = [t for t in MEAL_TEMPLATES if with_snack or t[0] != "snack"]
+    if with_snack:
+        shares = {slot: share for slot, _title, share, *_rest in MEAL_TEMPLATES}
+    else:
+        # 没有加餐时把 10% 摊回正餐，避免总热量凭空少一截
+        shares = {"breakfast": 0.30, "lunch": 0.40, "dinner": 0.30}
+
     meals: list[dict] = []
     for day_index in range(1, 8):
         # 这一天已经用过的蛋白源：同一天内尽量不重复
         used_today: set[str] = set()
-        for slot, title, share, protein_pref, carb_pref, veg_pref in MEAL_TEMPLATES:
+        for slot, title, _share, protein_pref, carb_pref, veg_pref in templates:
+            share = shares.get(slot, _share)
             meal_kcal = round(target_kcal * share)
             meal_protein = round(protein_target * share)
             # 按天轮换偏好顺序：第 1 天用第一项，第 2 天用第二项……

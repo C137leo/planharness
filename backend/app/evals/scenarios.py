@@ -584,7 +584,8 @@ def e09_coach_generation() -> ScenarioResult:
 
         _expect(checks, "草案状态 ready", draft["status"] == "ready", draft["status"])
         _expect(checks, "训练日 = 每周 3 天", len(draft["days"]) == 3, str(len(draft["days"])))
-        _expect(checks, "食谱覆盖 7 天", len(draft["meals"]) == 28, str(len(draft["meals"])))
+        # 减脂目标一天三餐（加餐只给增肌）：7 天 × 3 = 21
+        _expect(checks, "食谱覆盖 7 天", len(draft["meals"]) == 21, str(len(draft["meals"])))
         _expect(checks, "推荐摄入高于基础代谢",
                 (draft["nutrition"].get("target_kcal") or 0) > (draft["nutrition"].get("bmr") or 0),
                 str(draft["nutrition"].get("target_kcal")))
