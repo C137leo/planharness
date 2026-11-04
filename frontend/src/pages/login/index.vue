@@ -140,8 +140,10 @@ function handleError(err: unknown) {
   if (err instanceof ApiError) {
     error.value = err.message
     if (err.statusCode === 429) {
-      const retryAfter = Number((err.detail as { retry_after?: number } | null)?.retry_after || 30)
-      startCountdown(Number.isFinite(retryAfter) ? retryAfter : 30)
+      // 服务端把秒数写进了文案（"…（123 秒后可重试）"），优先用它
+      const matched = err.message.match(/(\d+)\s*秒/)
+      const seconds = matched ? Number(matched[1]) : 30
+      startCountdown(Number.isFinite(seconds) && seconds > 0 ? seconds : 30)
     }
     return
   }

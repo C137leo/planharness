@@ -56,11 +56,16 @@ def limiter_for(request: Request) -> RateLimiter:
 
 
 def _too_many(retry_after: int, message: str) -> HTTPException:
-    """429 一定带 Retry-After：前端据此倒计时，而不是盲目重试。"""
+    """429 一定带 Retry-After，并把秒数写进文案。
+
+    浏览器同源请求拿不到某些自定义头，把秒数放在 detail 里前端一定能解析，
+    这样倒计时不会因为读不到 header 而退化成固定值。
+    """
+    seconds = max(1, int(retry_after))
     return HTTPException(
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-        detail=message,
-        headers={"Retry-After": str(max(1, retry_after))},
+        detail=f"{message}（{seconds} 秒后可重试）",
+        headers={"Retry-After": str(seconds)},
     )
 
 
