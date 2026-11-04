@@ -168,6 +168,7 @@ Console 里还有「场景回放」：点 E01–E08 任一个，服务端跑一�
 - [17 Run 生命周期与 Verifier](docs/17-run-lifecycle-and-verifier.md)：AgentRun 状态机、独立验收、测试模板
 - [18 剩余工作清单](docs/18-remaining-work.md)：Evals、Console Trace、token/cost、audit、生产收口与优先级
 - [19 当前阶段与最终优先级](docs/19-final-priorities.md)：90 tests/8 Evals/6 变异已完成，剩余前端账号、CI、部署、演示
+- [20 订餐与知识 RAG](docs/20-food-ordering-and-rag.md)：3 个推荐 + 平台深链、知识库检索/引用、分阶段落地
 - [12 架构总结](docs/12-architecture.md)：**架构风格判定**（分层单体/贫血模型，不是 DDD）、分层与依赖规则、聚合边界、状态机、9 条 ADR、技术债与演进路线、面试讲稿
 - [15 上线前修改清单](docs/15-prelaunch-checklist.md)：**上线前逐条过**：10 个阻断项 + 8 个建议项 + 验证/回滚；配套 `deploy/preflight.sh` 自检
 - [22 注册登录与防刷](docs/22-auth-and-abuse.md)：**本轮**：威胁模型、四道闸口（总量上限/熔断/分层限流/一次性票据）、密码策略、实测结果与没做的部分

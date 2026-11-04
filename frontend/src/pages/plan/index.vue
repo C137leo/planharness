@@ -10,7 +10,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { api, type CurrentPlan, type PlanAction, type PlanPatchSummary } from '../../api'
 import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
-import { actionLabel, describeOperation, slotLabel } from '../../styles/copy'
+import { actionLabel, describeOperation, slotLabel, sortMeals } from '../../styles/copy'
 import { thumbOf } from '../../styles/thumbs'
 import { WEEKDAY_LABELS, isoWeekday, todayStr } from '../../styles/dates'
 
@@ -91,7 +91,7 @@ const calendarDays = computed(() => {
       week: WEEKDAY_LABELS[weekday - 1],
       isToday: iso === todayStr(),
       actions: actions.filter((item) => item.day_index === weekday),
-      meals: meals.filter((meal) => meal.day_index === weekday),
+      meals: sortMeals(meals.filter((meal) => meal.day_index === weekday)),
     })
   }
   return rows

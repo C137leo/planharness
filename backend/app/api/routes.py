@@ -174,8 +174,12 @@ def _current_plan_payload(db: Session, user: User) -> CurrentPlanOut:
     meals = db.scalars(
         select(MealPlan)
         .where(MealPlan.plan_version_id == version.id)
-        .order_by(MealPlan.day_index, MealPlan.slot)
+        .order_by(MealPlan.day_index)
     ).all()
+    # 按"早 → 午 → 晚 → 加餐"排，而不是按 slot 字母序（否则会变成早/晚/午）
+    from app.domain.coach import MEAL_ORDER
+
+    meals = sorted(meals, key=lambda item: (item.day_index, MEAL_ORDER.get(item.slot, 9)))
     weekday = date.today().isoweekday()
     today = coach_plans.today_payload(db, plan, version, weekday)
 

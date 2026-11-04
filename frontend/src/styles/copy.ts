@@ -1,5 +1,17 @@
 /** 文案与人话映射：页面和组件共用，避免同一个动作名三处不一致。 */
 
+/** 餐次展示顺序：早 → 午 → 晚 → 加餐（后端已排好，前端再兜一层）。 */
+export const MEAL_ORDER: Record<string, number> = {
+  breakfast: 1,
+  lunch: 2,
+  dinner: 3,
+  snack: 4,
+}
+
+export function sortMeals<T extends { slot: string }>(meals: T[]): T[] {
+  return [...meals].sort((a, b) => (MEAL_ORDER[a.slot] || 9) - (MEAL_ORDER[b.slot] || 9))
+}
+
 export const SLOT_LABELS: Record<string, string> = {
   warmup: '热身',
   strength: '力量',
