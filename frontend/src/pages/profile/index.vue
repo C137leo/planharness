@@ -70,7 +70,9 @@ function applyProfile(profile: Profile) {
 }
 
 async function load() {
-  loading.value = true
+  // 只在第一次进入时显示骨架屏；后续 onShow 不再把表单卸载重建，
+  // 否则 textarea 的 resize-sensor 会在页面激活钩子里拿到空的 rootRef
+  if (!me.value) loading.value = true
   error.value = ''
   try {
     me.value = await api.me()

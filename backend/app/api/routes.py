@@ -12,26 +12,21 @@ import uuid
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from langgraph.prebuilt import interrupt
+from langgraph.types import Command
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
-from langgraph.types import Command
 
-from app import config
+from app.audit import append_event, verify_stream
 from app.auth import get_current_user, get_db, hash_password, issue_token, verify_password
 from app.domain import calories as calorie_stats
 from app.domain import coach as coach_plans
 from app.domain import requests as patch_requests
 from app.domain.patches import (
     PatchValidationError,
-    approve_patch,
-    create_knee_patch,
-    reject_patch,
     rollback_plan,
 )
 from app.domain.planning import PlanValidationError, generate_plan as generate_plan_service
 from app.llm.deepseek import DeepSeekExplainer
-from app.audit import append_event, verify_stream
 from app.models import (
     AgentRun,
     AuditEvent,

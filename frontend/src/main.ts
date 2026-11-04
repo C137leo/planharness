@@ -10,6 +10,14 @@ export function createApp() {
     // eslint-disable-next-line no-console
     console.error('[planharness] render error:', info, err)
 
+    // uni-app H5 已知问题：<textarea> 内部的 resize-sensor 在页面激活瞬间
+    // 可能拿到 null 的 rootRef（切 tab 时卸载/重建表单容易触发）。
+    // 它不影响功能，只是会在控制台和 UI 上制造噪音，这里只记录不弹窗。
+    const raw = err instanceof Error ? err.message : String(err)
+    if (raw.includes('firstElementChild') || raw.includes('resize-sensor')) {
+      return
+    }
+
     // dev 下把完整堆栈报到后端，截图看不全的时候直接读日志
     try {
       const message = err instanceof Error ? err.message : String(err)
