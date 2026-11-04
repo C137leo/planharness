@@ -187,7 +187,11 @@ export const api = {
       available_days: availableDays,
     }),
   getPatch: (patchId: string) => request<PlanPatch>('GET', `/patches/${patchId}`),
-  listPatches: (limit = 20) => request<PlanPatchSummary[]>('GET', `/patches?limit=${limit}`),
+  listPatches: (limit = 20, status = '') =>
+    request<PlanPatchSummary[]>(
+      'GET',
+      `/patches?limit=${limit}${status ? `&status=${status}` : ''}`,
+    ),
   approvePatch: (patchId: string, comment = '') =>
     request<{ patch_id: string; committed_version: number; plan: CurrentPlan }>(
       'POST',

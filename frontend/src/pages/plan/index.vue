@@ -38,7 +38,9 @@ async function load() {
   error.value = ''
   try {
     plan.value = await api.getCurrentPlan()
-    pending.value = await api.listPatches(10)
+    // 只取真正等待确认的：已拒绝/已提交的补丁留在这里，点确认会 422
+    const patches = await api.listPatches(20, 'pending_approval')
+    pending.value = patches.filter((item) => item.status === 'pending_approval')
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载失败'
   } finally {
