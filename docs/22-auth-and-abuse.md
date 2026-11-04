@@ -59,6 +59,10 @@ cd backend
 .venv/bin/python scripts/reset_rate_limits.py --yes
 ```
 
+> 改完配额逻辑后**必须重启后端**才生效（uvicorn 不加 `--reload` 不会自动重载）。
+> 判断是否已生效：一次失败注册只应新增 `register:try:ip:*`，
+> 不应再出现 `register:ip:*` / `register:phone:*`。
+
 ## 3. 实现要点
 
 ### 一次性票据（`app/abuse.py`）
