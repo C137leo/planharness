@@ -67,27 +67,35 @@ def apply_meal_choices(db: Session, user: User, plan_id: str,
         ),
     )
 
-    # 复制其他天/其他餐，替换选中的餐
-    for row in db.scalars(
-        select(MealPlan).where(MealPlan.plan_version_id == current.id)
-    ).all():
-        override = chosen.get(row.slot) if row.day_index == weekday else None
-        if override is None:
-            db.add(MealPlan(
-                user_id=row.user_id, plan_version_id=version.id, day_index=row.day_index,
-                slot=row.slot, title=row.title, items=row.items or [], kcal=row.kcal,
-                protein_g=row.protein_g, fat_g=row.fat_g, carb_g=row.carb_g,
-            ))
+    # _new_version_from_actions 已经把旧版本的餐食复制过来了，
+    # 这里只就地覆盖选中的那几餐，不能再插一遍（否则会出现重复餐次）
+    copied = db.scalars(
+        select(MealPlan).where(
+            MealPlan.plan_version_id == version.id, MealPlan.day_index == weekday
+        )
+    ).all()
+    # 历史坏数据里同一天同一餐可能有重复行：先按餐次去重，只保留第一条
+    seen_slots: set[str] = set()
+    for row in copied:
+        if row.slot in seen_slots:
+            db.delete(row)
             continue
-        db.add(MealPlan(
-            user_id=row.user_id, plan_version_id=version.id, day_index=row.day_index,
-            slot=row.slot, title=str(override.get("title") or row.title),
-            items=list(override.get("items") or []),
-            kcal=int(override.get("kcal") or row.kcal),
-            protein_g=float(override.get("protein_g") or row.protein_g),
-            fat_g=float(override.get("fat_g") or row.fat_g),
-            carb_g=float(override.get("carb_g") or row.carb_g),
-        ))
+        seen_slots.add(row.slot)
+    db.flush()
+
+    for row in copied:
+        if row.slot not in seen_slots:
+            continue
+        override = chosen.get(row.slot)
+        if override is None:
+            continue
+        row.title = str(override.get("title") or row.title)
+        row.items = list(override.get("items") or row.items or [])
+        row.kcal = int(override.get("kcal") or row.kcal)
+        row.protein_g = float(override.get("protein_g") or row.protein_g)
+        row.fat_g = float(override.get("fat_g") or row.fat_g)
+        row.carb_g = float(override.get("carb_g") or row.carb_g)
+
     db.commit()
     db.refresh(version)
     return version
