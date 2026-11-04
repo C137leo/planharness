@@ -80,3 +80,21 @@ def test_unrecognized_request_changes_nothing() -> None:
     assert changes == []
     assert out["days"] == _payload()["days"]
     assert out["meals"] == _payload()["meals"]
+
+
+def test_natural_sentence_with_padding_words() -> None:
+    """真实句子会有多余的字：「主食把红薯换成土豆即可，其余结构不变」。
+
+    第一版正则把目标抓成「土豆即可」，查不到食材就判定"没有可执行调整"，
+    于是用户点了再改改、红薯没换。
+    """
+    out, changes = apply_explicit_edits(_payload(), "主食把红薯换成土豆即可，其余结构不变")
+    assert changes
+    assert out["meals"][0]["items"][0]["name"] == "土豆"
+
+
+def test_colloquial_remove_and_replace() -> None:
+    """「不要红薯，换成土豆」这种口语也要认。"""
+    out, changes = apply_explicit_edits(_payload(), "不要红薯，换成土豆")
+    assert changes
+    assert out["meals"][0]["items"][0]["name"] == "土豆"

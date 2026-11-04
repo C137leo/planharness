@@ -62,30 +62,57 @@ MODE_TO_SLUG = {
     "core": "plank",
 }
 
-SWAP_RE = re.compile(r"(?:把|将)?\s*([\u4e00-\u9fa5A-Za-z0-9]{1,8})\s*(?:换成|改成|替换成|改为)\s*([\u4e00-\u9fa5A-Za-z0-9]{1,8})")
+SWAP_RE = re.compile(
+    r"([\u4e00-\u9fa5A-Za-z0-9]{1,12}?)\s*(?:换成|改成|替换成|改为)\s*([\u4e00-\u9fa5A-Za-z0-9]{1,12})"
+)
+REPLACE_NOUN_RE = re.compile(
+    r"(?:不要|去掉|别吃|不吃)\s*([\u4e00-\u9fa5A-Za-z0-9]{1,8})[，,、\s]*(?:换成|改成|改吃|换成别的)"
+)
 REMOVE_RE = re.compile(r"(?:不要|去掉|删掉|删除|换掉)\s*([\u4e00-\u9fa5A-Za-z0-9]{1,8})")
 ADD_HINTS = ("新增", "加一个", "加个", "再加", "增加一个", "多练")
 REMOVE_HINTS = ("不要", "去掉", "删掉", "删除")
 
 
+def _resolve(raw: str, known: set[str]) -> str | None:
+    """在已知名字里找出 raw 中包含的那个。
+
+    用户不会按格式说话：「主食把红薯换成土豆即可」里，来源是「主食把红薯」、
+    目标是「土豆即可」。直接查表一定失败，所以要从长到短找子串。
+    """
+    text = (raw or "").strip()
+    if not text:
+        return None
+    if text in known:
+        return text
+    for length in range(len(text) - 1, 1, -1):
+        for start in range(0, len(text) - length + 1):
+            candidate = text[start:start + length]
+            if candidate in known:
+                return candidate
+    return None
+
+
 def _food_name(raw: str) -> str | None:
-    name = raw.strip()
-    if name in FOOD_ALIASES:
-        return FOOD_ALIASES[name]
-    return name if name in FOOD_INDEX else None
+    known = set(FOOD_ALIASES) | set(FOOD_INDEX)
+    found = _resolve(raw, known)
+    if found is None:
+        return None
+    return FOOD_ALIASES.get(found, found)
 
 
 def _exercise_slug(raw: str) -> str | None:
-    name = raw.strip()
-    if name in EXERCISE_CATALOG:
-        return name
-    for slug, item in EXERCISE_CATALOG.items():
-        if item.get("name_zh") == name:
-            return slug
-    for slug in MODE_TO_SLUG.values():
-        if slug == name:
-            return slug
-    return None
+    text = (raw or "").strip()
+    if text in EXERCISE_CATALOG:
+        return text
+    chinese = {
+        str(item.get("name_zh")): slug
+        for slug, item in EXERCISE_CATALOG.items()
+        if item.get("name_zh")
+    }
+    found = _resolve(text, set(chinese))
+    if found is not None:
+        return chinese[found]
+    return _resolve(text, set(MODE_TO_SLUG.values()))
 
 
 def _recalc_meal(meal: dict) -> None:
@@ -208,6 +235,15 @@ def apply_explicit_edits(payload: dict, feedback: str) -> tuple[dict, list[str]]
         meal["items"] = [dict(item) for item in meal.get("items") or []]
 
     changes: list[str] = []
+
+    # 0) 口语替换：不要红薯，换成土豆
+    for match in REPLACE_NOUN_RE.finditer(text):
+        source = _food_name(match.group(1))
+        tail = text[match.end():]
+        target_match = re.match(r"\s*([\u4e00-\u9fa5A-Za-z0-9]{1,8})", tail)
+        target = _food_name(target_match.group(1)) if target_match else None
+        if source and target and source != target:
+            changes += _swap_food_in_meals(meals, source, target)
 
     # 1) 食材替换：把X换成Y
     for match in SWAP_RE.finditer(text):

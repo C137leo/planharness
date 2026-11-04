@@ -92,8 +92,15 @@ async function revise() {
   busy.value = true
   error.value = ''
   try {
-    draft.value = await api.feedbackPlanDraft(draft.value.draft_id, feedback.value.trim())
+    const revised = await api.feedbackPlanDraft(draft.value.draft_id, feedback.value.trim())
+    draft.value = revised
     feedback.value = ''
+    // 明确告诉用户"这一轮到底改没改"，而不是让他自己对比
+    const count = revised.revisions?.length ?? 0
+    uni.showToast({
+      title: count ? `已应用 ${count} 处改动` : '没识别到可执行的调整',
+      icon: 'none',
+    })
   } catch (err) {
     error.value = describeError(err)
   } finally {
