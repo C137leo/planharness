@@ -1,0 +1,41 @@
+name,refs,equipment,muscle,sources,icon_file
+上斜杠铃卧推,incline-bench-press,Barbell,Chest,动作轮换,icon-incline-bench-press.png
+低冲击快走,easy_walk,Bodyweight,Cardio,模板计划,icon-easy_walk.png
+侧平板支撑,side-plank,Bodyweight,Core,动作轮换 / 膝痛替代,icon-side-plank.png
+俄罗斯转体,russian-twist,Bodyweight,Core,动作轮换,icon-russian-twist.png
+保加利亚分腿蹲,bulgarian-split-squat,Dumbbell,Quads,动作轮换,icon-bulgarian-split-squat.png
+俯卧撑,push-up / pushup,Bodyweight,Chest,skill 主干（自重） / 模板计划,icon-push-up.png
+全身拉伸,stretch,Bodyweight,Mobility,模板计划,icon-stretch.png
+单臂哑铃划船,one-arm-dumbbell-row,Dumbbell,Back,动作轮换 / 新增动作,icon-one-arm-dumbbell-row.png
+卷腹,crunch,Bodyweight,Core,动作轮换,icon-crunch.png
+反向划船,inverted-row,Bodyweight,Back,动作轮换 / 新增动作,icon-inverted-row.png
+史密斯卧推,smith-machine-bench-press,Machine,Chest,动作轮换,icon-smith-machine-bench-press.png
+哑铃侧平举,lateral-raise,Dumbbell,Shoulders,动作轮换,icon-lateral-raise.png
+哑铃俯身划船,dumbbell-bent-over-row,Dumbbell,Back,新增动作,icon-dumbbell-bent-over-row.png
+哑铃划船,row,Dumbbell,Back,模板计划,icon-row.png
+哑铃卧推,dumbbell-bench-press,Dumbbell,Chest,skill 主干（哑铃）,icon-dumbbell-bench-press.png
+坐姿绳索划船,seated-row,Cable,Back,动作轮换,icon-seated-row.png
+坐姿腿弯举,seated-leg-curl,Machine,Hamstrings,膝痛替代,icon-seated-leg-curl.png
+山羊挺身,back-extension,Bodyweight,Lower Back,动作轮换 / 膝痛替代,icon-back-extension.png
+平板支撑,plank,Bodyweight,Core,动作轮换 / 膝痛替代,icon-plank.png
+引体向上,pull-up,Bodyweight,Lats,动作轮换,icon-pull-up.png
+弹力带下拉,banded-lat-pulldown,Resistance Band,Lats,新增动作,icon-banded-lat-pulldown.png
+弹力带划船,banded-row,Resistance Band,Back,新增动作,icon-banded-row.png
+快走,brisk_walk,Bodyweight,Cardio,模板计划,icon-brisk_walk.png
+杠铃卧推,bench-press,Barbell,Chest,skill 主干（杠铃）,icon-bench-press.png
+杠铃推举,overhead-press,Barbell,Shoulders,动作轮换,icon-overhead-press.png
+杠铃深蹲,squat,Barbell,Quads,skill 主干（杠铃）,icon-squat.png
+杠铃臀推,hip-thrust,Barbell,Glutes,动作轮换 / 膝痛替代,icon-hip-thrust.png
+直臂下拉,straight-arm-pulldown,Cable,Lats,动作轮换,icon-straight-arm-pulldown.png
+罗马尼亚硬拉,romanian-deadlift,Barbell,Hamstrings,skill 主干（杠铃）,icon-romanian-deadlift.png
+背包划船,backpack_row,Bodyweight,Back,模板计划,icon-backpack_row.png
+胸支撑划船,chest-supported-row,Machine,Back,动作轮换,icon-chest-supported-row.png
+腿举,leg-press,Machine,Quads,动作轮换,icon-leg-press.png
+臀桥,glute-bridge / glute_bridge,Bodyweight,Glutes,skill 主干 / 模板计划 / 膝痛替代,icon-glute-bridge.png
+自重深蹲,bodyweight_squat,Bodyweight,Quads,模板计划,icon-bodyweight_squat.png
+行走弓步,walking-lunge,Dumbbell,Quads,动作轮换,icon-walking-lunge.png
+门框划船,doorway-row,Doorway,Back,新增动作,icon-doorway-row.png
+阿诺德推举,arnold-press,Dumbbell,Shoulders,动作轮换,icon-arnold-press.png
+高位下拉,lat-pulldown,Cable,Lats,动作轮换 / 新增动作,icon-lat-pulldown.png
+高脚杯深蹲,goblet-squat,Dumbbell,Quads,skill 主干（哑铃/自重）,icon-goblet-squat.png
+高脚杯深蹲（模板 ref）,squat,Dumbbell,Quads,模板计划：模板里 squat 指高脚杯深蹲,icon-squat.png
