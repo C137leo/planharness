@@ -222,3 +222,32 @@ def test_challenge_endpoint_is_rate_limited() -> None:
     with TestClient(app) as client:
         codes = [client.get(f"{API}/auth/challenge").status_code for _ in range(35)]
         assert 429 in codes, codes
+
+
+def test_slow_retry_with_same_challenge_succeeds(monkeypatch) -> None:
+    """关键回归：票据"太快"被拒时不会被消耗，过一会儿用同一张还能成功。
+
+    这正是前端的行为：打开页面就取票据，用户输入期间攒够填表时间；
+    万一点太快，等 1.4 秒用同一张票据重试即可，不需要用户重新填表。
+    """
+    import time as time_module
+
+    app = _app(auth_min_fill_ms=1200)
+    with TestClient(app) as client:
+        challenge = _challenge(client)
+        body = {
+            "phone": "13911112222",
+            "password": "fitplan2026",
+            "challenge_id": challenge["challenge_id"],
+            "challenge_token": challenge["token"],
+        }
+        too_fast = client.post(f"{API}/auth/register", json=body)
+        assert too_fast.status_code == 400
+        assert "太快" in too_fast.json()["detail"]
+
+        # 模拟"用户又看了一眼表单"的 2 秒
+        base = time_module.time()
+        monkeypatch.setattr("app.abuse.time.time", lambda: base + 2)
+
+        slow = client.post(f"{API}/auth/register", json=body)
+        assert slow.status_code == 200, slow.text

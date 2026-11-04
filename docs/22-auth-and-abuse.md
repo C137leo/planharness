@@ -94,7 +94,8 @@ GET  /api/v1/auth/challenge?purpose=register|login
 `pages/login/index.vue`：
 
 - 登录 / 注册切换，注册时显示密码强度条与人话提示；
-- 每次提交前重新申请票据（票据一次性，复用会被拒）；
+- **页面打开时就申请票据**，提交时复用——用户输手机号 + 密码的时间就是填表耗时；
+  如果点得太快（浏览器自动填充后立刻点），会自动等 1.4 秒用同一张票据重试一次；
 - 蜜罐字段放在屏幕外，正常用户看不到，脚本会把所有 input 填满；
 - 429 时按 `Retry-After` 倒计时并禁用提交；
 - 「先用演示账号看看」走 `/auth/demo`，同样受限流约束；
@@ -103,8 +104,8 @@ GET  /api/v1/auth/challenge?purpose=register|login
 ## 6. 验证
 
 ```
-tests/test_auth_abuse.py   19 条
-  ├─ 无票据 / 票据复用 / 提交过快
+tests/test_auth_abuse.py   20 条
+  ├─ 无票据 / 票据复用 / 提交过快 / 过快被拒后同一票据可重试成功
   ├─ 密码策略 5 组参数化（长度、字母数字、常见、含手机号、重复字符）
   ├─ 手机号格式、蜜罐、重复手机号
   ├─ IP 小时配额 429 + Retry-After
