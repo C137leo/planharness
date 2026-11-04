@@ -12,7 +12,7 @@ import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
 import { actionLabel, describeOperation, slotLabel } from '../../styles/copy'
 import { thumbOf } from '../../styles/thumbs'
-import { WEEKDAY_LABELS } from '../../styles/dates'
+import { WEEKDAY_LABELS, isoWeekday, todayStr } from '../../styles/dates'
 
 const plan = ref<CurrentPlan | null>(null)
 const pending = ref<PlanPatchSummary[]>([])
@@ -73,10 +73,37 @@ async function onConfirmed() {
   await load()
 }
 
-const todayMeals = computed(() => {
-  const day = plan.value?.today?.weekday || 1
-  return (plan.value?.meals || []).filter((meal) => meal.day_index === day)
+// 日历：未来 14 天，每天取"同星期几"的动作与餐食（计划是周计划）
+const selectedDate = ref(todayStr())
+const calendarDays = computed(() => {
+  const actions = plan.value?.actions || []
+  const meals = plan.value?.meals || []
+  const today = new Date()
+  const rows = []
+  for (let offset = 0; offset < 14; offset += 1) {
+    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset)
+    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    const weekday = isoWeekday(date)
+    rows.push({
+      date: iso,
+      weekday,
+      label: `${date.getMonth() + 1}/${date.getDate()}`,
+      week: WEEKDAY_LABELS[weekday - 1],
+      isToday: iso === todayStr(),
+      actions: actions.filter((item) => item.day_index === weekday),
+      meals: meals.filter((meal) => meal.day_index === weekday),
+    })
+  }
+  return rows
 })
+
+const selectedDay = computed(
+  () => calendarDays.value.find((day) => day.date === selectedDate.value) || calendarDays.value[0],
+)
+
+function pickDate(date: string) {
+  selectedDate.value = date
+}
 
 /** 待确认补丁的改动数：旧后端没有 operations 字段，不能直接取 .length。 */
 function operationCount(patch: PlanPatchSummary): number {
@@ -183,14 +210,58 @@ onShow(load)
         </view>
       </view>
 
-      <view v-if="todayMeals.length" class="card">
+      <view class="card">
         <view class="row">
-          <view class="section-title">今天吃</view>
+          <view class="section-title">日历 · 未来 14 天</view>
           <text class="link" @click="openToday">今天页 →</text>
         </view>
-        <view v-for="meal in todayMeals" :key="meal.slot" class="line">
-          <text class="line-name">{{ meal.title }}</text>
-          <text class="line-meta">{{ meal.kcal }} kcal · 蛋白 {{ meal.protein_g }}g</text>
+        <view class="cal-row">
+          <view
+            v-for="day in calendarDays"
+            :key="day.date"
+            class="cal-day"
+            :class="{ active: day.date === selectedDate, today: day.isToday }"
+            @click="pickDate(day.date)"
+          >
+            <text class="cal-week">{{ day.week }}</text>
+            <text class="cal-date">{{ day.label }}</text>
+            <text class="cal-dot">{{ day.actions.length ? day.actions.length + ' 练' : '休' }}</text>
+          </view>
+        </view>
+
+        <view v-if="selectedDay" class="cal-detail">
+          <view class="row">
+            <text class="list-title">{{ selectedDay.date }} · {{ selectedDay.week }}</text>
+            <text class="list-meta">{{ selectedDay.actions.length }} 个动作</text>
+          </view>
+
+          <view v-if="!selectedDay.actions.length" class="muted" style="margin-top: 8px">
+            这天没有安排训练。
+          </view>
+          <view v-for="action in selectedDay.actions" :key="action.id" class="list-row">
+            <view class="list-body">
+              <view class="thumb">
+                <image class="thumb-img" :src="thumbOf(action)" mode="aspectFill" />
+              </view>
+              <view class="list-main">
+                <text class="list-title">{{ actionLabel(action) }}</text>
+                <text class="list-meta">
+                  {{ slotLabel(action.slot) }}
+                  <template v-if="action.sets && action.reps"> · {{ action.sets }}×{{ action.reps }}</template>
+                  <template v-else-if="action.sets"> · {{ action.sets }} 组</template>
+                  <template v-if="action.duration_min"> · {{ action.duration_min }} 分钟</template>
+                </text>
+              </view>
+            </view>
+          </view>
+
+          <view v-if="selectedDay.meals.length" class="cal-meals">
+            <view class="section-title" style="margin-top: 10px">这天吃</view>
+            <view v-for="meal in selectedDay.meals" :key="meal.slot" class="line">
+              <text class="line-name">{{ meal.title }}</text>
+              <text class="line-meta">{{ meal.kcal }} kcal · 蛋白 {{ meal.protein_g }}g</text>
+            </view>
+          </view>
         </view>
       </view>
 
@@ -277,5 +348,68 @@ onShow(load)
 }
 .pending-op {
   margin-top: 4px;
+}
+.cal-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.cal-day {
+  background: var(--line-soft);
+  border: 1px solid transparent;
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  padding: 8px 10px;
+  min-width: 56px;
+}
+.cal-day.today {
+  border-color: var(--primary);
+}
+.cal-day.active {
+  background: var(--primary);
+  color: #fff;
+}
+.cal-day.active .cal-week,
+.cal-day.active .cal-date,
+.cal-day.active .cal-dot {
+  color: #fff;
+}
+.cal-week,
+.cal-date {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.cal-dot {
+  color: var(--muted);
+  font-size: 11px;
+}
+.cal-detail {
+  border-top: 1px solid var(--line-soft);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+.cal-meals {
+  margin-top: 6px;
+}
+.line {
+  align-items: center;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+.line-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+.line-meta {
+  color: var(--muted);
+  font-size: 12px;
 }
 </style>

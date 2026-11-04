@@ -20,6 +20,7 @@ from app.audit import append_event, verify_stream
 from app.auth import get_current_user, get_db, hash_password, issue_token, verify_password
 from app.domain import calories as calorie_stats
 from app.domain import coach as coach_plans
+from app.domain.runs import record_run, step
 from app.domain import requests as patch_requests
 from app.domain.patches import (
     PatchValidationError,
@@ -664,6 +665,22 @@ def approve_patch_request(
         _, version = patch_requests.approve_request(db, user, request_id, payload.comment)
     except PatchValidationError as exc:
         raise HTTPException(422, detail=exc.errors) from exc
+    record_run(
+        db, user,
+        kind="patch_approval",
+        trace=[
+            step("load_request", request_id=request_id),
+            step("safety_check", "ok"),
+            step("commit", f"v{version.version}"),
+        ],
+        output={
+            "request_id": request_id,
+            "committed_version": version.version,
+            "source": "patch_request",
+        },
+        input_payload={"request_id": request_id, "comment": payload.comment},
+    )
+    db.commit()
     db.expire_all()
     plan = _current_plan_payload(db, user)
     return ok(
@@ -689,6 +706,14 @@ def reject_patch_request(
         req = patch_requests.reject_request(db, user, request_id, payload.comment)
     except PatchValidationError as exc:
         raise HTTPException(422, detail=exc.errors) from exc
+    record_run(
+        db, user,
+        kind="patch_rejection",
+        trace=[step("load_request", request_id=request_id), step("reject", "ok")],
+        output={"request_id": request_id, "source": "patch_request"},
+        input_payload={"request_id": request_id, "comment": payload.comment},
+    )
+    db.commit()
     return ok(request, patch_requests.request_payload(db, req), message="rejected")
 
 
@@ -704,6 +729,14 @@ def undo_plan_change(
         version = patch_requests.undo_last_change(db, user, plan_id)
     except PatchValidationError as exc:
         raise HTTPException(422, detail=exc.errors) from exc
+    record_run(
+        db, user,
+        kind="rollback",
+        trace=[step("undo", "ok", new_version=version.version)],
+        output={"new_version": version.version, "source": "patch_request"},
+        input_payload={"plan_id": plan_id},
+    )
+    db.commit()
     plan = _current_plan_payload(db, user)
     return ok(
         request,

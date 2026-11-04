@@ -423,6 +423,7 @@ def _build_days(program: dict, start_weekday: int | None = None) -> list[dict]:
     """
     start = start_weekday or _today_weekday()
     days: list[dict] = []
+    used_slugs: set[str] = set()
     for offset, session in enumerate(program.get("sessions") or []):
         day_index = ((start - 1 + offset) % 7) + 1
         focus = str(session.get("focus") or "")
@@ -431,21 +432,25 @@ def _build_days(program: dict, start_weekday: int | None = None) -> list[dict]:
         for order, exercise in enumerate(session.get("exercises") or [], start=1):
             if not exercise:
                 continue
+            # 第一场保留 skill 原本的编排，后面几场换同肌群的不同动作，
+            # 避免"每次打开都一模一样"，也不至于一上来就偏离骨架。
+            varied = exercise if offset == 0 else _varied_exercise(exercise, used_slugs)
+            used_slugs.add(str(varied.get("slug") or ""))
             actions.append({
                 "slot": slot,
                 "seq": order,
                 "action_type": "exercise",
-                "action_ref": exercise.get("slug") or exercise.get("name_en") or "unknown",
+                "action_ref": varied.get("slug") or "unknown",
                 "sets": 3,
                 "reps": None,
                 "duration_min": 12 if slot == "strength" else 30,
                 "meta": {
-                    "name_zh": exercise.get("name_zh"),
-                    "name_en": exercise.get("name_en"),
-                    "movement_mode": exercise.get("movement_mode"),
-                    "equipment": exercise.get("equipment"),
-                    "primary_muscle": exercise.get("primary_muscle"),
-                    "degraded_from": exercise.get("degraded_from"),
+                    "name_zh": varied.get("name_zh"),
+                    "name_en": varied.get("name_en"),
+                    "movement_mode": varied.get("movement_mode") or exercise.get("movement_mode"),
+                    "equipment": varied.get("equipment") or exercise.get("equipment"),
+                    "primary_muscle": varied.get("primary_muscle") or exercise.get("primary_muscle"),
+                    "degraded_from": varied.get("degraded_from"),
                 },
             })
         days.append({
@@ -468,6 +473,40 @@ MEAL_TEMPLATES = [
 
 # 同一天里优先用没出现过的蛋白源，避免"早中晚都是鸡胸肉"
 PROTEIN_ORDER = ["鸡蛋", "希腊酸奶", "鸡胸肉", "北豆腐", "瘦牛肉", "三文鱼", "虾"]
+
+
+def _varied_exercise(exercise: dict, used: set[str]) -> dict:
+    """按场次轮换同肌群动作：A/B 两天不该是同一串动作。
+
+    只在 skill 给的模式内换（膝主导/髋主导/水平推），结构和安全边界都不变。
+    """
+    from app.domain.catalog import name_of
+    from app.domain.exercise_catalog import EXERCISE_CATALOG
+    from app.domain.revisions import MODE_ALTERNATIVES
+
+    mode = str(exercise.get("movement_mode") or "")
+    options = MODE_ALTERNATIVES.get(mode) or []
+    if not options:
+        return exercise
+    # 第 n 场用第 n 个候选，循环使用；同时保证与 skill 原始动作不同
+    original = str(exercise.get("slug") or "")
+    # 挑一个"不是原动作、也没在本计划里出现过"的候选，全用过才回退
+    candidates = [item for item in options if item != original and item not in used]
+    if not candidates:
+        candidates = [item for item in options if item != original] or options
+    candidate = candidates[0]
+    item = EXERCISE_CATALOG.get(candidate) or {}
+    if not item:
+        return exercise
+    return {
+        "slug": candidate,
+        "name_zh": name_of(candidate),
+        "name_en": item.get("name_en"),
+        "equipment": item.get("equipment"),
+        "primary_muscle": item.get("primary_muscle"),
+        "degraded_from": None,
+        "movement_mode": mode,
+    }
 
 
 def _build_meals(profile_payload: dict, nutrition: dict) -> list[dict]:
