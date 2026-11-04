@@ -106,3 +106,12 @@ def auth_headers(client: TestClient) -> dict[str, str]:
 def new_user_headers(client: TestClient) -> dict[str, str]:
     """注册一个新账号并登录（测"真实账号"路径时用）。"""
     return register_and_login(client)
+
+
+import pytest as _pytest
+
+
+@_pytest.fixture()
+def app_fixture(client):
+    """同时拿到 TestClient 和 app（需要 app.state.session_factory 的用例用）。"""
+    return client, client.app

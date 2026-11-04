@@ -565,3 +565,42 @@ export interface KnowledgeAnswer {
   refused: boolean
   safety?: string
 }
+
+// ---------------- TodayAgent（模型自己调工具） ----------------
+
+export interface AgentMealOption {
+  title: string
+  kcal: number
+  protein_g: number
+  reason: string
+  items: FoodOptionItem[]
+  links: Record<string, string>
+}
+
+export interface AgentMeal {
+  slot: string
+  target_kcal: number
+  options: AgentMealOption[]
+}
+
+export interface AgentTip {
+  text: string
+  source_ids: string[]
+}
+
+export interface AgentCitation {
+  id: string
+  title: string
+  source_url: string
+}
+
+export interface TodayAgentResult {
+  summary: string
+  schedule: Array<{ time: string; activity: string; why: string }>
+  meals: AgentMeal[]
+  tips: AgentTip[]
+  nutrition_notes: AgentTip[]
+  citations: AgentCitation[]
+  disclaimer: string
+  blocked?: boolean
+}

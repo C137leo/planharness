@@ -16,6 +16,7 @@ import app.models  # noqa: F401 - register SQLAlchemy models
 from app.agent.checkpointer import make_checkpointer
 from app.agent.patch_graph import build_patch_graph
 from app.api.auth_routes import router as auth_router
+from app.api.agent_routes import router as agent_router
 from app.api.food_routes import router as food_router
 from app.api.knowledge_routes import router as knowledge_router
 from app.api.routes import router
@@ -101,6 +102,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(auth_router)
     app.include_router(food_router)
+    app.include_router(agent_router)
     app.include_router(knowledge_router)
     app.include_router(router)
 

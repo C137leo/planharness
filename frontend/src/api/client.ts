@@ -8,6 +8,7 @@ import type {
   AuthChallenge,
   CalorieStats,
   FoodOptionPayload,
+  TodayAgentResult,
   KnowledgeAnswer,
   LoginPayload,
   Me,
@@ -246,6 +247,14 @@ export const api = {
     request<FoodOptionPayload>(
       'GET',
       `/food/options?plan_id=${planId}&date=${date}&meal_slot=${mealSlot}${refresh ? '&refresh=true' : ''}`,
+    ),
+  startTodayPlan: (text: string, date?: string) =>
+    request<{ run_id: string; status: string }>('POST', '/agent/today-plan', { text, date }),
+  feedbackTodayPlan: (runId: string, text: string) =>
+    request<{ run_id: string; status: string }>(
+      'POST',
+      `/agent/today-plan/${runId}/feedback`,
+      { text },
     ),
   askKnowledge: (question: string, bodyPart?: string) =>
     request<KnowledgeAnswer>('POST', '/knowledge/ask', {

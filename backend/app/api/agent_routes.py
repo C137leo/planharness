@@ -1,0 +1,105 @@
+"""TodayAgent 接口：异步运行 + 复用 /runs 查看 trace。
+
+为什么异步：模型可能要调 3-6 次工具，5-15 秒，前端轮询 /runs/{id} 更稳。
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from app.api.routes import get_current_user, get_db, ok
+from app.agent.today_agent import run as run_today
+from app.llm.tool_client import tool_client_from_settings
+from app.models import AgentRun, User
+
+router = APIRouter(prefix="/api/v1")
+
+
+class TodayPlanIn(BaseModel):
+    text: str = Field(min_length=1, max_length=500)
+    date: str | None = None
+
+
+class FeedbackIn(BaseModel):
+    text: str = Field(min_length=1, max_length=300)
+
+
+def _run_agent(run_id: str, user_id: str, day: dt.date, text: str, session_factory, settings) -> None:
+    """后台执行：独立 session，结束后写回 run。"""
+    with session_factory() as db:
+        run = db.get(AgentRun, run_id)
+        if run is None:
+            return
+        user = db.get(User, user_id)
+        client = tool_client_from_settings(settings)
+        try:
+            result = run_today(db, user, day, text, client=client if client.available() else None)
+            run.status = "rejected" if result.refused else "succeeded"
+            run.output = result.final or {}
+            run.trace = result.trace
+            run.tokens_in = int(result.usage.get("prompt_tokens") or 0)
+            run.tokens_out = int(result.usage.get("completion_tokens") or 0)
+            run.error_code = (result.error or "")[:64] or None
+        except Exception as exc:  # noqa: BLE001 - 后台任务不能把进程带崩
+            run.status = "failed"
+            run.error_code = type(exc).__name__
+            run.output = {"error": str(exc)[:200]}
+        run.finished_at = dt.datetime.now(dt.timezone.utc)
+        db.commit()
+
+
+def _create_run(db, user: User, text: str) -> AgentRun:
+    run = AgentRun(
+        user_id=user.id,
+        kind="today_plan",
+        mode="agent",
+        status="running",
+        input={"text": text},
+        trace=[],
+    )
+    db.add(run)
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+@router.post("/agent/today-plan", status_code=202)
+def create_today_plan(
+    payload: TodayPlanIn,
+    request: Request,
+    background: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    day = dt.date.fromisoformat(payload.date) if payload.date else dt.date.today()
+    run = _create_run(db, user, payload.text)
+    background.add_task(
+        _run_agent, run.id, user.id, day, payload.text,
+        request.app.state.session_factory, request.app.state.settings,
+    )
+    return ok(request, {"run_id": run.id, "status": run.status}, message="accepted")
+
+
+@router.post("/agent/today-plan/{run_id}/feedback", status_code=202)
+def today_plan_feedback(
+    run_id: str,
+    payload: FeedbackIn,
+    request: Request,
+    background: BackgroundTasks,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    previous = db.get(AgentRun, run_id)
+    if previous is None or previous.user_id != user.id:
+        raise HTTPException(404, "run not found")
+    text = f"{previous.input.get('text') or ''}\n修改意见：{payload.text}"
+    run = _create_run(db, user, text)
+    background.add_task(
+        _run_agent, run.id, user.id, dt.date.today(), text,
+        request.app.state.session_factory, request.app.state.settings,
+    )
+    return ok(request, {"run_id": run.id, "status": run.status}, message="accepted")

@@ -7,7 +7,7 @@
  */
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { api, ApiError, type CurrentPlan, type PatchPreset } from '../../api'
+import { api, ApiError, type CurrentPlan, type PatchPreset, type TodayAgentResult } from '../../api'
 import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
 import FoodOptionsSheet from '../../components/FoodOptionsSheet.vue'
@@ -34,9 +34,72 @@ const knowledgeOpen = ref(false)
 const knowledgeQuestion = ref('')
 const knowledgeBodyPart = ref('')
 
+// ---- 今日规划 Agent：模型自己决定调哪些工具 ----
+const agentOpen = ref(false)
+const agentText = ref('')
+const agentBusy = ref(false)
+const agentTrace = ref<Array<{ node: string; status: string }>>([])
+const agentResult = ref<TodayAgentResult | null>(null)
+const agentRunId = ref('')
+const agentError = ref('')
+
+const AGENT_PRESETS = ['帮我规划今天', '今天想休息', '午餐换清淡一点', '膝盖不舒服，别安排深蹲']
+
+function openAgent(text = '') {
+  agentText.value = text
+  agentOpen.value = true
+}
+
+async function runAgent() {
+  if (agentBusy.value || !agentText.value.trim()) return
+  agentBusy.value = true
+  agentError.value = ''
+  agentResult.value = null
+  agentTrace.value = []
+  try {
+    const started = await api.startTodayPlan(agentText.value.trim())
+    agentRunId.value = started.run_id
+    for (let attempt = 0; attempt < 25; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1200))
+      const run = await api.getRun(started.run_id)
+      agentTrace.value = (run.trace || []).map((item) => ({ node: item.node, status: item.status }))
+      if (run.status !== 'running') {
+        if (run.status === 'failed') {
+          agentError.value = '规划失败，请重试'
+        } else {
+          agentResult.value = run.output as unknown as TodayAgentResult
+        }
+        break
+      }
+    }
+  } catch (err) {
+    agentError.value = err instanceof Error ? err.message : '规划失败'
+  } finally {
+    agentBusy.value = false
+  }
+}
+
+function agentLinks(links: Record<string, string>) {
+  return [
+    { label: '京东', url: links.jd },
+    { label: '淘宝', url: links.taobao },
+    { label: '美团', url: links.meituan },
+  ]
+}
+
 function openFoodOptions(meal: { slot: string; title: string }) {
   foodMeal.value = meal
   foodOpen.value = true
+}
+
+function openAgentLink(url: string) {
+  if (!url) return
+  const globalOpen = (globalThis as unknown as { open?: (u: string, t?: string) => unknown }).open
+  if (typeof globalOpen === 'function') {
+    globalOpen(url, '_blank')
+    return
+  }
+  uni.setClipboardData({ data: url })
 }
 
 function openKnowledge(question: string, bodyPart = '') {
@@ -254,6 +317,17 @@ onShow(() => {
         </view>
       </view>
 
+      <!-- 今日规划 Agent -->
+      <view class="card">
+        <view class="row">
+          <view class="section-title">今日规划</view>
+          <text class="link" @click="openAgent('帮我规划今天')">让 Agent 规划 →</text>
+        </view>
+        <view class="muted" style="margin-top: 6px">
+          它会自己决定先查知识、查计划，还是先找外卖；每一步都能看到。
+        </view>
+      </view>
+
       <!-- 今天练 -->
       <view class="card">
         <view class="row">
@@ -404,6 +478,98 @@ onShow(() => {
       @close="composerOpen = false"
       @applied="onPatchApplied"
     />
+    <!-- 今日规划抽屉 -->
+    <view v-if="agentOpen">
+      <view class="sheet-mask" @click="agentOpen = false" />
+      <view class="sheet">
+        <view class="row">
+          <view class="section-title">帮我规划今天</view>
+          <text class="link" @click="agentOpen = false">关闭</text>
+        </view>
+
+        <textarea
+          v-if="!agentResult && !agentBusy"
+          v-model="agentText"
+          class="input"
+          maxlength="300"
+          placeholder="例如：帮我规划今天，午餐想吃清淡一点"
+        />
+        <view v-if="!agentResult && !agentBusy" class="chip-scroll">
+          <view v-for="item in AGENT_PRESETS" :key="item" class="pill" @click="agentText = item">
+            {{ item }}
+          </view>
+        </view>
+        <view v-if="!agentResult && !agentBusy" class="btn-row">
+          <view class="btn-sm primary" @click="runAgent">开始规划</view>
+        </view>
+
+        <view v-if="agentBusy" class="block">
+          <view class="section-title">Agent 正在工作</view>
+          <view v-for="(step, index) in agentTrace" :key="index" class="list-row">
+            <text class="list-meta">✓ {{ step.node }}</text>
+            <text class="list-meta">{{ step.status }}</text>
+          </view>
+          <view v-if="!agentTrace.length" class="muted" style="margin-top: 8px">
+            正在启动模型…
+          </view>
+        </view>
+
+        <view v-if="agentError" class="error" style="margin-top: 12px">{{ agentError }}</view>
+
+        <template v-if="agentResult">
+          <view class="draft-summary">{{ agentResult.summary }}</view>
+
+          <view v-if="agentResult.schedule.length" class="block">
+            <view class="section-title">今日安排</view>
+            <view v-for="item in agentResult.schedule" :key="item.time" class="list-row">
+              <text class="list-title">{{ item.time }} · {{ item.activity }}</text>
+            </view>
+          </view>
+
+          <view v-for="meal in agentResult.meals" :key="meal.slot" class="block">
+            <view class="section-title">{{ meal.slot }} · 目标 {{ meal.target_kcal }} kcal</view>
+            <view v-for="option in meal.options" :key="option.title" class="food-card">
+              <view class="row">
+                <text class="list-title">{{ option.title }}</text>
+                <text class="list-value">{{ option.kcal }} kcal</text>
+              </view>
+              <text class="list-meta">蛋白 {{ option.protein_g }}g · {{ option.reason }}</text>
+              <view class="btn-row">
+                <view
+                  v-for="link in agentLinks(option.links)"
+                  :key="link.label"
+                  class="btn-sm"
+                  @click="openAgentLink(link.url)"
+                >
+                  {{ link.label }}
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view v-if="agentResult.tips.length" class="block">
+            <view class="section-title">注意事项</view>
+            <view v-for="(tip, index) in agentResult.tips" :key="index" class="list-row">
+              <text class="list-meta">{{ tip.text }}</text>
+            </view>
+          </view>
+
+          <view v-if="agentResult.citations.length" class="block">
+            <view class="section-title">依据</view>
+            <view v-for="item in agentResult.citations" :key="item.id" class="list-row">
+              <text class="list-meta">{{ item.title }}</text>
+              <text class="link" @click="openAgentLink(item.source_url)">来源 →</text>
+            </view>
+          </view>
+
+          <view class="muted" style="margin-top: 12px">{{ agentResult.disclaimer }}</view>
+          <view class="btn-row">
+            <view class="btn-sm" @click="agentResult = null; agentTrace = []">重新规划</view>
+          </view>
+        </template>
+      </view>
+    </view>
+
     <FoodOptionsSheet
       v-if="plan"
       :visible="foodOpen"
