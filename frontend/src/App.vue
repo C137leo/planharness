@@ -18,6 +18,16 @@ onLaunch(() => {
 
 page {
   background: var(--canvas, #fdf2e9);
+  /* 背景图 + 一层暖白蒙版：图片负责氛围，蒙版保证卡片与文字的可读性 */
+  background-image: linear-gradient(
+      rgba(253, 242, 233, 0.74),
+      rgba(253, 242, 233, 0.86)
+    ),
+    url('/static/bg.jpg');
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
   color: var(--ink, #2b1a12);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
     'Helvetica Neue', Arial, sans-serif;
