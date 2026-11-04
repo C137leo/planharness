@@ -52,6 +52,32 @@ PART_TO_MODE = {
     "核心": "core", "腹": "core", "平板": "core",
 }
 
+# 按餐次选替代主食：早上不该是米饭，晚餐用薯类更自然。
+# 顺序即优先级，同一天里还会按 day_index 轮换，避免 7 天都是同一种。
+CARB_BY_MEAL: dict[str, list[str]] = {
+    # 早上不吃米饭——这是常识，不是偏好
+    "breakfast": ["燕麦", "玉米", "土豆"],
+    "lunch": ["米饭", "玉米", "土豆"],
+    "dinner": ["土豆", "玉米", "米饭"],
+    "snack": ["苹果"],
+}
+
+PROTEIN_BY_MEAL: dict[str, list[str]] = {
+    "breakfast": ["鸡蛋", "希腊酸奶", "北豆腐"],
+    "lunch": ["鸡胸肉", "瘦牛肉", "北豆腐", "鸡蛋"],
+    "dinner": ["北豆腐", "鸡胸肉", "瘦牛肉", "希腊酸奶"],
+    "snack": ["希腊酸奶", "鸡蛋"],
+}
+
+VEG_BY_MEAL: dict[str, list[str]] = {
+    "breakfast": ["西兰花", "菠菜"],
+    "lunch": ["西兰花", "菠菜"],
+    "dinner": ["菠菜", "西兰花"],
+}
+
+# 同一餐次按天轮换时要错开，否则早中晚会在同一天用同一种替代
+SLOT_OFFSET = {"breakfast": 0, "lunch": 1, "dinner": 2, "snack": 0}
+
 MODE_TO_SLUG = {
     "horizontal_pull": "one-arm-dumbbell-row",
     "vertical_pull": "lat-pulldown",
@@ -149,32 +175,57 @@ def _swap_food_in_meals(meals: list[dict], source: str, target: str) -> list[str
     return changes
 
 
-def _avoid_food_in_meals(meals: list[dict], name: str) -> list[str]:
-    """把食谱里的某个食材换掉：优先同组等热量替代，没有替代才删。
+def _meal_alternatives(group: str, slot: str) -> list[str]:
+    """按"餐次 + 食材组"给出替代顺序，早中晚不一样。"""
+    table = {"carb": CARB_BY_MEAL, "protein": PROTEIN_BY_MEAL, "veg": VEG_BY_MEAL}.get(group, {})
+    return table.get(slot, [])
 
-    直接删会悄悄减少热量，用户以为只是"不吃红薯"，实际少吃一顿主食。
+
+def _pick_alternative(group: str, slot: str, day_index: int, used: set[str],
+                      excluded: set[str], avoid: str) -> dict | None:
+    """挑一个替代食材：先按餐次偏好，再退回同组；同一天内按天轮换。"""
+    def ok(food_name: str) -> bool:
+        return food_name in FOOD_INDEX and food_name not in used \
+            and food_name not in excluded and food_name != avoid
+
+    preferred = [name for name in _meal_alternatives(group, slot) if ok(name)]
+    if preferred:
+        index = (max(1, day_index) - 1 + SLOT_OFFSET.get(slot, 0)) % len(preferred)
+        return FOOD_INDEX[preferred[index]]
+
+    same_group = [food for food in FOODS if food["group"] == group and ok(food["name"])]
+    if same_group:
+        return same_group[(max(1, day_index) - 1) % len(same_group)]
+    return None
+
+
+def _avoid_food_in_meals(meals: list[dict], name: str,
+                         excluded: set[str] | None = None) -> list[str]:
+    """把食谱里的某个食材换掉：按餐次选替代，等热量换算，没有替代才删。
+
+    直接删会悄悄减少热量；统一换成米饭则会被吐槽"早上也吃米饭"。
     """
     source = FOOD_INDEX.get(name)
     if source is None:
         return []
     group = source.get("group")
+    excluded = excluded or set()
     changes: list[str] = []
 
     for meal in meals:
         items = meal.get("items") or []
+        day_index = int(meal.get("day_index") or 1)
         while True:
             target = next((item for item in items if item.get("name") == name), None)
             if target is None:
                 break
             used = {item.get("name") for item in items}
-            alternative = next(
-                (food for food in FOODS
-                 if food["group"] == group and food["name"] not in used and food["name"] != name),
-                None,
+            alternative = _pick_alternative(
+                group, str(meal.get("slot") or ""), day_index, used, excluded, name
             )
             if alternative is None:
                 items.remove(target)
-                changes.append(f"第 {meal.get('day_index')} 天{meal.get('title')}去掉「{name}」")
+                changes.append(f"第 {day_index} 天{meal.get('title')}去掉「{name}」")
             else:
                 old_kcal = float(target.get("kcal") or 0)
                 grams = max(20, min(400, round(old_kcal / max(1, alternative["kcal"]) * 100 / 5) * 5))
@@ -188,7 +239,7 @@ def _avoid_food_in_meals(meals: list[dict], name: str) -> list[str]:
                     "carb": round(alternative["carb"] * ratio, 1),
                 })
                 changes.append(
-                    f"第 {meal.get('day_index')} 天{meal.get('title')}「{name}」→「{alternative['name']}」"
+                    f"第 {day_index} 天{meal.get('title')}「{name}」→「{alternative['name']}」"
                 )
             _recalc_meal(meal)
     return changes
@@ -296,11 +347,10 @@ def apply_explicit_edits(payload: dict, feedback: str) -> tuple[dict, list[str]]
 
     changes: list[str] = []
 
-    # 0) 忌口：不吃红薯 / 别吃鸡肉 → 换成同组食材
-    for match in AVOID_RE.finditer(text):
-        avoided = _food_name(match.group(1))
-        if avoided:
-            changes += _avoid_food_in_meals(meals, avoided)
+    # 0) 忌口：不吃红薯 / 别吃鸡肉 → 按餐次换成同组食材
+    avoided_foods = [name for name in (_food_name(m.group(1)) for m in AVOID_RE.finditer(text)) if name]
+    for avoided in avoided_foods:
+        changes += _avoid_food_in_meals(meals, avoided, excluded=set(avoided_foods))
 
     # 0b) 口语替换：不要红薯，换成土豆
     for match in REPLACE_NOUN_RE.finditer(text):

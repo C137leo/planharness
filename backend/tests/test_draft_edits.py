@@ -115,3 +115,51 @@ def test_extract_avoided_foods() -> None:
 
     assert extract_avoided_foods("我不吃红薯，也别吃虾") == ["红薯", "虾"]
     assert extract_avoided_foods("把红薯换成土豆") == []
+
+
+def _week_payload() -> dict:
+    meals = []
+    for day in range(1, 8):
+        for slot, title in (("breakfast", "早餐"), ("lunch", "午餐"), ("dinner", "晚餐")):
+            meals.append({
+                "day_index": day, "slot": slot, "title": title,
+                "items": [{"name": "红薯", "grams": 300, "kcal": 258,
+                           "protein": 4.8, "fat": 0.3, "carb": 60}],
+                "kcal": 258, "protein_g": 4.8, "fat_g": 0.3, "carb_g": 60,
+            })
+    return {"days": [], "meals": meals, "summary": ""}
+
+
+def test_avoid_carb_uses_meal_appropriate_substitute() -> None:
+    """第一版把 7 天的红薯全换成米饭，早上也吃米饭——这是不合理的。
+
+    现在按餐次选替代：早餐 燕麦/玉米/土豆，午餐 米饭/玉米/土豆，晚餐 土豆/玉米/米饭。
+    """
+    out, _ = apply_explicit_edits(_week_payload(), "不吃红薯")
+    breakfasts = [m["items"][0]["name"] for m in out["meals"] if m["slot"] == "breakfast"]
+    lunches = [m["items"][0]["name"] for m in out["meals"] if m["slot"] == "lunch"]
+    assert "米饭" not in breakfasts, f"早餐不该是米饭：{breakfasts}"
+    assert {"燕麦", "玉米", "土豆"} <= set(breakfasts), "早餐应在谷薯之间轮换"
+    assert "米饭" in lunches, "午餐出现米饭是合理的"
+    assert len(set(breakfasts)) > 1, "不能七天都一样"
+
+
+def test_avoid_protein_prefers_meal_context() -> None:
+    """不吃虾时，早餐的蛋白源应是鸡蛋/酸奶，而不是鸡胸肉。"""
+    payload = {
+        "days": [],
+        "meals": [
+            {"day_index": 1, "slot": "breakfast", "title": "早餐",
+             "items": [{"name": "虾", "grams": 150, "kcal": 149, "protein": 36, "fat": 0.5, "carb": 0},
+                       {"name": "燕麦", "grams": 45, "kcal": 175, "protein": 7.6, "fat": 3.1, "carb": 30}],
+             "kcal": 324, "protein_g": 43.6, "fat_g": 3.6, "carb_g": 30},
+            {"day_index": 1, "slot": "dinner", "title": "晚餐",
+             "items": [{"name": "虾", "grams": 150, "kcal": 149, "protein": 36, "fat": 0.5, "carb": 0}],
+             "kcal": 149, "protein_g": 36, "fat_g": 0.5, "carb_g": 0},
+        ],
+        "summary": "",
+    }
+    out, _ = apply_explicit_edits(payload, "不吃虾")
+    names = {m["slot"]: [i["name"] for i in m["items"]] for m in out["meals"]}
+    assert "虾" not in names["breakfast"]
+    assert names["breakfast"][0] in {"鸡蛋", "希腊酸奶", "北豆腐"}
