@@ -11,6 +11,7 @@ import { api, type CurrentPlan, type PlanAction, type PlanPatchSummary } from '.
 import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
 import { actionLabel, slotLabel } from '../../styles/copy'
+import { thumbOf } from '../../styles/thumbs'
 import { WEEKDAY_LABELS } from '../../styles/dates'
 
 const plan = ref<CurrentPlan | null>(null)
@@ -78,15 +79,6 @@ const todayMeals = computed(() => {
 /** 待确认补丁的改动数：旧后端没有 operations 字段，不能直接取 .length。 */
 function operationCount(patch: PlanPatchSummary): number {
   return patch.operations?.length ?? patch.diff?.changed_slots ?? 0
-}
-
-/** 槽位 emoji：训练/餐食一眼能区分，不用真实图片也能看出结构。 */
-function slotEmoji(action: { action_type: string; slot: string }): string {
-  if (action.action_type === 'meal') return '🍽️'
-  if (action.slot === 'cardio') return '🏃'
-  if (action.slot === 'mobility') return '🧘'
-  if (action.slot === 'warmup') return '🔥'
-  return '🏋️'
 }
 
 function openToday() {
@@ -164,7 +156,9 @@ onShow(load)
         </view>
         <view v-for="action in group.actions" :key="action.id" class="list-row">
           <view class="list-body">
-            <view class="thumb">{{ slotEmoji(action) }}</view>
+            <view class="thumb">
+              <image class="thumb-img" :src="thumbOf(action)" mode="aspectFill" />
+            </view>
             <view class="list-main">
               <text class="list-title">{{ actionLabel(action) }}</text>
               <text class="list-meta">

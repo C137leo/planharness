@@ -210,6 +210,7 @@ page {
 /* 缩略图占位：没有实拍图时用暖色块 + emoji，比空白强 */
 .thumb {
   align-items: center;
+  overflow: hidden;
   background: var(--primary-soft);
   border-radius: var(--radius-md);
   display: flex;
@@ -218,6 +219,13 @@ page {
   height: 54px;
   justify-content: center;
   width: 54px;
+}
+
+/* 部位插画铺满缩略图，圆角由 .thumb 裁切 */
+.thumb-img {
+  display: block;
+  height: 100%;
+  width: 100%;
 }
 
 .list-body {

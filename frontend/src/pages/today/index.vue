@@ -11,6 +11,7 @@ import { api, ApiError, type CurrentPlan, type PatchPreset } from '../../api'
 import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
 import { QUICK_ACTIONS, actionLabel, slotLabel } from '../../styles/copy'
+import { thumbOf } from '../../styles/thumbs'
 import { WEEKDAY_LABELS, isoWeekday } from '../../styles/dates'
 
 const plan = ref<CurrentPlan | null>(null)
@@ -93,11 +94,6 @@ const MOVEMENT_EMOJI: Record<string, string> = {
 
 function mealEmoji(slot: string): string {
   return MEAL_EMOJI[slot] || '🍽️'
-}
-
-function actionEmoji(action: { meta?: Record<string, unknown> }): string {
-  const mode = String((action.meta || {}).movement_mode || '')
-  return MOVEMENT_EMOJI[mode] || '🏋️'
 }
 
 /** 动作主肌群：meta 是后端给的附加信息，模板里不写 TS 断言。 */
@@ -233,7 +229,9 @@ onShow(() => {
         <view v-else class="list">
           <view v-for="action in training" :key="action.id" class="list-row">
             <view class="list-body">
-              <view class="thumb">{{ actionEmoji(action) }}</view>
+              <view class="thumb">
+                <image class="thumb-img" :src="thumbOf(action)" mode="aspectFill" />
+              </view>
               <view class="list-main">
                 <text class="list-title">{{ actionLabel(action) }}</text>
                 <text class="list-meta">
