@@ -7,6 +7,8 @@ import type {
   AuditVerify,
   AuthChallenge,
   CalorieStats,
+  FoodOptionPayload,
+  KnowledgeAnswer,
   LoginPayload,
   Me,
   RegisterPayload,
@@ -240,6 +242,16 @@ export const api = {
   listCheckins: () => request<CheckinRecord[]>('GET', '/checkins'),
   getProfile: () => request<Profile>('GET', '/me/profile'),
   updateProfile: (payload: ProfileUpdate) => request<Profile>('PUT', '/me/profile', payload),
+  foodOptions: (planId: string, date: string, mealSlot: string, refresh = false) =>
+    request<FoodOptionPayload>(
+      'GET',
+      `/food/options?plan_id=${planId}&date=${date}&meal_slot=${mealSlot}${refresh ? '&refresh=true' : ''}`,
+    ),
+  askKnowledge: (question: string, bodyPart?: string) =>
+    request<KnowledgeAnswer>('POST', '/knowledge/ask', {
+      question,
+      body_part: bodyPart || null,
+    }),
   createPlanDraft: async (instruction: string) =>
     normalizeDraft(await request<PlanDraft>('POST', '/plans/drafts', { instruction })),
   getPlanDraft: async (draftId: string) =>

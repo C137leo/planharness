@@ -16,6 +16,8 @@ import app.models  # noqa: F401 - register SQLAlchemy models
 from app.agent.checkpointer import make_checkpointer
 from app.agent.patch_graph import build_patch_graph
 from app.api.auth_routes import router as auth_router
+from app.api.food_routes import router as food_router
+from app.api.knowledge_routes import router as knowledge_router
 from app.api.routes import router
 from app.config import Settings, get_settings
 from app.db import Base, make_engine, make_session_factory
@@ -23,6 +25,7 @@ from app.llm.deepseek import explainer_from_settings
 from app.llm.types import LlmBudget
 from app.openapi_docs import mount_api_docs
 from app.seed import seed_demo
+from app.knowledge.service import seed_knowledge
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -36,6 +39,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # 种子逻辑内部幂等（demo 用户已存在就直接返回），所以每次启动都调用
     with session_factory() as session:
         seed_demo(session)
+        # 知识库是全局数据（不按用户），启动时幂等灌入
+        seed_knowledge(session)
 
     # LangGraph 的挂起状态靠 checkpointer 活着：dev 用内存，prod 用 Postgres。
     # 生产选 postgres 时连不上会直接启动失败 —— 不静默降级（否则审批会悄悄丢）。
@@ -95,6 +100,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return response
 
     app.include_router(auth_router)
+    app.include_router(food_router)
+    app.include_router(knowledge_router)
     app.include_router(router)
 
     # 离线 API 文档：/docs + /static/swagger/*，不依赖外网 CDN

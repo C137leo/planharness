@@ -10,9 +10,11 @@ import { onShow } from '@dcloudio/uni-app'
 import { api, ApiError, type CurrentPlan, type PatchPreset } from '../../api'
 import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
+import FoodOptionsSheet from '../../components/FoodOptionsSheet.vue'
+import KnowledgeSheet from '../../components/KnowledgeSheet.vue'
 import { QUICK_ACTIONS, actionLabel, slotLabel } from '../../styles/copy'
 import { THUMBS, thumbOf } from '../../styles/thumbs'
-import { WEEKDAY_LABELS, isoWeekday } from '../../styles/dates'
+import { WEEKDAY_LABELS, isoWeekday, todayStr } from '../../styles/dates'
 
 const plan = ref<CurrentPlan | null>(null)
 const presets = ref<PatchPreset[]>([])
@@ -24,6 +26,33 @@ const composerOpen = ref(false)
 const presetText = ref('')
 const presetQuick = ref('')
 const draftOpen = ref(false)
+
+// 订餐推荐 & 知识卡片
+const foodOpen = ref(false)
+const foodMeal = ref<{ slot: string; title: string } | null>(null)
+const knowledgeOpen = ref(false)
+const knowledgeQuestion = ref('')
+const knowledgeBodyPart = ref('')
+
+function openFoodOptions(meal: { slot: string; title: string }) {
+  foodMeal.value = meal
+  foodOpen.value = true
+}
+
+function openKnowledge(question: string, bodyPart = '') {
+  knowledgeQuestion.value = question
+  knowledgeBodyPart.value = bodyPart
+  knowledgeOpen.value = true
+}
+
+function actionBodyPart(action: { meta?: Record<string, unknown> }): string {
+  const mode = String((action.meta || {}).movement_mode || '')
+  if (mode === 'knee_dominant' || mode === 'hip_dominant') return 'knee'
+  if (mode === 'horizontal_push' || mode === 'vertical_push') return 'chest'
+  if (mode === 'horizontal_pull' || mode === 'vertical_pull') return 'back'
+  if (mode === 'core') return 'core'
+  return ''
+}
 
 const weekday = isoWeekday()
 const today = computed(() => plan.value?.today || null)
@@ -265,6 +294,9 @@ onShow(() => {
                 </text>
               </view>
             </view>
+            <text class="link" @click="openKnowledge(`${actionLabel(action)} 的动作要领`, actionBodyPart(action))">
+              要领
+            </text>
           </view>
         </view>
 
@@ -303,6 +335,12 @@ onShow(() => {
               <text class="list-title">{{ meal.title }}</text>
               <text class="list-value">{{ meal.kcal }} kcal</text>
             </view>
+            <text
+              class="link"
+              @click="openFoodOptions({ slot: meal.slot, title: meal.title })"
+            >
+              换一换 / 点外卖
+            </text>
             <text class="list-meta">
               {{ meal.items.map((item) => `${item.name} ${item.grams}g`).join(' · ') }}
             </text>
@@ -366,6 +404,22 @@ onShow(() => {
       @close="composerOpen = false"
       @applied="onPatchApplied"
     />
+    <FoodOptionsSheet
+      v-if="plan"
+      :visible="foodOpen"
+      :plan-id="plan.plan_id"
+      :date="todayStr()"
+      :meal-slot="foodMeal?.slot || ''"
+      :meal-title="foodMeal?.title || '这一餐'"
+      @close="foodOpen = false"
+    />
+    <KnowledgeSheet
+      :visible="knowledgeOpen"
+      :question="knowledgeQuestion"
+      :body-part="knowledgeBodyPart"
+      @close="knowledgeOpen = false"
+    />
+
     <PlanDraftSheet
       :visible="draftOpen"
       :has-plan="hasPlan"

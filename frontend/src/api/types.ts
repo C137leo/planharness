@@ -517,3 +517,51 @@ export interface Me {
   goal: string
   has_profile: boolean
 }
+
+// ---------------- 订餐推荐（只做搜索深链） ----------------
+
+export interface FoodOptionItem {
+  name: string
+  grams: number
+  kcal: number
+  protein?: number
+  fat?: number
+  carb?: number
+}
+
+export interface FoodOption {
+  id: string
+  title: string
+  items: FoodOptionItem[]
+  kcal: number
+  protein_g: number
+  fat_g: number
+  carb_g: number
+  reason: string
+  links: Record<string, string>
+}
+
+export interface FoodOptionPayload {
+  meal_slot: string
+  target_kcal: number
+  target_protein_g: number
+  options: FoodOption[]
+  disclaimer: string
+}
+
+// ---------------- 健康知识（RAG） ----------------
+
+export interface KnowledgeCitation {
+  id: string
+  title: string
+  topic: string
+  source_title: string
+  source_url: string
+}
+
+export interface KnowledgeAnswer {
+  answer: string
+  citations: KnowledgeCitation[]
+  refused: boolean
+  safety?: string
+}

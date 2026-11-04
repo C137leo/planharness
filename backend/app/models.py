@@ -367,6 +367,58 @@ class PlanDraft(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class KnowledgeChunk(Base):
+    """健康知识条目：动作要领 / 安全 / 恢复 / 营养。
+
+    每条必须能溯源（source_title + source_url）；没有出处的回答不允许进库。
+    embedding 暂时留空，后续要上向量检索再填。
+    """
+
+    __tablename__ = "knowledge_chunks"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    title: Mapped[str] = mapped_column(String(120))
+    # knee / shoulder / back / core / legs / chest / general
+    body_part: Mapped[str] = mapped_column(String(24), index=True, default="general")
+    # technique / safety / recovery / nutrition
+    topic: Mapped[str] = mapped_column(String(24), index=True, default="technique")
+    content: Mapped[str] = mapped_column(Text)
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    source_title: Mapped[str] = mapped_column(String(160))
+    source_url: Mapped[str] = mapped_column(String(300))
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    embedding: Mapped[list | None] = mapped_column(JSON, nullable=True)
+
+
+class FoodOption(Base):
+    """某一餐的 3 个"换一换"推荐（含平台搜索深链）。
+
+    为什么不存"推荐菜库"：变体是从 FOODS + 当前这一餐算出来的，
+    存下来只是缓存（同一版本同一天同一餐不必重复计算）。
+    """
+
+    __tablename__ = "food_options"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    plan_id: Mapped[str] = mapped_column(String(36), ForeignKey("plans.id"), index=True)
+    plan_version_id: Mapped[str] = mapped_column(String(36), ForeignKey("plan_versions.id"), index=True)
+    plan_date: Mapped[date] = mapped_column(Date)
+    meal_slot: Mapped[str] = mapped_column(String(32))
+    title: Mapped[str] = mapped_column(String(64))
+    # [{name, grams, kcal, protein, fat, carb}]
+    items: Mapped[list] = mapped_column(JSON, default=list)
+    kcal: Mapped[int] = mapped_column(Integer, default=0)
+    protein_g: Mapped[float] = mapped_column(Float, default=0.0)
+    fat_g: Mapped[float] = mapped_column(Float, default=0.0)
+    carb_g: Mapped[float] = mapped_column(Float, default=0.0)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    # {jd, taobao, meituan}
+    platform_links: Mapped[dict] = mapped_column(JSON, default=dict)
+    provider: Mapped[str] = mapped_column(String(16), default="catalog")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class AuthChallenge(Base):
     """注册/登录前的一次性校验票据。
 
