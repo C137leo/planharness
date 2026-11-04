@@ -18,6 +18,9 @@ const notice = ref('')
 const lockUntil = ref(0)
 const now = ref(Date.now())
 const challenge = ref<AuthChallenge | null>(null)
+// 票据是"页面打开时就签发"，用户输入的时间才是填表耗时；
+// 若在提交那一刻才申请，服务端只会看到几十毫秒 → 一律判成机器。
+const challengeAt = ref(0)
 
 const form = reactive({
   phone: '',
@@ -66,13 +69,70 @@ function switchMode(next: 'login' | 'register') {
   mode.value = next
   error.value = ''
   notice.value = ''
+  challenge.value = null
+  fetchChallenge()
 }
 
 async function fetchChallenge() {
   try {
     challenge.value = await api.authChallenge(mode.value)
+    challengeAt.value = Date.now()
   } catch {
     challenge.value = null
+    challengeAt.value = 0
+  }
+}
+
+/** 票据有效期 10 分钟，这里留 1 分钟余量；过期或没有就重新取。 */
+async function ensureTicket(): Promise<AuthChallenge | null> {
+  const fresh =
+    challenge.value !== null && Date.now() - challengeAt.value < 9 * 60 * 1000
+  if (fresh) return challenge.value
+  await fetchChallenge()
+  return challenge.value
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+/** 把一次提交最多重试一次：处理"票据刚签发就点了"和"票据已被用掉"两种情况。 */
+async function submitWithTicket(
+  call: (ticket: { challenge_id: string; challenge_token: string }) => Promise<unknown>,
+): Promise<void> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const ticket = await ensureTicket()
+    if (!ticket) {
+      error.value = '网络不给力，票据没取到，请再点一次'
+      return
+    }
+    try {
+      await call({
+        challenge_id: ticket.challenge_id,
+        challenge_token: ticket.token,
+      })
+      return
+    } catch (err) {
+      const message = err instanceof Error ? err.message : ''
+      const tooFast = message.includes('太快')
+      const stale = message.includes('已被使用') || message.includes('请刷新页面')
+
+      if (attempt === 1 || (!tooFast && !stale)) {
+        handleError(err)
+        // 票据可能已被这次失败的提交用掉（服务端先验票据再验策略），
+        // 无论什么原因失败都换一张新的，下一次点击才不会撞在旧票据上
+        await fetchChallenge()
+        return
+      }
+
+      if (tooFast) {
+        // 等过最短填表时间再重试；这不是绕过校验，而是把"人手速度"如实补上
+        notice.value = '校验刚签发，正在按正常速度重试…'
+        await sleep(1400)
+      } else {
+        await fetchChallenge()
+      }
+    }
   }
 }
 
@@ -94,28 +154,25 @@ async function submit() {
   error.value = ''
   notice.value = ''
 
-  // 每次提交都重新取票据：票据是一次性的，复用会被服务端拒绝
-  await fetchChallenge()
-
   try {
-    const payload = {
-      phone: form.phone.trim(),
-      password: form.password,
-      challenge_id: challenge.value?.challenge_id || '',
-      challenge_token: challenge.value?.token || '',
-    }
-    const token = isRegister.value
-      ? await api.register({ ...payload, nickname: form.nickname.trim() || '新用户', company: form.company })
-      : await api.login(payload)
+    const base = { phone: form.phone.trim(), password: form.password }
+    await submitWithTicket(async (ticket) => {
+      const token = isRegister.value
+        ? await api.register({
+            ...base,
+            ...ticket,
+            nickname: form.nickname.trim() || '新用户',
+            company: form.company,
+          })
+        : await api.login({ ...base, ...ticket })
 
-    setStoredToken(token.access_token)
-    uni.showToast({ title: isRegister.value ? '注册成功' : '欢迎回来', icon: 'success' })
-    setTimeout(() => uni.switchTab({ url: '/pages/today/index' }), 400)
-  } catch (err) {
-    handleError(err)
-    await fetchChallenge()
+      setStoredToken(token.access_token)
+      uni.showToast({ title: isRegister.value ? '注册成功' : '欢迎回来', icon: 'success' })
+      setTimeout(() => uni.switchTab({ url: '/pages/today/index' }), 400)
+    })
   } finally {
     busy.value = false
+    notice.value = ''
   }
 }
 
@@ -151,6 +208,7 @@ function handleError(err: unknown) {
 }
 
 onMounted(() => {
+  // 打开页面就签发：用户输手机号 + 密码的时间（通常 >2 秒）就是真实的填表耗时
   fetchChallenge()
 })
 </script>
