@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -214,6 +215,31 @@ def login(payload: LoginIn, request: Request, db: Session = Depends(get_db)):
         request,
         TokenOut(access_token=issue_token(user, settings), user_id=user.id).model_dump(),
     )
+
+
+@router.post("/_debug/client-error")
+async def report_client_error(request: Request):
+    """前端渲染异常上报（仅 dev/test 环境）。
+
+    浏览器里的报错只看截图很难定位，这里把 message + stack + 页面路由
+    追加到 /tmp/planharness-client-errors.log，方便直接读。
+    """
+    settings = request.app.state.settings
+    if settings.env not in ("dev", "test"):
+        raise HTTPException(404, "not found")
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001
+        body = {}
+    line = {
+        "ts": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "page": str(body.get("page") or "")[:120],
+        "message": str(body.get("message") or "")[:400],
+        "stack": str(body.get("stack") or "")[:1200],
+    }
+    with open("/tmp/planharness-client-errors.log", "a") as fh:
+        fh.write(json.dumps(line, ensure_ascii=False) + "\n")
+    return {"ok": True}
 
 
 @router.get("/auth/me")
