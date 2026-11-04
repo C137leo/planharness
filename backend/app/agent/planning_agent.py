@@ -399,6 +399,12 @@ def _cost_cny(usage: dict) -> float:
     )
 
 
+def _today_weekday() -> int:
+    import datetime
+
+    return datetime.date.today().isoweekday()
+
+
 def _body(profile_payload: dict) -> dict:
     return {
         "sex": profile_payload.get("sex", "male"),
@@ -408,11 +414,17 @@ def _body(profile_payload: dict) -> dict:
     }
 
 
-def _build_days(program: dict) -> list[dict]:
-    """把 skill 的 sessions 摊平成"第几天做什么"，动作顺序保持 skill 给的顺序。"""
+def _build_days(program: dict, start_weekday: int | None = None) -> list[dict]:
+    """把 skill 的 sessions 摊平成"第几天做什么"。
+
+    训练日从**今天**开始排：以前固定从周一开始，用户周四生成计划，
+    当天就会看到"今天休息"，很容易误以为生成没生效。
+    从今天起连续排，既符合"现在开始练"的直觉，也保持每周同样几天。
+    """
+    start = start_weekday or _today_weekday()
     days: list[dict] = []
-    for session in program.get("sessions") or []:
-        day_index = int(session.get("day") or 1)
+    for offset, session in enumerate(program.get("sessions") or []):
+        day_index = ((start - 1 + offset) % 7) + 1
         focus = str(session.get("focus") or "")
         slot = "cardio" if "cardio" in focus.lower() else "strength"
         actions = []

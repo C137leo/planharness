@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { api, type WorkoutKind, type WorkoutLogItem } from '../../api'
 import { actionLabel, actionName } from '../../styles/copy'
@@ -53,10 +53,10 @@ async function submit() {
 // ---- 训练记录：热量只能从"真的练了"的记录算，不能拿计划反推 ----
 
 const workout = reactive({
-  action_ref: 'brisk_walk',
-  kind: 'cardio' as WorkoutKind,
   duration_min: '30',
 })
+// 多选：一次可以记多个动作（今天计划里的动作通常 3 个，逐个点太麻烦）
+const selectedRefs = ref<string[]>([])
 const workoutBusy = ref(false)
 const workoutError = ref('')
 const workoutLogs = ref<WorkoutLogItem[]>([])
@@ -91,21 +91,29 @@ async function loadTodayPlan() {
       kind: (action.slot === 'cardio' ? 'cardio' : 'strength') as WorkoutKind,
       duration: action.duration_min || 12,
     }))
-    const first = exerciseOptions.value[0]
-    workout.action_ref = first.ref
-    workout.kind = first.kind
-    workout.duration_min = String(first.duration)
-    planHint.value = `已按今天的计划预填 ${exerciseOptions.value.length} 个动作`
+    // 默认全选今天的动作，用户点一下就记完整场训练
+    selectedRefs.value = exerciseOptions.value.map((option) => option.ref)
+    workout.duration_min = String(exerciseOptions.value[0].duration)
+    planHint.value = `已按今天的计划预填 ${exerciseOptions.value.length} 个动作（默认全选）`
   } catch {
     // 没有计划就保留兜底列表
   }
 }
 
-function pickOption(option: WorkoutOption) {
-  workout.action_ref = option.ref
-  workout.kind = option.kind
-  workout.duration_min = String(option.duration)
+function toggleOption(option: WorkoutOption) {
+  const index = selectedRefs.value.indexOf(option.ref)
+  if (index >= 0) {
+    selectedRefs.value = selectedRefs.value.filter((ref) => ref !== option.ref)
+    return
+  }
+  selectedRefs.value = [...selectedRefs.value, option.ref]
+  // 第一个选中的动作决定默认时长
+  if (selectedRefs.value.length === 1) workout.duration_min = String(option.duration)
 }
+
+const selectedOptions = computed(() =>
+  exerciseOptions.value.filter((option) => selectedRefs.value.includes(option.ref)),
+)
 
 async function loadWorkouts() {
   try {
@@ -118,6 +126,11 @@ async function loadWorkouts() {
 
 async function logWorkout() {
   if (workoutBusy.value) return
+  const options = selectedOptions.value
+  if (!options.length) {
+    workoutError.value = '先选至少一个动作'
+    return
+  }
   const duration = Number(workout.duration_min)
   if (!Number.isFinite(duration) || duration <= 0) {
     workoutError.value = '时长要填一个大于 0 的分钟数'
@@ -126,14 +139,21 @@ async function logWorkout() {
   workoutBusy.value = true
   workoutError.value = ''
   try {
-    const item = await api.logWorkout({
-      date: form.date || today(),
-      action_ref: workout.action_ref,
-      kind: workout.kind,
-      duration_min: Math.round(duration),
-    })
-    workoutLogs.value = [item, ...workoutLogs.value]
-    uni.showToast({ title: `记下了 ${item.kcal} kcal`, icon: 'none' })
+    const created: WorkoutLogItem[] = []
+    for (const option of options) {
+      created.push(
+        await api.logWorkout({
+          date: form.date || today(),
+          action_ref: option.ref,
+          kind: option.kind,
+          // 每个动作用计划里的时长，用户手填的时长作为统一覆盖
+          duration_min: Math.round(Number(workout.duration_min) || option.duration),
+        }),
+      )
+    }
+    workoutLogs.value = [...created, ...workoutLogs.value]
+    const kcal = created.reduce((sum, item) => sum + item.kcal, 0)
+    uni.showToast({ title: `记下 ${created.length} 项 · ${Math.round(kcal)} kcal`, icon: 'none' })
   } catch (err) {
     workoutError.value = err instanceof Error ? err.message : '记录失败'
   } finally {
@@ -202,7 +222,7 @@ onLoad(() => {
         <view class="chip">只算消耗</view>
       </view>
       <view class="muted" style="margin-top: 6px">
-        热量 = MET × 3.5 × 体重 ÷ 200 × 时长，点「记下这一条」时后端按这个式子算。
+        勾选今天练的动作（可多选），点一下就把这一场都记下来；热量按 MET × 3.5 × 体重 ÷ 200 × 时长 估算。
       </view>
 
       <view class="option-grid">
@@ -210,30 +230,23 @@ onLoad(() => {
           v-for="option in exerciseOptions"
           :key="option.ref"
           class="chip option"
-          :class="{ active: workout.action_ref === option.ref }"
-          @click="pickOption(option)"
+          :class="{ active: selectedRefs.includes(option.ref) }"
+          @click="toggleOption(option)"
         >
           {{ option.label }}
         </view>
       </view>
-
-      <view class="option-grid">
-        <view
-          v-for="kind in (['strength', 'cardio', 'flexibility'] as WorkoutKind[])"
-          :key="kind"
-          class="chip option"
-          :class="{ active: workout.kind === kind }"
-          @click="workout.kind = kind"
-        >
-          {{ kind === 'strength' ? '力量' : kind === 'cardio' ? '有氧' : '拉伸' }}
-        </view>
+      <view class="list-meta" style="margin-top: 8px">
+        已选 {{ selectedRefs.length }} 个 · 类型自动按计划带（力量/有氧/拉伸）
       </view>
 
       <input v-model="workout.duration_min" class="input" placeholder="时长（分钟）" />
 
       <view v-if="workoutError" class="error" style="margin-top: 10px">{{ workoutError }}</view>
       <view class="btn-row">
-        <view class="btn-sm primary" @click="logWorkout">{{ workoutBusy ? '记录中…' : '记下这一条' }}</view>
+        <view class="btn-sm primary" @click="logWorkout">
+          {{ workoutBusy ? '记录中…' : `记下选中的 ${selectedRefs.length} 个` }}
+        </view>
       </view>
 
       <view v-for="log in workoutLogs.slice(0, 5)" :key="log.log_id" class="log">

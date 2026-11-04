@@ -327,7 +327,7 @@ onShow(() => {
           </view>
         </view>
         <view class="muted" style="margin-top: 10px">
-          目标来自教练 skill 的估算（Mifflin-St Jeor + 活动系数），不是医疗建议。
+          热量与蛋白目标是按你的身高、体重、训练天数估算的，仅供参考，不构成医疗建议。
         </view>
       </view>
 
