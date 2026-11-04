@@ -172,7 +172,7 @@ onShow(() => {
     <view class="eyebrow">PLANHARNESS · {{ WEEKDAY_LABELS[weekday - 1] }}</view>
     <view class="title">{{ hasPlan ? '今天这样练，这样吃。' : '先告诉我你是谁。' }}</view>
     <view class="subtitle">
-      {{ hasPlan ? '计划可以随时改，改了才叫计划。' : '填完基础信息和目标，我让教练 skill 生成计划给你确认。' }}
+      {{ hasPlan ? '你想要的改变，藏在今天的每一次训练里。' : '填完基础信息和目标，我让教练生成计划给你确认。' }}
     </view>
 
     <view v-if="loading" class="card muted">正在加载…</view>
