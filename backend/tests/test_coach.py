@@ -340,3 +340,10 @@ def test_executable_feedback_skips_clarifying_question(monkeypatch, client, auth
     assert revised["status"] == "ready", "能执行的需求不该停在追问状态"
     refs = [action["action_ref"] for day in revised["days"] for action in day["actions"]]
     assert any("row" in ref for ref in refs), f"应该加上背部动作，实际 {refs}"
+
+
+def test_explicit_food_avoidance_excludes_food_from_generation() -> None:
+    """画像里写了「不吃红薯」，生成时就不该再出现。"""
+    base = {"allergies": [], "diet_preferences": ["红薯"], "training_days_per_week": 3}
+    meals = _build_meals(base, NUTRITION)
+    assert all(item["name"] != "红薯" for meal in meals for item in meal["items"])

@@ -98,3 +98,20 @@ def test_colloquial_remove_and_replace() -> None:
     out, changes = apply_explicit_edits(_payload(), "不要红薯，换成土豆")
     assert changes
     assert out["meals"][0]["items"][0]["name"] == "土豆"
+
+
+def test_avoid_food_phrasing_replaces_with_same_group() -> None:
+    """「不吃红薯」不是"换个说法"，它必须从餐里拿掉，并补同等热量的主食。"""
+    out, changes = apply_explicit_edits(_payload(), "不吃红薯")
+    assert changes
+    names = [item["name"] for item in out["meals"][0]["items"]]
+    assert "红薯" not in names
+    # 热量不能因此明显下降（替换而非删除）
+    assert out["meals"][0]["kcal"] >= 200
+
+
+def test_extract_avoided_foods() -> None:
+    from app.domain.draft_edits import extract_avoided_foods
+
+    assert extract_avoided_foods("我不吃红薯，也别吃虾") == ["红薯", "虾"]
+    assert extract_avoided_foods("把红薯换成土豆") == []

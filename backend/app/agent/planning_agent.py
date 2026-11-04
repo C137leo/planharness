@@ -473,10 +473,12 @@ def _build_meals(profile_payload: dict, nutrition: dict) -> list[dict]:
         return []
 
     # 过敏原用关键词匹配（"海鲜过敏""甲壳类"都要能认出来），不再精确查字典
-    avoid, _unmatched = resolve_tags(
-        list(profile_payload.get("allergies") or [])
-        + list(profile_payload.get("diet_preferences") or [])
+    terms = list(profile_payload.get("allergies") or []) + list(
+        profile_payload.get("diet_preferences") or []
     )
+    avoid, _unmatched = resolve_tags(terms)
+    # 像「不吃红薯」这种具体食材，只靠标签过滤不掉，需要按名字排除
+    excluded_names = {term for term in map(str, terms) if term in {f["name"] for f in FOODS}}
 
     meals: list[dict] = []
     for day_index in range(1, 8):
@@ -498,6 +500,7 @@ def _build_meals(profile_payload: dict, nutrition: dict) -> list[dict]:
                 carb_pref=rotate(carb_pref),
                 veg_pref=rotate(veg_pref),
                 used_today=used_today,
+                excluded=excluded_names,
             )
             if not items:
                 continue
@@ -557,13 +560,15 @@ def _pick_items(meal_kcal: int, meal_protein: int, avoid: set[str], *,
                 protein_pref: list[str] | None = None,
                 carb_pref: list[str] | None = None,
                 veg_pref: list[str] | None = None,
-                used_today: set[str] | None = None) -> list[dict]:
+                used_today: set[str] | None = None,
+                excluded: set[str] | None = None) -> list[dict]:
     """按"蛋白源 → 蔬菜 → 主食"的顺序凑这一餐，避开过敏/忌口。
 
     `used_today` 是这个训练日已经用过的蛋白源：优先挑没用过的，
     否则一天三顿会都变成同一种肉。
     """
-    allowed = [food for food in FOODS if not (food["tags"] & avoid)]
+    excluded = excluded or set()
+    allowed = [food for food in FOODS if not (food["tags"] & avoid) and food["name"] not in excluded]
     used = used_today or set()
 
     def choose(group: str, preferred: list[str] | None, *, skip_used: bool = False):
@@ -629,6 +634,15 @@ def _local_gate(profile_payload: dict, payload: dict) -> list[str]:
         payload.setdefault("cautions", []).append(
             "这些忌口我没能自动识别，请确认是否需要避开：" + "、".join(unmatched)
         )
+    explicit_avoid = {
+        str(term)
+        for term in list(profile_payload.get("allergies") or [])
+        + list(profile_payload.get("diet_preferences") or [])
+    }
+    for meal in payload.get("meals") or []:
+        for food in meal.get("items") or []:
+            if food.get("name") in explicit_avoid:
+                problems.append(f"{meal['title']} 里有你说不吃的「{food['name']}」")
     for meal in payload.get("meals") or []:
         for food in meal.get("items") or []:
             tags = next((f["tags"] for f in FOODS if f["name"] == food["name"]), set())

@@ -65,6 +65,9 @@ MODE_TO_SLUG = {
 SWAP_RE = re.compile(
     r"([\u4e00-\u9fa5A-Za-z0-9]{1,12}?)\s*(?:换成|改成|替换成|改为)\s*([\u4e00-\u9fa5A-Za-z0-9]{1,12})"
 )
+AVOID_RE = re.compile(
+    r"(?:不吃|别吃|不能吃|忌口|不喜欢吃|讨厌)\s*([\u4e00-\u9fa5A-Za-z0-9]{1,10})"
+)
 REPLACE_NOUN_RE = re.compile(
     r"(?:不要|去掉|别吃|不吃)\s*([\u4e00-\u9fa5A-Za-z0-9]{1,8})[，,、\s]*(?:换成|改成|改吃|换成别的)"
 )
@@ -146,6 +149,61 @@ def _swap_food_in_meals(meals: list[dict], source: str, target: str) -> list[str
     return changes
 
 
+def _avoid_food_in_meals(meals: list[dict], name: str) -> list[str]:
+    """把食谱里的某个食材换掉：优先同组等热量替代，没有替代才删。
+
+    直接删会悄悄减少热量，用户以为只是"不吃红薯"，实际少吃一顿主食。
+    """
+    source = FOOD_INDEX.get(name)
+    if source is None:
+        return []
+    group = source.get("group")
+    changes: list[str] = []
+
+    for meal in meals:
+        items = meal.get("items") or []
+        while True:
+            target = next((item for item in items if item.get("name") == name), None)
+            if target is None:
+                break
+            used = {item.get("name") for item in items}
+            alternative = next(
+                (food for food in FOODS
+                 if food["group"] == group and food["name"] not in used and food["name"] != name),
+                None,
+            )
+            if alternative is None:
+                items.remove(target)
+                changes.append(f"第 {meal.get('day_index')} 天{meal.get('title')}去掉「{name}」")
+            else:
+                old_kcal = float(target.get("kcal") or 0)
+                grams = max(20, min(400, round(old_kcal / max(1, alternative["kcal"]) * 100 / 5) * 5))
+                ratio = grams / 100
+                target.update({
+                    "name": alternative["name"],
+                    "grams": grams,
+                    "kcal": round(alternative["kcal"] * ratio),
+                    "protein": round(alternative["protein"] * ratio, 1),
+                    "fat": round(alternative["fat"] * ratio, 1),
+                    "carb": round(alternative["carb"] * ratio, 1),
+                })
+                changes.append(
+                    f"第 {meal.get('day_index')} 天{meal.get('title')}「{name}」→「{alternative['name']}」"
+                )
+            _recalc_meal(meal)
+    return changes
+
+
+def extract_avoided_foods(feedback: str) -> list[str]:
+    """从一句反馈里抽出"不吃的东西"，用于写进画像长期生效。"""
+    foods: list[str] = []
+    for match in AVOID_RE.finditer(feedback or ""):
+        name = _food_name(match.group(1))
+        if name and name not in foods:
+            foods.append(name)
+    return foods
+
+
 def _add_exercise(days: list[dict], mode: str) -> list[str]:
     """每个训练日加一个该模式的动作（同一动作不重复加）。"""
     slug = MODE_TO_SLUG.get(mode)
@@ -210,6 +268,8 @@ def has_explicit_edits(text: str) -> bool:
         return True
     if any(hint in text for hint in ("换成", "改成", "替换成", "改为")):
         return True
+    if any(hint in text for hint in ("不吃", "别吃", "不能吃", "忌口", "不喜欢吃")):
+        return True
     if any(hint in text for hint in ADD_HINTS) and any(
         keyword in text for keyword in PART_TO_MODE
     ):
@@ -236,7 +296,13 @@ def apply_explicit_edits(payload: dict, feedback: str) -> tuple[dict, list[str]]
 
     changes: list[str] = []
 
-    # 0) 口语替换：不要红薯，换成土豆
+    # 0) 忌口：不吃红薯 / 别吃鸡肉 → 换成同组食材
+    for match in AVOID_RE.finditer(text):
+        avoided = _food_name(match.group(1))
+        if avoided:
+            changes += _avoid_food_in_meals(meals, avoided)
+
+    # 0b) 口语替换：不要红薯，换成土豆
     for match in REPLACE_NOUN_RE.finditer(text):
         source = _food_name(match.group(1))
         tail = text[match.end():]

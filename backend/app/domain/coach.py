@@ -16,7 +16,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agent.planning_agent import PlanningAgent, PlanProposal, skill_profile
-from app.domain.draft_edits import apply_explicit_edits, has_explicit_edits
+from app.domain.draft_edits import (
+    apply_explicit_edits,
+    extract_avoided_foods,
+    has_explicit_edits,
+)
 from app.domain.revisions import apply_feedback
 from app.audit import append_event
 from app.domain.patches import PatchValidationError, _action_dict, _load_plan
@@ -173,6 +177,13 @@ def add_feedback(
                 "status": "ready",
                 "detail": {"reason": "反馈里有可执行的编辑，不需要向用户反问"},
             }]
+
+    # 「不吃红薯」这类话要记到画像里，否则下一轮生成又会出现
+    avoided = extract_avoided_foods(text or "")
+    if avoided:
+        current = [str(item) for item in (profile.diet_preferences or [])]
+        merged = current + [item for item in avoided if item not in current]
+        profile.diet_preferences = merged
 
     # 关键：反馈必须落到计划内容上，而不是只改解释文案。
     # 顺序：具体编辑（换食材/加动作/删动作）→ 模糊变换（换一批/加强度/避膝）。
