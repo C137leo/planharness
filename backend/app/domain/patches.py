@@ -24,6 +24,7 @@ from app.llm.fallback import fallback_explanation
 from app.llm.types import LlmBudget, as_explain_result
 from app.llm.prompts import SYSTEM_PROMPT, build_explanation_payload
 from app.models import (
+    MealPlan,
     AgentRun,
     Approval,
     Checkin,
@@ -565,6 +566,7 @@ def _new_version_from_actions(
     patch_id: str | None = None,
     summary_prefix: str = "计划调整",
     summary_text: str | None = None,
+    meals_from: "PlanVersion | None" = None,
 ) -> tuple[PlanVersion, list[PlanAction]]:
     """用给定动作快照生成新版本，并把计划指针前移。
 
@@ -615,8 +617,34 @@ def _new_version_from_actions(
         db.add(record)
         records.append(record)
 
+    # 餐食不在 PlanAction 里，是单独一张表：新版本必须把旧版本的餐食复制过来，
+    # 否则"改训练动作"会把当天食谱一起弄丢（用户看到"这一版没有餐食"）。
+    source_version = meals_from or base_version
+    _copy_meals(db, source_version, new_version)
+
     plan.current_version = new_version.version
     return new_version, records
+
+
+def _copy_meals(db: Session, source: PlanVersion, target: PlanVersion) -> None:
+    """把一个版本的餐食复制到新版本；训练动作变了，吃什么保持不变。"""
+    rows = db.scalars(
+        select(MealPlan).where(MealPlan.plan_version_id == source.id)
+    ).all()
+    for row in rows:
+        db.add(MealPlan(
+            user_id=row.user_id,
+            plan_version_id=target.id,
+            day_index=row.day_index,
+            slot=row.slot,
+            title=row.title,
+            items=row.items or [],
+            kcal=row.kcal,
+            protein_g=row.protein_g,
+            fat_g=row.fat_g,
+            carb_g=row.carb_g,
+        ))
+    db.flush()
 
 
 def approve_patch(
@@ -654,7 +682,15 @@ def approve_patch(
         raise PatchValidationError(safety)
 
     version, _ = _new_version_from_actions(
-        db, plan, base_version, proposed, patch_id=patch.id, summary_prefix="膝痛补丁"
+        db,
+        plan,
+        base_version,
+        proposed,
+        patch_id=patch.id,
+        # 摘要用补丁自己的原因（"今天想休息"/"膝盖疼换动作"…），
+        # 以前这里写死"膝痛补丁"，任何补丁都会显示成膝痛。
+        summary_prefix=(patch.reason_text or patch.reason_code or "计划调整"),
+        meals_from=base_version,
     )
     patch.status = "committed"
     patch.validation = {**patch.validation, "approved": True, "safety": safety}
@@ -746,6 +782,7 @@ def rollback_plan(db: Session, user: User, plan_id: str, target_version: int) ->
         current,
         actions,
         summary_prefix=f"回滚到 v{target_version}",
+        meals_from=target,
         # 版本号是审计锚点，不是给用户记的：说清"内容来自 v6、现在记为 v8"
         summary_text=(
             f"内容已回滚到 v{target_version}，记为 v{current.version + 1}"

@@ -102,3 +102,57 @@ def test_rollback_creates_new_version(tmp_path) -> None:
     assert body["new_version"] == 3
     assert body["plan"]["version"] == 3
     assert len(body["plan"]["actions"]) == 12
+
+
+def test_patch_version_keeps_meals_and_uses_reason_in_summary(client, auth_headers) -> None:
+    """补丁只改训练动作：餐食必须跟着复制到新版本，摘要也不能写死"膝痛补丁"。"""
+    from app.domain.coach import create_draft, confirm_draft
+
+    # 先有一份带餐食的教练计划
+    draft = create_draft_through_api(client, auth_headers)
+    body = client.post(
+        f"/api/v1/plans/drafts/{draft['draft_id']}/confirm",
+        headers=auth_headers,
+        json={"comment": "init"},
+    ).json()["data"]
+    assert body["plan"]["meals"], "确认后应该有餐食"
+    meals_before = len(body["plan"]["meals"])
+
+    # 提一个"今天想休息"的补丁并应用
+    plan = body["plan"]
+    req = client.post(
+        f"/api/v1/plans/{plan['plan_id']}/patch-requests",
+        headers=auth_headers,
+        json={"text": "今天想休息"},
+    ).json()["data"]
+    approved = client.post(
+        f"/api/v1/patch-requests/{req['request_id']}/approve",
+        headers=auth_headers,
+        json={"comment": "ok"},
+    )
+    assert approved.status_code == 200, approved.text
+    merged = approved.json()["data"]["plan"]
+
+    assert len(merged["meals"]) == meals_before, "改训练不该弄丢食谱"
+    assert "膝痛" not in merged["summary"], merged["summary"]
+    assert "休息" in merged["summary"] or "计划" in merged["summary"], merged["summary"]
+
+
+def create_draft_through_api(client, auth_headers) -> dict:
+    """生成一份带餐食的草案（依赖 skill）。"""
+    import pytest
+
+    from app.skill.bridge import SkillBridge
+
+    if not SkillBridge().available:
+        pytest.skip("需要本机 skill")
+
+    client.put("/api/v1/me/profile", headers=auth_headers, json={
+        "goal": "fat_loss", "sex": "male", "birth_year": 1997,
+        "height_cm": 178, "weight_kg": 78, "weekly_days": 3, "session_minutes": 40,
+        "equipment": ["dumbbell"], "allergies": [], "diet_preferences": [],
+    })
+    resp = client.post("/api/v1/plans/drafts", headers=auth_headers,
+                       json={"instruction": "减脂，每周3天"})
+    assert resp.status_code == 200, resp.text
+    return resp.json()["data"]

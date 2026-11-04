@@ -294,7 +294,7 @@ onShow(() => {
           <text class="list-meta">{{ eatenKcal }} / {{ macro.kcal }} kcal</text>
         </view>
         <view v-if="!meals.length" class="muted" style="margin-top: 10px">
-          这一版没有餐食（旧模板计划）。换一份教练计划就会有。
+          这一版没有餐食记录（可能是早期模板或旧补丁留下的）。点「重新生成整份计划」可以补齐食谱。
         </view>
         <view v-for="meal in meals" :key="meal.slot" class="meal-row">
           <view class="thumb">{{ mealEmoji(meal.slot) }}</view>
