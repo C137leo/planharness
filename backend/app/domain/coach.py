@@ -94,9 +94,23 @@ def create_draft(
     agent = PlanningAgent(bridge or get_bridge(), client=client)
     proposal: PlanProposal = agent.propose(profile, instruction or "", previous_feedback=feedback)
 
+    # 第一次生成时模型也可能反问"要不要加背部动作"，但这句需求我们能执行：
+    # 绕开模型，用确定性编排直接出计划。
+    if proposal.payload.get("status") != "ready" and has_explicit_edits(instruction or ""):
+        retry = agent.propose_deterministic(profile, instruction or "")
+        if retry.payload.get("status") == "ready":
+            proposal = retry
+            proposal.trace = list(proposal.trace) + [{
+                "node": "deterministic_retry",
+                "status": "ready",
+                "detail": {"reason": "首次生成的需求可执行，不需要向用户反问"},
+            }]
+
     # 用户在第一句话里就可能写了具体编辑（"加个练背动作"），同样要落到计划上
     if proposal.payload.get("status") == "ready" and (instruction or "").strip():
-        edited, edit_changes = apply_explicit_edits(proposal.payload, instruction)
+        edited, edit_changes = apply_explicit_edits(
+            proposal.payload, instruction, equipment_keys=set(profile.equipment or [])
+        )
         if edit_changes:
             proposal.payload = edited
             proposal.trace = list(proposal.trace) + [{
@@ -188,7 +202,9 @@ def add_feedback(
     # 关键：反馈必须落到计划内容上，而不是只改解释文案。
     # 顺序：具体编辑（换食材/加动作/删动作）→ 模糊变换（换一批/加强度/避膝）。
     if proposal.payload.get("status") == "ready" and text:
-        revised, changes = apply_explicit_edits(proposal.payload, text)
+        revised, changes = apply_explicit_edits(
+            proposal.payload, text, equipment_keys=set(profile.equipment or [])
+        )
         if not changes:
             revised, changes = apply_feedback(proposal.payload, text)
             node = "apply_feedback"

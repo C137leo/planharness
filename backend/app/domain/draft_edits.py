@@ -78,6 +78,38 @@ VEG_BY_MEAL: dict[str, list[str]] = {
 # 同一餐次按天轮换时要错开，否则早中晚会在同一天用同一种替代
 SLOT_OFFSET = {"breakfast": 0, "lunch": 1, "dinner": 2, "snack": 0}
 
+# 用户画像里的器材 → skill 动作目录里的 equipment 写法
+EQUIPMENT_ALIASES = {
+    "dumbbell": {"Dumbbell", "Kettlebell"},
+    "band": {"Resistance Band"},
+    "barbell": {"Barbell"},
+    "pullup_bar": {"Pull-up Bar"},
+    "bench": {"Bench"},
+    "mat": {"Bodyweight"},
+}
+
+# 目录里部分动作没有中文名，这里补上常用的，避免前端显示 slug
+NAME_ZH_FALLBACK = {
+    "banded-row": "弹力带划船",
+    "dumbbell-bent-over-row": "哑铃俯身划船",
+    "one-arm-dumbbell-row": "单臂哑铃划船",
+    "inverted-row": "反向划船",
+    "doorway-row": "门框划船",
+    "lat-pulldown": "高位下拉",
+    "banded-lat-pulldown": "弹力带下拉",
+    "seated-row": "坐姿划船",
+    "barbell-row": "杠铃划船",
+}
+
+# 每个模式优先尝试的动作（按"自重 → 器械"排序，再按用户器材过滤）
+MODE_ADDS: dict[str, list[str]] = {
+    "horizontal_pull": [
+        "dumbbell-bent-over-row", "one-arm-dumbbell-row", "banded-row",
+        "inverted-row", "doorway-row",
+    ],
+    "vertical_pull": ["lat-pulldown", "banded-lat-pulldown", "inverted-row"],
+}
+
 MODE_TO_SLUG = {
     "horizontal_pull": "one-arm-dumbbell-row",
     "vertical_pull": "lat-pulldown",
@@ -98,7 +130,10 @@ REPLACE_NOUN_RE = re.compile(
     r"(?:不要|去掉|别吃|不吃)\s*([\u4e00-\u9fa5A-Za-z0-9]{1,8})[，,、\s]*(?:换成|改成|改吃|换成别的)"
 )
 REMOVE_RE = re.compile(r"(?:不要|去掉|删掉|删除|换掉)\s*([\u4e00-\u9fa5A-Za-z0-9]{1,8})")
-ADD_HINTS = ("新增", "加一个", "加个", "再加", "增加一个", "多练")
+ADD_HINTS = (
+    "新增", "加一个", "加个", "加1个", "加2个", "加一项", "再加", "增加一个", "多练",
+    "补一个", "补个",
+)
 REMOVE_HINTS = ("不要", "去掉", "删掉", "删除")
 
 
@@ -255,13 +290,40 @@ def extract_avoided_foods(feedback: str) -> list[str]:
     return foods
 
 
-def _add_exercise(days: list[dict], mode: str) -> list[str]:
-    """每个训练日加一个该模式的动作（同一动作不重复加）。"""
-    slug = MODE_TO_SLUG.get(mode)
+def _exercise_name(slug: str) -> str:
+    item = EXERCISE_CATALOG.get(slug) or {}
+    return str(item.get("name_zh") or NAME_ZH_FALLBACK.get(slug) or item.get("name_en") or slug)
+
+
+def _available_equipment(equipment_keys: set[str] | None) -> set[str]:
+    """把画像里的器材键翻译成动作目录里的 equipment 写法；自重永远可用。"""
+    allowed = {"Bodyweight"}
+    for key in equipment_keys or set():
+        allowed |= EQUIPMENT_ALIASES.get(str(key), set())
+    return allowed
+
+
+def _choose_add_slug(mode: str, equipment: set[str]) -> str:
+    candidates = MODE_ADDS.get(mode) or []
+    if candidates:
+        for slug in candidates:
+            item = EXERCISE_CATALOG.get(slug) or {}
+            if str(item.get("equipment") or "") in equipment:
+                return slug
+        # 没有匹配器材时退回第一项（并保留在 meta 里，用户能看到）
+        return candidates[0]
+    return MODE_TO_SLUG.get(mode, "")
+
+
+def _add_exercise(days: list[dict], mode: str,
+                  equipment: set[str] | None = None) -> list[str]:
+    """每个训练日加一个该模式的动作：动作从 skill 目录里挑，优先用户有的器材。"""
+    allowed = equipment or {"Bodyweight"}
+    slug = _choose_add_slug(mode, allowed)
     item = EXERCISE_CATALOG.get(slug or "") or {}
     if not slug:
         return []
-    name = str(item.get("name_zh") or slug)
+    name = _exercise_name(slug)
     changes: list[str] = []
     for day in days:
         actions = day.get("actions") or []
@@ -332,7 +394,8 @@ def has_explicit_edits(text: str) -> bool:
     return False
 
 
-def apply_explicit_edits(payload: dict, feedback: str) -> tuple[dict, list[str]]:
+def apply_explicit_edits(payload: dict, feedback: str,
+                         equipment_keys: set[str] | None = None) -> tuple[dict, list[str]]:
     """解析具体编辑并应用；没识别出任何操作时原样返回。"""
     text = (feedback or "").strip()
     if not text:
@@ -391,8 +454,9 @@ def apply_explicit_edits(payload: dict, feedback: str) -> tuple[dict, list[str]]
         for keyword, mode in PART_TO_MODE.items():
             if keyword in text and mode not in modes:
                 modes.append(mode)
+        available = _available_equipment(equipment_keys)
         for mode in modes:
-            changes += _add_exercise(days, mode)
+            changes += _add_exercise(days, mode, available)
 
     # 4) 删除动作：去掉臀桥 / 不要划船
     if any(hint in text for hint in REMOVE_HINTS):

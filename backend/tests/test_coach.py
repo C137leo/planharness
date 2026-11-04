@@ -347,3 +347,40 @@ def test_explicit_food_avoidance_excludes_food_from_generation() -> None:
     base = {"allergies": [], "diet_preferences": ["红薯"], "training_days_per_week": 3}
     meals = _build_meals(base, NUTRITION)
     assert all(item["name"] != "红薯" for meal in meals for item in meal["items"])
+
+
+def test_first_draft_does_not_ask_when_request_is_executable(monkeypatch, client, auth_headers) -> None:
+    """首次生成时模型反问"要不要加背部动作"，我们应该自己做，而不是让用户填问题。"""
+    from app.domain import coach as coach_module
+    from app.agent.planning_agent import PlanProposal
+
+    ready_payload = {
+        "status": "ready", "summary": "确定性结果", "highlights": [], "cautions": [],
+        "warnings": [], "days": [{"day_index": 1, "focus": "full_body_a", "actions": []}],
+        "meals": [], "nutrition": {}, "program": {}, "meta": {},
+    }
+
+    class FakeAgent:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def propose(self, profile, instruction, previous_feedback=None):
+            return PlanProposal(status="needs_input", payload={
+                "status": "needs_input", "summary": "",
+                "question": "要不要加一个背部动作？", "days": [], "meals": [],
+                "highlights": [], "cautions": [],
+            }, trace=[])
+
+        def propose_deterministic(self, profile, instruction):
+            return PlanProposal(status="ready", payload=ready_payload, trace=[])
+
+    monkeypatch.setattr(coach_module, "PlanningAgent", FakeAgent)
+
+    _setup(client, auth_headers)
+    resp = client.post(f"{API}/plans/drafts", headers=auth_headers,
+                       json={"instruction": "减脂，每周3天，加1个练背动作"})
+    assert resp.status_code == 200, resp.text
+    draft = resp.json()["data"]
+    assert draft["status"] == "ready", draft.get("question")
+    refs = [a["action_ref"] for day in draft["days"] for a in day["actions"]]
+    assert any("row" in ref for ref in refs), refs
