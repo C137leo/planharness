@@ -169,6 +169,15 @@ function describeError(err: unknown): string {
         </view>
         <view class="draft-summary">{{ draft.summary }}</view>
 
+        <view v-if="draft.revisions.length" class="block">
+          <view class="section-title">这一轮改了什么</view>
+          <view class="list">
+            <view v-for="(item, index) in draft.revisions" :key="index" class="list-row">
+              <text class="list-meta" style="font-size: 13px">· {{ item }}</text>
+            </view>
+          </view>
+        </view>
+
         <view class="stat-row">
           <view class="stat">
             <text class="stat-value">{{ draft.nutrition.target_kcal || '—' }}</text>

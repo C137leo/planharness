@@ -226,6 +226,16 @@ def test_dairy_allergy_removes_yogurt() -> None:
     assert "希腊酸奶" not in names
 
 
+def test_placeholders_are_not_treated_as_allergens() -> None:
+    """用户把"无"填进过敏字段是常事，不能提示"没识别出忌口：无"。"""
+    tags, unmatched = resolve_tags(["无"])
+    assert tags == set()
+    assert unmatched == []
+    payload = {"days": [], "meals": [], "nutrition": NUTRITION, "screen": {}, "cautions": []}
+    _local_gate({"allergies": ["无"], "diet_preferences": []}, payload)
+    assert payload["cautions"] == []
+
+
 def test_unmatched_allergen_is_surfaced_not_ignored() -> None:
     """认不出来的忌口不能当没填：要出现在 cautions 里让人确认。"""
     base = {"allergies": ["某种奇怪的东西"], "diet_preferences": [], "training_days_per_week": 3}

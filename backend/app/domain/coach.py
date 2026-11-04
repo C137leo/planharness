@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agent.planning_agent import PlanningAgent, PlanProposal, skill_profile
+from app.domain.revisions import apply_feedback
 from app.audit import append_event
 from app.domain.patches import PatchValidationError, _action_dict, _load_plan
 from app.models import (
@@ -148,6 +149,22 @@ def add_feedback(
     agent = PlanningAgent(bridge or get_bridge(), client=client)
     proposal = agent.propose(profile, instruction or "",
                              previous_feedback=[str(item) for item in (parent.feedback or [])])
+
+    # 关键：反馈必须落到计划内容上，而不是只改解释文案。
+    # skill 的训练结构由画像确定，模型改不动它，所以这里做确定性变换。
+    if proposal.payload.get("status") == "ready" and text:
+        revised, changes = apply_feedback(proposal.payload, text)
+        proposal.payload = revised
+        proposal.trace = list(proposal.trace) + [{
+            "node": "apply_feedback",
+            "status": "applied" if changes else "no_match",
+            "detail": {"changes": changes[:10]},
+        }]
+        if not changes:
+            proposal.payload.setdefault("cautions", []).append(
+                "这句话没匹配到可以自动执行的调整，计划内容保持不变；"
+                "换个更具体的说法（例如「动作别重复」「膝盖少蹲一点」）会更有效。"
+            )
 
     child = PlanDraft(
         user_id=user.id,
@@ -283,6 +300,7 @@ def draft_payload(draft: PlanDraft) -> dict:
         "nutrition": payload.get("nutrition", {}),
         "days": payload.get("days", []),
         "meals": payload.get("meals", []),
+        "revisions": payload.get("revisions", []),
         "meta": payload.get("meta", {}),
         "trace": draft.trace or [],
         "created_at": draft.created_at.isoformat() if draft.created_at else None,

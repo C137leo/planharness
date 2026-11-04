@@ -444,11 +444,14 @@ def _build_days(program: dict) -> list[dict]:
 
 MEAL_TEMPLATES = [
     # slot, 标题, 热量占比, 蛋白源偏好, 主食偏好, 蔬菜偏好
-    ("breakfast", "早餐", 0.25, ["鸡蛋", "希腊酸奶", "鸡胸肉"], ["燕麦", "红薯"], []),
-    ("lunch", "午餐", 0.35, ["鸡胸肉", "三文鱼", "虾"], ["米饭", "红薯"], ["西兰花"]),
-    ("dinner", "晚餐", 0.30, ["北豆腐", "虾", "鸡胸肉"], ["红薯", "米饭"], ["菠菜"]),
+    ("breakfast", "早餐", 0.25, ["鸡蛋", "希腊酸奶"], ["燕麦", "红薯"], []),
+    ("lunch", "午餐", 0.35, ["鸡胸肉", "三文鱼", "虾", "瘦牛肉"], ["米饭", "红薯"], ["西兰花"]),
+    ("dinner", "晚餐", 0.30, ["北豆腐", "虾", "三文鱼", "瘦牛肉", "鸡胸肉"], ["红薯", "米饭"], ["菠菜"]),
     ("snack", "加餐", 0.10, ["希腊酸奶", "鸡蛋"], [], ["苹果"]),
 ]
+
+# 同一天里优先用没出现过的蛋白源，避免"早中晚都是鸡胸肉"
+PROTEIN_ORDER = ["鸡蛋", "希腊酸奶", "鸡胸肉", "北豆腐", "瘦牛肉", "三文鱼", "虾"]
 
 
 def _build_meals(profile_payload: dict, nutrition: dict) -> list[dict]:
@@ -473,6 +476,8 @@ def _build_meals(profile_payload: dict, nutrition: dict) -> list[dict]:
 
     meals: list[dict] = []
     for day_index in range(1, 8):
+        # 这一天已经用过的蛋白源：同一天内尽量不重复
+        used_today: set[str] = set()
         for slot, title, share, protein_pref, carb_pref, veg_pref in MEAL_TEMPLATES:
             meal_kcal = round(target_kcal * share)
             meal_protein = round(protein_target * share)
@@ -488,9 +493,13 @@ def _build_meals(profile_payload: dict, nutrition: dict) -> list[dict]:
                 protein_pref=rotate(protein_pref),
                 carb_pref=rotate(carb_pref),
                 veg_pref=rotate(veg_pref),
+                used_today=used_today,
             )
             if not items:
                 continue
+            for item in items:
+                if item["name"] in PROTEIN_ORDER:
+                    used_today.add(item["name"])
             meals.append({
                 "day_index": day_index,
                 "slot": slot,
@@ -519,6 +528,8 @@ FOODS = [
      "tags": {"seafood"}},
     {"name": "希腊酸奶", "group": "protein", "kcal": 59, "protein": 10, "fat": 0.4, "carb": 3.6,
      "tags": {"dairy"}},
+    {"name": "瘦牛肉", "group": "protein", "kcal": 250, "protein": 26, "fat": 15, "carb": 0,
+     "tags": {"meat", "beef"}},
     {"name": "米饭", "group": "carb", "kcal": 130, "protein": 2.7, "fat": 0.3, "carb": 28,
      "tags": set()},
     {"name": "红薯", "group": "carb", "kcal": 86, "protein": 1.6, "fat": 0.1, "carb": 20,
@@ -537,19 +548,31 @@ FOODS = [
 def _pick_items(meal_kcal: int, meal_protein: int, avoid: set[str], *,
                 protein_pref: list[str] | None = None,
                 carb_pref: list[str] | None = None,
-                veg_pref: list[str] | None = None) -> list[dict]:
-    """按"蛋白源 → 蔬菜 → 主食"的顺序凑这一餐，避开过敏/忌口。"""
-    allowed = [food for food in FOODS if not (food["tags"] & avoid)]
+                veg_pref: list[str] | None = None,
+                used_today: set[str] | None = None) -> list[dict]:
+    """按"蛋白源 → 蔬菜 → 主食"的顺序凑这一餐，避开过敏/忌口。
 
-    def choose(group: str, preferred: list[str] | None):
-        for name in preferred or []:
+    `used_today` 是这个训练日已经用过的蛋白源：优先挑没用过的，
+    否则一天三顿会都变成同一种肉。
+    """
+    allowed = [food for food in FOODS if not (food["tags"] & avoid)]
+    used = used_today or set()
+
+    def choose(group: str, preferred: list[str] | None, *, skip_used: bool = False):
+        candidates = [name for name in (preferred or []) if not (skip_used and name in used)]
+        for name in candidates:
             found = next((food for food in allowed if food["name"] == name), None)
             if found is not None:
                 return found
+        if skip_used:
+            # 偏好里全是今天用过的：换一个同组、今天没用过的
+            fresh = [food for food in allowed if food["group"] == group and food["name"] not in used]
+            if fresh:
+                return fresh[0]
         return next((food for food in allowed if food["group"] == group), None)
 
     items: list[dict] = []
-    protein = choose("protein", protein_pref)
+    protein = choose("protein", protein_pref, skip_used=True)
     if protein is not None and meal_protein > 0:
         grams = max(50, min(250, round((meal_protein / protein["protein"]) * 100 / 5) * 5))
         items.append(_item(protein, grams))

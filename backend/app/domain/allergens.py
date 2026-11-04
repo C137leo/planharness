@@ -28,6 +28,9 @@ ALLERGEN_KEYWORDS: dict[str, tuple[str, ...]] = {
     "meat": ("肉", "meat"),
 }
 
+# 用户常把"没有"填进过敏字段，这不是过敏原，别把它当成"识别不了"去提示
+PLACEHOLDERS = {"无", "没有", "暂无", "无过敏", "没有过敏", "none", "n/a", "na", "no"}
+
 # 这些词太宽，单独出现时不该当成过敏（例如"我对肉没兴趣"不是过敏）
 WEAK_TERMS = {"肉", "面", "豆", "蛋", "奶", "鱼"}
 
@@ -43,7 +46,7 @@ def split_terms(raw: list[str] | str | None) -> list[str]:
     for item in items:
         for part in _NORMALIZE.split(str(item)):
             part = part.strip()
-            if part:
+            if part and part.lower() not in PLACEHOLDERS:
                 terms.append(part)
     return terms
 

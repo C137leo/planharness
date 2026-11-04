@@ -435,6 +435,8 @@ export interface PlanDraft {
   nutrition: NutritionTargets
   days: DraftDay[]
   meals: MealPlan[]
+  /** 这一轮「再改改」实际改了哪些东西（后端确定性变换的结果） */
+  revisions: string[]
   meta: {
     skill_available?: boolean
     skill_version?: string
