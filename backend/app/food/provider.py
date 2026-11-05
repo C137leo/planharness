@@ -111,46 +111,48 @@ def build_options(meal: dict, *, allergies: list[str] | None = None,
 
     options: list[FoodOption] = []
     seen: set[str] = set()
-    # 先按"常见搭配"的顺序试，再退回任意组合
-    for index, protein in enumerate(proteins[:6]):
-        carb = carbs[index % len(carbs)]
-        veg = vegs[index % len(vegs)] if vegs else None
-        items = _pick_items(
-            target_kcal,
-            max(1, round(target_protein)),
-            avoid,
-            protein_pref=[protein],
-            carb_pref=[carb],
-            veg_pref=[veg] if veg else [],
-            excluded=excluded,
-        )
-        if not items:
-            continue
-        items = _tune_kcal(items, target_kcal)
-        title = _title_of(items)
-        if title in seen:
-            continue
-        kcal = sum(int(item["kcal"]) for item in items)
-        protein_g = round(sum(float(item["protein"]) for item in items), 1)
-        if abs(kcal - target_kcal) > target_kcal * 0.10:
-            continue
-        if protein_g < target_protein * 0.9:
-            continue
-        seen.add(title)
-        reason_bits = ["高蛋白", "热量接近目标"]
-        if avoid:
-            reason_bits.append(f"已避开{describe_tags(avoid)}")
-        options.append(FoodOption(
-            title=title,
-            items=items,
-            kcal=kcal,
-            protein_g=protein_g,
-            fat_g=round(sum(float(item.get("fat") or 0) for item in items), 1),
-            carb_g=round(sum(float(item.get("carb") or 0) for item in items), 1),
-            reason="，".join(reason_bits),
-        ))
-        if len(options) >= limit:
-            break
+    # 两档阈值：先严格（±10% / 蛋白 90%），不够再放宽（±18% / 蛋白 80%），
+    # 保证每次都能给出 3 个选项——校验要求 3 个，否则整条模型答案会被回退。
+    for kcal_tol, protein_floor in ((0.10, 0.90), (0.18, 0.80)):
+        for index, protein in enumerate(proteins):
+            carb = carbs[index % len(carbs)]
+            veg = vegs[index % len(vegs)] if vegs else None
+            items = _pick_items(
+                target_kcal,
+                max(1, round(target_protein)),
+                avoid,
+                protein_pref=[protein],
+                carb_pref=[carb],
+                veg_pref=[veg] if veg else [],
+                excluded=excluded,
+            )
+            if not items:
+                continue
+            items = _tune_kcal(items, target_kcal)
+            title = _title_of(items)
+            if title in seen:
+                continue
+            kcal = sum(int(item["kcal"]) for item in items)
+            protein_g = round(sum(float(item["protein"]) for item in items), 1)
+            if abs(kcal - target_kcal) > target_kcal * kcal_tol:
+                continue
+            if protein_g < target_protein * protein_floor:
+                continue
+            seen.add(title)
+            reason_bits = ["高蛋白", "热量接近目标"]
+            if avoid:
+                reason_bits.append(f"已避开{describe_tags(avoid)}")
+            options.append(FoodOption(
+                title=title,
+                items=items,
+                kcal=kcal,
+                protein_g=protein_g,
+                fat_g=round(sum(float(item.get("fat") or 0) for item in items), 1),
+                carb_g=round(sum(float(item.get("carb") or 0) for item in items), 1),
+                reason="，".join(reason_bits),
+            ))
+            if len(options) >= limit:
+                return options
     return options
 
 

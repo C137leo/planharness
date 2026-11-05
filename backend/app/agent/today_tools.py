@@ -238,6 +238,22 @@ def search_food_options(args: dict, ctx: dict, db) -> dict:
     )
     if not options:
         return _error("food_catalog_empty")
+    # 保证 3 个选项：不足时把"按原计划这一餐"作为兜底选项补上
+    if len(options) < 3 and (meal.items or []):
+        from app.food.links import platform_links
+        from app.food.provider import FoodOption
+
+        original = FoodOption(
+            title=str(meal.title or "按原计划这一餐"),
+            items=list(meal.items or []),
+            kcal=int(meal.kcal or 0),
+            protein_g=float(meal.protein_g or 0),
+            fat_g=float(meal.fat_g or 0),
+            carb_g=float(meal.carb_g or 0),
+            reason="按当前计划这一餐，不做替换",
+        )
+        if all(option.title != original.title for option in options):
+            options.append(original)
     slim = []
     for option in options:
         payload = option.as_dict()

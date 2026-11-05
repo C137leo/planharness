@@ -306,8 +306,9 @@ def _deterministic(db, ctx: dict, text: str) -> TodayResult:
         "disclaimer": DEFAULT_DISCLAIMER,
         "fallback": True,
     }
-    if mcd.get("status") == "ok":
-        final["mcdonalds"] = mcd.get("data")
+    # 留痕：ok 给数据，失败也带 error，前端和排查都能看到
+    final["mcdonalds"] = mcd.get("data") if mcd.get("status") == "ok" else {
+        "status": mcd.get("status"), "error": mcd.get("error")}
     return TodayResult(final=final, trace=trace, fallback=True)
 
 

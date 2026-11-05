@@ -110,6 +110,18 @@ def food_options(
     )
     if not options:
         raise HTTPException(422, "这一餐没有可用的替换方案（可能忌口太严）")
+    if len(options) < 3 and (meal.items or []):
+        from app.food.provider import FoodOption
+
+        options.append(FoodOption(
+            title=str(meal.title or "按原计划这一餐"),
+            items=list(meal.items or []),
+            kcal=int(meal.kcal or 0),
+            protein_g=float(meal.protein_g or 0),
+            fat_g=float(meal.fat_g or 0),
+            carb_g=float(meal.carb_g or 0),
+            reason="按当前计划这一餐，不做替换",
+        ))
 
     saved: list[dict] = []
     for option in options:
