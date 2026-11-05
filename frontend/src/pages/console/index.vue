@@ -61,6 +61,24 @@ const churn = computed(() => {
   return Math.round(diff.churn * 100)
 })
 
+/** 没被碰过的槽位：最小补丁的证据（改了 3 个，其余 9 个原样保留） */
+const unchangedSlots = computed(() => {
+  const diff = selected.value?.patch?.diff
+  if (!diff || typeof diff.total_slots !== 'number') return null
+  return diff.total_slots - (diff.changed_slots || 0)
+})
+
+const patchOps = computed(() => selected.value?.patch?.operations || [])
+
+/** 操作清单的一行："替换：深蹲 → 臀桥" */
+function opLabel(op: { op: string; before_name?: string; before_action_ref?: string; slot_key: string }) {
+  return op.before_name || op.before_action_ref || op.slot_key
+}
+
+function opAfter(op: { after_name?: string; after_action?: { action_ref: string } }) {
+  return op.after_name || op.after_action?.action_ref || ''
+}
+
 const droppedCount = computed(() => selected.value?.context?.dropped?.length ?? 0)
 const failedChecks = computed(
   () => selected.value?.verification?.checks.filter((c) => !c.passed) ?? [],
@@ -372,7 +390,7 @@ onShow(() => {
       </view>
 
       <view class="card">
-        <view class="eyebrow">DIFF</view>
+        <view class="eyebrow">DIFF · 最小补丁</view>
         <view v-if="selected.patch" class="kv">
           <view class="kv-item">
             <text class="k">churn</text>
@@ -393,6 +411,34 @@ onShow(() => {
             <text class="v">v{{ selected.patch.base_version }}</text>
           </view>
         </view>
+
+        <template v-if="selected.patch">
+          <view class="diff-sentence">
+            原计划 {{ selected.patch.diff.total_slots ?? '—' }} 个槽位，改了
+            {{ selected.patch.diff.changed_slots ?? '—' }} 个，
+            其余 {{ unchangedSlots }} 个原样保留；必要改动
+            {{ selected.patch.diff.required_changes ?? '—' }} 处，
+            多余扰动 {{ Math.round((selected.patch.diff.unnecessary_churn || 0) * 100) }}%。
+          </view>
+
+          <view class="ops">
+            <view v-for="op in patchOps" :key="op.slot_key" class="op-row">
+              <text class="op-kind" :class="{ remove: op.op === 'remove_action' }">
+                {{ op.op === 'remove_action' ? '删除' : '替换' }}
+              </text>
+              <view class="op-body">
+                <text class="op-text">
+                  {{ opLabel(op) }}<text v-if="op.op === 'replace_action'"> → {{ opAfter(op) }}</text>
+                </text>
+                <text class="muted small">{{ op.slot_key }}{{ op.reason ? ` · ${op.reason}` : '' }}</text>
+              </view>
+            </view>
+          </view>
+
+          <view class="muted small" style="margin-top: 8px">
+            {{ selected.patch.reason_text || selected.patch.reason_code }}
+          </view>
+        </template>
         <view v-else class="muted">这次运行没有关联补丁。</view>
       </view>
 
@@ -518,6 +564,56 @@ onShow(() => {
 </template>
 
 <style>
+.diff-sentence {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 10px;
+}
+
+.ops {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.op-row {
+  align-items: flex-start;
+  border-top: 1px dashed var(--line-soft);
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.op-kind {
+  background: var(--primary-soft);
+  border-radius: 999px;
+  color: var(--primary-deep);
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+
+.op-kind.remove {
+  background: #fde8e8;
+  color: #b91c1c;
+}
+
+.op-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.op-text {
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .matrix {
   margin-top: 12px;
 }

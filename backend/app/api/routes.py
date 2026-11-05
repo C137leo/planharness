@@ -666,6 +666,8 @@ def approve_patch_request(
     db: Session = Depends(get_db),
 ):
     """确认应用：走真实审批 + 验证 + 审计。"""
+    req = patch_requests.load_request(db, user, request_id)
+    patch_id = req.patch_id
     try:
         _, version = patch_requests.approve_request(db, user, request_id, payload.comment)
     except PatchValidationError as exc:
@@ -680,6 +682,8 @@ def approve_patch_request(
         ],
         output={
             "request_id": request_id,
+            # 带上 patch_id，Console 才能把这次运行和"改了哪几个槽位"对上
+            "patch_id": patch_id,
             "committed_version": version.version,
             "source": "patch_request",
         },
@@ -715,7 +719,8 @@ def reject_patch_request(
         db, user,
         kind="patch_rejection",
         trace=[step("load_request", request_id=request_id), step("reject", "ok")],
-        output={"request_id": request_id, "source": "patch_request"},
+        output={"request_id": request_id, "patch_id": req.patch_id,
+                "source": "patch_request"},
         input_payload={"request_id": request_id, "comment": payload.comment},
     )
     db.commit()
@@ -998,7 +1003,8 @@ def get_run(
                 "reason_code": patch.reason_code,
                 "reason_text": patch.reason_text,
                 "diff": patch.diff or {},
-                "operations": patch.operations or [],
+                # 补中文名：Console 里直接显示"深蹲 → 臀桥"，而不是 goblet-squat
+                "operations": _operations_with_names(patch.operations or []),
             }
             if patch is not None
             else None
