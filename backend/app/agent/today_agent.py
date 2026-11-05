@@ -71,6 +71,22 @@ def _step(node: str, status: str, **detail) -> dict:
     return {"node": node, "status": status, "ts": _now(), "detail": detail}
 
 
+def _push(trace: list[dict], on_step, node: str, status: str, **detail) -> None:
+    """记一步，并立刻通知外面（前端靠它边跑边看）。
+
+    没有这个回调，/runs/{id} 要等整轮跑完才有 trace，用户只能干等十几秒。
+    on_step 抛异常不打断规划：观测失败不该毁掉这次结果。
+    """
+    step = _step(node, status, **detail)
+    trace.append(step)
+    if on_step is None:
+        return
+    try:
+        on_step(step)
+    except Exception:  # noqa: BLE001 - 埋点失败不影响主流程
+        pass
+
+
 def _tool_observation(result: dict) -> dict:
     return result
 
@@ -94,7 +110,7 @@ def _repair(client, messages: list[dict], error: str) -> dict:
     return _parse_answer((reply.get("message") or {}).get("content") or "")
 
 
-def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
+def _run_loop(db, ctx: dict, text: str, client, on_step=None) -> TodayResult:
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": json.dumps(
@@ -107,6 +123,8 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
     mcd_data: dict | None = None
 
     for step in range(MAX_STEPS):
+        # 模型这一等可能要几秒：先报"在思考"，别让前端只看到上一次的结果
+        _push(trace, on_step, "agent", "thinking", step=step + 1)
         # 最终 JSON 含 3 餐 × 3 选项，1200 token 容易被截断成非法 JSON；
         # 给足预算，仍然失败就降级到确定性编排
         reply = client.complete(messages, tools=TOOLS, max_tokens=3000)
@@ -115,10 +133,8 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
         usage_total["prompt_tokens"] += int(usage.get("prompt_tokens") or 0)
         usage_total["completion_tokens"] += int(usage.get("completion_tokens") or 0)
         calls = message.get("tool_calls") or []
-        trace.append(_step(
-            "agent", "tools" if calls else "final",
-            tool_calls=[(call.get("function") or {}).get("name") for call in calls],
-        ))
+        _push(trace, on_step, "agent", "tools" if calls else "final",
+              tool_calls=[(call.get("function") or {}).get("name") for call in calls])
         if not calls:
             content = (message.get("content") or "").strip()
             truncated = reply.get("finish_reason") == "length"
@@ -127,14 +143,15 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
                     raise ValueError("output_truncated")
                 answer = _parse_answer(content)
             except (ValueError, ValidationError) as exc:
-                trace.append(_step("parse", "failed", error=f"{type(exc).__name__}: {str(exc)[:100]}"))
+                _push(trace, on_step, "parse", "failed",
+                      error=f"{type(exc).__name__}: {str(exc)[:100]}")
                 # 修复一次：只让模型重发文字部分，餐食本来就不在模型输出里
                 answer = _repair(client, messages, f"{type(exc).__name__}: {str(exc)[:100]}")
-                trace.append(_step("parse", "repaired"))
+                _push(trace, on_step, "parse", "repaired")
             final = _assemble(answer, food_meals, tool_citations, mcd_data)
             # 不管模型有没有主动查，规划完成后都补一次麦当劳营养库：
             # 这是产品需求（"每次规划后额外调一次"），不能靠模型自觉。
-            final["mcdonalds"] = _mcd_block(db, ctx, trace, cached=mcd_data)
+            final["mcdonalds"] = _mcd_block(db, ctx, trace, cached=mcd_data, on_step=on_step)
             return TodayResult(final=final, trace=trace, usage=usage_total)
 
         messages.append({"role": "assistant", "content": message.get("content") or "",
@@ -144,7 +161,7 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
             name = (call.get("function") or {}).get("name") or ""
             args = _parse_args((call.get("function") or {}).get("arguments"))
             result = _tool_observation(dispatch(name, args, ctx, db))
-            trace.append(_step(name, str(result.get("status"))))
+            _push(trace, on_step, name, str(result.get("status")))
             for citation in result.get("citations") or []:
                 tool_citations[citation["id"]] = citation
             if name == "mcd_nutrition" and result.get("status") == "ok":
@@ -196,7 +213,8 @@ def _assemble(answer: dict, food_meals: dict[str, dict], tool_citations: dict[st
     }
 
 
-def _mcd_block(db, ctx: dict, trace: list[dict], cached: dict | None = None) -> dict:
+def _mcd_block(db, ctx: dict, trace: list[dict], cached: dict | None = None,
+               on_step=None) -> dict:
     """麦当劳官方营养库块：模型调用过就复用，没调用就补一次。
 
     失败也返回结构（带 status/error），前端能显示"为什么没有麦当劳"，
@@ -207,7 +225,7 @@ def _mcd_block(db, ctx: dict, trace: list[dict], cached: dict | None = None) -> 
     if ctx.get("plan") is None:
         return {"status": "disabled", "error": "no_active_plan"}
     result = dispatch("mcd_nutrition", {}, ctx, db)
-    trace.append(_step("mcd_nutrition", str(result.get("status"))))
+    _push(trace, on_step, "mcd_nutrition", str(result.get("status")))
     if result.get("status") == "ok" and result.get("data"):
         return result["data"]
     return {"status": result.get("status") or "error",
@@ -255,28 +273,28 @@ def _parse_args(raw) -> dict:
 
 # ---------------------------------------------------------------- 确定性编排
 
-def _deterministic(db, ctx: dict, text: str) -> TodayResult:
+def _deterministic(db, ctx: dict, text: str, on_step=None) -> TodayResult:
     trace: list[dict] = []
     safety = dispatch("safety_screen", {"text": text}, ctx, db)
-    trace.append(_step("safety_screen", str(safety.get("status"))))
+    _push(trace, on_step, "safety_screen", str(safety.get("status")))
     if (safety.get("data") or {}).get("blocked"):
         return TodayResult(final=_blocked_answer(trace), trace=trace,
                            fallback=True, refused=True)
 
     plan = dispatch("get_today_plan", {}, ctx, db)
-    trace.append(_step("get_today_plan", str(plan.get("status"))))
+    _push(trace, on_step, "get_today_plan", str(plan.get("status")))
     nutrition = dispatch("get_nutrition_targets", {}, ctx, db)
-    trace.append(_step("get_nutrition_targets", str(nutrition.get("status"))))
+    _push(trace, on_step, "get_nutrition_targets", str(nutrition.get("status")))
 
     body_part = "knee" if "膝" in text else ("back" if "腰" in text else None)
     knowledge = dispatch("search_knowledge",
                          {"query": "训练安排 热身 恢复", "body_part": body_part}, ctx, db)
-    trace.append(_step("search_knowledge", str(knowledge.get("status"))))
+    _push(trace, on_step, "search_knowledge", str(knowledge.get("status")))
 
     meals = []
     for slot in [slot for slot in (ctx.get("meals") or {}) if slot != "snack"][:3]:
         food = dispatch("search_food_options", {"meal_slot": slot}, ctx, db)
-        trace.append(_step("search_food_options", str(food.get("status")), meal_slot=slot))
+        _push(trace, on_step, "search_food_options", str(food.get("status")), meal_slot=slot)
         if food.get("status") != "ok":
             continue
         meals.append({
@@ -286,10 +304,10 @@ def _deterministic(db, ctx: dict, text: str) -> TodayResult:
         })
 
     # 每次规划后额外补一次麦当劳营养库（可直接点餐的替代选项）
-    mcd = _mcd_block(db, ctx, trace)
+    mcd = _mcd_block(db, ctx, trace, on_step=on_step)
 
     recovery = dispatch("get_recovery_tips", {}, ctx, db)
-    trace.append(_step("get_recovery_tips", str(recovery.get("status"))))
+    _push(trace, on_step, "get_recovery_tips", str(recovery.get("status")))
 
     actions = plan.get("data", {}).get("actions", []) if plan.get("status") == "ok" else []
     citations = {item["id"]: item for item in (
@@ -300,7 +318,7 @@ def _deterministic(db, ctx: dict, text: str) -> TodayResult:
     for action in actions[:3]:
         cue = dispatch("search_knowledge",
                        {"query": action.get("name") or action.get("ref") or "动作要领"}, ctx, db)
-        trace.append(_step("search_knowledge", str(cue.get("status")), target=action.get("name")))
+        _push(trace, on_step, "search_knowledge", str(cue.get("status")), target=action.get("name"))
         for item in cue.get("citations") or []:
             citations[item["id"]] = item
         data = cue.get("data") or []
@@ -391,21 +409,28 @@ def _all_knowledge_ids(db) -> set[str]:
 
 # ---------------------------------------------------------------- 入口
 
-def run(db, user, day, text: str, client=None) -> TodayResult:
+def run(db, user, day, text: str, client=None, on_step=None) -> TodayResult:
+    """跑一轮今日规划。
+
+    on_step(step) 是"边跑边看"的钩子：每记一步就回调一次，
+    后台任务用它把 trace 立刻写库，前端轮询就能看到进度，而不是干等。
+    """
     ctx = load_context(db, user, day)
     # 手机比价工具需要 VLM 客户端（同一个 OpenAI 兼容客户端即可）
     ctx["vlm_client"] = client
     try:
-        result = _run_loop(db, ctx, text, client) if client else _deterministic(db, ctx, text)
+        result = (_run_loop(db, ctx, text, client, on_step=on_step) if client
+                  else _deterministic(db, ctx, text, on_step=on_step))
     except Exception as exc:  # noqa: BLE001 - 模型失败要能降级
-        result = _deterministic(db, ctx, text)
+        result = _deterministic(db, ctx, text, on_step=on_step)
         result.error = f"{type(exc).__name__}: {str(exc)[:120]}"
 
     problems = validate(result.final or {}, ctx, db)
     if problems:
-        fallback = _deterministic(db, ctx, text)
-        fallback.trace = result.trace + [_step("validate", "failed", problems=problems[:5])]
+        fallback = _deterministic(db, ctx, text, on_step=on_step)
+        _push(result.trace, on_step, "validate", "failed", problems=problems[:5])
+        fallback.trace = result.trace
         fallback.error = "; ".join(problems[:3])
         return fallback
-    result.trace = result.trace + [_step("validate", "ok")]
+    _push(result.trace, on_step, "validate", "ok")
     return result

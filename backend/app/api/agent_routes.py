@@ -34,15 +34,35 @@ class ApplyIn(BaseModel):
 
 
 def _run_agent(run_id: str, user_id: str, day: dt.date, text: str, session_factory, settings) -> None:
-    """后台执行：独立 session，结束后写回 run。"""
+    """后台执行：独立 session，结束后写回 run。
+
+    trace 边跑边写：每完成一步就 commit 一次，前端轮询 /runs/{id} 能看到进度，
+    而不是盯着"正在启动模型…"等十几秒。
+    """
     with session_factory() as db:
         run = db.get(AgentRun, run_id)
         if run is None:
             return
         user = db.get(User, user_id)
         client = tool_client_from_settings(settings)
+
+        def _stamp(status: str) -> dict:
+            return {"node": "agent", "status": status,
+                    "ts": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+                    "detail": {}}
+
+        def on_step(step: dict) -> None:
+            run.trace = [*(run.trace or []), step]
+            db.commit()
+
+        run.trace = [_stamp("queued")]
+        db.commit()
         try:
-            result = run_today(db, user, day, text, client=client if client.available() else None)
+            result = run_today(
+                db, user, day, text,
+                client=client if client.available() else None,
+                on_step=on_step,
+            )
             run.status = "rejected" if result.refused else "succeeded"
             run.output = result.final or {}
             run.trace = result.trace

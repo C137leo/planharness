@@ -104,6 +104,35 @@ def test_agent_loop_uses_tools_and_builds_meals(ready) -> None:
     assert "validate" in nodes
 
 
+def test_on_step_streams_progress_while_running(ready) -> None:
+    """每记一步就回调一次：前端靠它边跑边看，而不是等整轮结束。"""
+    db, user, day = ready
+    steps: list[dict] = []
+    client = FakeClient([
+        ("get_today_plan", {}),
+        ("search_knowledge", {"query": "训练前热身"}),
+        ("search_food_options", {"meal_slot": "breakfast"}),
+        ("search_food_options", {"meal_slot": "lunch"}),
+        ("search_food_options", {"meal_slot": "dinner"}),
+    ])
+    result = run(db, user, day, "帮我规划今天", client=client, on_step=steps.append)
+
+    assert steps, "必须能回调到进度"
+    # 第一步是"在思考"，用户点完按钮马上有反馈
+    assert steps[0]["node"] == "agent" and steps[0]["status"] == "thinking"
+    assert "validate" in [step["node"] for step in steps]
+    # 回调收到的和最终 trace 一致（没有漏步，也没有只存一半）
+    assert [step["node"] for step in steps] == [step["node"] for step in result.trace]
+
+
+def test_on_step_also_covers_deterministic_fallback(ready) -> None:
+    db, user, day = ready
+    steps: list[dict] = []
+    run(db, user, day, "帮我规划今天", client=None, on_step=steps.append)
+    assert steps[0]["node"] == "safety_screen" or steps[0]["node"] == "agent"
+    assert any(step["node"] == "search_food_options" for step in steps)
+
+
 def test_tool_order_is_model_choice(ready) -> None:
     """先找外卖再查知识也允许：代码不强制顺序。"""
     db, user, day = ready

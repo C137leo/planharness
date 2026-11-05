@@ -39,7 +39,123 @@ const knowledgeBodyPart = ref('')
 const agentOpen = ref(false)
 const agentText = ref('')
 const agentBusy = ref(false)
-const agentTrace = ref<Array<{ node: string; status: string }>>([])
+const agentTrace = ref<Array<{ node: string; status: string; detail?: Record<string, unknown> }>>([])
+/** 执行过程：开始时间 + 计时器，让"等待"变成看得见的时间 */
+const agentStartedAt = ref(0)
+const agentElapsed = ref(0)
+const agentTraceOpen = ref(false)
+let traceTimer: ReturnType<typeof setInterval> | null = null
+
+/** trace 节点 → 人话（模型自己决定顺序，这里只负责翻译） */
+const STEP_LABELS: Record<string, string> = {
+  agent: '思考怎么安排',
+  get_today_plan: '读今天的计划',
+  get_nutrition_targets: '读营养目标',
+  safety_screen: '安全筛查',
+  search_knowledge: '查知识库',
+  search_food_options: '找替换餐 / 平台链接',
+  get_recovery_tips: '排训练与恢复时间',
+  mcd_nutrition: '查麦当劳官方营养库',
+  parse: '解析模型输出',
+  validate: '校验结果',
+}
+
+const STEP_STATUS: Record<string, string> = {
+  queued: '排队中',
+  thinking: '正在思考…',
+  tools: '',
+  final: '',
+  ok: '完成',
+  failed: '没通过',
+  repaired: '修好了',
+}
+
+const STEP_ICONS: Record<string, string> = {
+  queued: '·',
+  thinking: '◌',
+  tools: '→',
+  final: '→',
+  ok: '✓',
+  failed: '!',
+  repaired: '↻',
+}
+
+function stepLabel(step: { node: string; status: string; detail?: Record<string, unknown> }) {
+  // agent 的三种状态信息量最大：第几轮思考、这轮打算调哪些工具、还是开始写答案
+  if (step.node === 'agent') {
+    if (step.status === 'thinking') {
+      const round = Number(step.detail?.step || 0)
+      return round ? `第 ${round} 轮思考` : '思考怎么安排'
+    }
+    if (step.status === 'tools') {
+      const calls = (step.detail?.tool_calls as string[] | undefined) || []
+      // 同名工具可能连调多次（查 4 次知识库），合并成 "查知识库 ×4"
+      const counted = new Map<string, number>()
+      for (const name of calls) {
+        const label = STEP_LABELS[name] || name
+        counted.set(label, (counted.get(label) || 0) + 1)
+      }
+      const parts = [...counted.entries()].map(([label, times]) => (
+        times > 1 ? `${label} ×${times}` : label
+      ))
+      return parts.length ? `决定调用：${parts.join('、')}` : '决定调用工具'
+    }
+    if (step.status === 'final') return '整理答案'
+  }
+  return STEP_LABELS[step.node] || step.node
+}
+
+const traceRows = computed(() => {
+  const rows: Array<{
+    key: string
+    icon: string
+    label: string
+    statusText: string
+    state: string
+    count: number
+  }> = []
+  agentTrace.value.forEach((step, index) => {
+    if (step.status === 'queued') return // 排队那一步没有信息量，不占一行
+    const status = step.status || 'ok'
+    const active = index === agentTrace.value.length - 1 && agentBusy.value
+    const row = {
+      key: `${step.node}-${index}`,
+      icon: STEP_ICONS[status] || '·',
+      label: stepLabel(step),
+      // tools / final 这两种状态左边已经说清楚了，右边留空（不能用 || 兜底，空字符串是有效值）
+      statusText: status in STEP_STATUS ? STEP_STATUS[status] : status,
+      state: status === 'failed' ? 'failed' : active ? 'active' : 'done',
+      count: 1,
+    }
+    const last = rows[rows.length - 1]
+    // 连续相同的步骤（比如连着查 4 次知识库）合并成 "×4"，不要刷屏
+    if (last && last.label === row.label && last.statusText === row.statusText
+        && last.state === row.state) {
+      last.count += 1
+      return
+    }
+    rows.push(row)
+  })
+  return rows
+})
+
+const elapsedLabel = computed(() => `${agentElapsed.value}s`)
+
+function startTraceTimer() {
+  agentStartedAt.value = Date.now()
+  agentElapsed.value = 0
+  if (traceTimer) clearInterval(traceTimer)
+  traceTimer = setInterval(() => {
+    agentElapsed.value = Math.floor((Date.now() - agentStartedAt.value) / 1000)
+  }, 500)
+}
+
+function stopTraceTimer() {
+  if (traceTimer) {
+    clearInterval(traceTimer)
+    traceTimer = null
+  }
+}
 const agentResult = ref<TodayAgentResult | null>(null)
 const agentRunId = ref('')
 const mcdOrderOpen = ref(false)
@@ -105,12 +221,32 @@ async function loadSavedPlan() {
   }
 }
 
-/** 打开抽屉看已保存的那一份（不再重新生成） */
-function viewSavedPlan() {
+/** 打开抽屉看已保存的那一份（不再重新生成，但过程还能从 run 里读回来） */
+async function viewSavedPlan() {
   if (!savedPlan.value) return
   agentResult.value = savedPlan.value.output
   agentRunId.value = savedPlan.value.run_id || ''
+  agentTrace.value = []
+  agentElapsed.value = 0
   agentOpen.value = true
+  const runId = savedPlan.value.run_id
+  if (!runId) return
+  try {
+    const run = await api.getRun(runId)
+    agentTrace.value = (run.trace || []).map((item) => ({
+      node: item.node,
+      status: item.status,
+      detail: item.detail as Record<string, unknown> | undefined,
+    }))
+    if (run.created_at && run.finished_at) {
+      agentElapsed.value = Math.max(
+        0,
+        Math.round((new Date(run.finished_at).getTime() - new Date(run.created_at).getTime()) / 1000),
+      )
+    }
+  } catch {
+    // 过程拿不到不影响看结果
+  }
 }
 
 /** 后端已按本地时间返回 "2026-11-05 20:23"，这里只取 "11-05 20:23" */
@@ -130,13 +266,20 @@ async function runAgent() {
   agentError.value = ''
   agentResult.value = null
   agentTrace.value = []
+  agentTraceOpen.value = false
+  startTraceTimer()
   try {
     const started = await api.startTodayPlan(agentText.value.trim())
     agentRunId.value = started.run_id
-    for (let attempt = 0; attempt < 25; attempt += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 1200))
+    // 800ms 一轮：后端每完成一步就写库，前端就能"边跑边看"
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 800))
       const run = await api.getRun(started.run_id)
-      agentTrace.value = (run.trace || []).map((item) => ({ node: item.node, status: item.status }))
+      agentTrace.value = (run.trace || []).map((item) => ({
+        node: item.node,
+        status: item.status,
+        detail: item.detail as Record<string, unknown> | undefined,
+      }))
       if (run.status !== 'running') {
         if (run.status === 'failed') {
           agentError.value = '规划失败，请重试'
@@ -151,6 +294,7 @@ async function runAgent() {
   } catch (err) {
     agentError.value = err instanceof Error ? err.message : '规划失败'
   } finally {
+    stopTraceTimer()
     agentBusy.value = false
   }
 }
@@ -633,20 +777,53 @@ onShow(() => {
           <view class="btn-sm primary" @click="runAgent">开始规划</view>
         </view>
 
-        <view v-if="agentBusy" class="block">
-          <view class="section-title">Agent 正在工作</view>
-          <view v-for="(step, index) in agentTrace" :key="index" class="list-row">
-            <text class="list-meta">✓ {{ step.node }}</text>
-            <text class="list-meta">{{ step.status }}</text>
+        <view v-if="agentBusy" class="agent-card trace-card">
+          <view class="card-head">
+            <view class="trace-title">
+              <view class="pulse-dot" />
+              <text class="section-title">Agent 正在工作</text>
+            </view>
+            <text class="card-badge">{{ elapsedLabel }}</text>
           </view>
-          <view v-if="!agentTrace.length" class="muted" style="margin-top: 8px">
-            正在启动模型…
+          <view class="trace-list">
+            <view v-for="row in traceRows" :key="row.key" class="trace-row" :class="row.state">
+              <text class="trace-icon">{{ row.icon }}</text>
+              <text class="trace-label">
+                {{ row.label }}<text v-if="row.count > 1" class="trace-count"> ×{{ row.count }}</text>
+              </text>
+              <text v-if="row.statusText" class="trace-status">{{ row.statusText }}</text>
+            </view>
+            <view v-if="!traceRows.length" class="trace-row active">
+              <text class="trace-icon">◌</text>
+              <text class="trace-label">正在启动模型…</text>
+            </view>
           </view>
+          <text class="trace-hint">
+            这里每一步都是真实发生的：模型决定调哪个工具，代码只做白名单和结果校验。
+          </text>
         </view>
 
         <view v-if="agentError" class="error" style="margin-top: 12px">{{ agentError }}</view>
 
         <template v-if="agentResult">
+          <view v-if="agentTrace.length" class="trace-summary">
+            <text class="list-meta">
+              {{ agentElapsed }}s · {{ agentTrace.length }} 步完成
+            </text>
+            <text class="link" @click="agentTraceOpen = !agentTraceOpen">
+              {{ agentTraceOpen ? '收起过程' : '看过程 →' }}
+            </text>
+          </view>
+          <view v-if="agentTraceOpen" class="trace-list" style="margin: 8px 0 4px">
+            <view v-for="row in traceRows" :key="row.key" class="trace-row" :class="row.state">
+              <text class="trace-icon">{{ row.icon }}</text>
+              <text class="trace-label">
+                {{ row.label }}<text v-if="row.count > 1" class="trace-count"> ×{{ row.count }}</text>
+              </text>
+              <text v-if="row.statusText" class="trace-status">{{ row.statusText }}</text>
+            </view>
+          </view>
+
           <view class="draft-summary">{{ agentResult.summary }}</view>
 
           <view v-if="agentResult.schedule.length" class="agent-card schedule-card">
@@ -894,6 +1071,91 @@ onShow(() => {
   background: var(--primary-soft);
   box-shadow: inset 0 0 0 2px var(--primary);
 }
+/* ---- 执行过程：让"思考中"变成看得见的步骤 ---- */
+.trace-card {
+  background: linear-gradient(180deg, #fffaf6 0%, #ffffff 70%);
+  margin-top: 14px;
+}
+
+.trace-title {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.pulse-dot {
+  animation: pulse 1.4s ease-in-out infinite;
+  background: var(--primary);
+  border-radius: 999px;
+  height: 7px;
+  width: 7px;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.35; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+.trace-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.trace-row {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.trace-icon {
+  flex: 0 0 16px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.trace-label {
+  color: var(--ink-soft);
+  flex: 1;
+  font-size: 13px;
+}
+
+.trace-status {
+  color: var(--muted);
+  flex: 0 0 auto;
+  font-size: 11px;
+}
+
+.trace-count {
+  color: var(--primary-deep);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.trace-row.done .trace-icon { color: var(--primary); }
+.trace-row.active .trace-icon { color: var(--primary-deep); }
+.trace-row.active .trace-label { color: var(--ink); font-weight: 600; }
+.trace-row.failed .trace-icon,
+.trace-row.failed .trace-status { color: #b91c1c; }
+
+.trace-hint {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+  margin-top: 10px;
+}
+
+.trace-summary {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
 .saved-row {
   align-items: center;
   display: flex;
