@@ -54,9 +54,11 @@ class ToolCallingClient:
             raise RuntimeError(f"deepseek {response.status_code}: {response.text[:200]}")
 
         data = response.json()
-        message = dict((data.get("choices") or [{}])[0].get("message") or {})
+        choice = (data.get("choices") or [{}])[0]
+        message = dict(choice.get("message") or {})
         return {
             "message": message,
+            "finish_reason": choice.get("finish_reason"),
             "usage": dict(data.get("usage") or {}),
             "latency_ms": int((time.perf_counter() - started) * 1000),
             "model": self.model,

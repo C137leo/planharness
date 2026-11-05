@@ -15,8 +15,11 @@ import datetime as dt
 import json
 from dataclasses import dataclass, field
 
+from app.agent.today_schema import TodayAnswer
 from app.agent.today_tools import TOOLS, dispatch, links_allowed, load_context
 from app.knowledge.service import FOOTER, MEDICAL
+from pydantic import ValidationError
+
 from app.models import KnowledgeChunk, MealPlan
 
 MAX_STEPS = 6
@@ -37,17 +40,12 @@ SYSTEM_PROMPT = """你是今日活动规划 Agent。你可以按任意顺序调�
 9. meals 必须覆盖工具返回的每一餐（早/午/晚），每餐 options 原样复制工具结果的 3 个选项，
    不要省略、不要改写标题和链接；citations 里放上所有被引用条目的 id/title/source_url。
 
-输出结构：
+输出结构（**不要输出 meals**，餐食由程序用工具结果拼好）：
 {
   "summary": "今天怎么安排（两句话内）",
   "schedule": [{"time": "18:30", "activity": "力量训练 35 分钟", "why": "..."}],
-  "meals": [{"slot": "lunch", "target_kcal": 620, "options": [
-      {"title": "...", "kcal": 620, "protein_g": 45, "reason": "...",
-       "links": {"jd": "...", "taobao": "...", "meituan": "..."}}]}],
   "tips": [{"text": "...", "source_ids": ["recovery-01"]}],
-  "nutrition_notes": [{"text": "...", "source_ids": ["nutrition-01"]}],
-  "citations": [{"id": "...", "title": "...", "source_url": "..."}],
-  "disclaimer": "本内容不构成医疗建议；如身体不适请立即就医。"
+  "nutrition_notes": [{"text": "...", "source_ids": ["protein-basics"]}]
 }
 """
 
@@ -75,6 +73,25 @@ def _tool_observation(result: dict) -> dict:
     return result
 
 
+def _parse_answer(content: str) -> dict:
+    """JSON + Pydantic 双重校验：先保证是 JSON，再保证字段类型对。"""
+    data = _parse_json(content)
+    return TodayAnswer.model_validate(data).model_dump()
+
+
+def _repair(client, messages: list[dict], error: str) -> dict:
+    """截断/格式错时让模型只重发一次 JSON（不带工具）。"""
+    retry_messages = messages + [
+        {"role": "user", "content": (
+            "上一条输出不合法（" + error[:120] + "）。只输出符合以下结构的 JSON，"
+            "不要解释、不要 Markdown、不要 meals："
+            '{"summary":"","schedule":[],"tips":[],"nutrition_notes":[]}'
+        )},
+    ]
+    reply = client.complete(retry_messages, tools=None, max_tokens=1200)
+    return _parse_answer((reply.get("message") or {}).get("content") or "")
+
+
 def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT},
@@ -83,6 +100,8 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
     ]
     trace: list[dict] = []
     usage_total = {"prompt_tokens": 0, "completion_tokens": 0}
+    food_meals: dict[str, dict] = {}
+    tool_citations: dict[str, dict] = {}
 
     for step in range(MAX_STEPS):
         # 最终 JSON 含 3 餐 × 3 选项，1200 token 容易被截断成非法 JSON；
@@ -99,7 +118,17 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
         ))
         if not calls:
             content = (message.get("content") or "").strip()
-            final = _parse_json(content)
+            truncated = reply.get("finish_reason") == "length"
+            try:
+                if truncated:
+                    raise ValueError("output_truncated")
+                answer = _parse_answer(content)
+            except (ValueError, ValidationError) as exc:
+                trace.append(_step("parse", "failed", error=f"{type(exc).__name__}: {str(exc)[:100]}"))
+                # 修复一次：只让模型重发文字部分，餐食本来就不在模型输出里
+                answer = _repair(client, messages, f"{type(exc).__name__}: {str(exc)[:100]}")
+                trace.append(_step("parse", "repaired"))
+            final = _assemble(answer, food_meals, tool_citations)
             return TodayResult(final=final, trace=trace, usage=usage_total)
 
         messages.append({"role": "assistant", "content": message.get("content") or "",
@@ -110,6 +139,16 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
             args = _parse_args((call.get("function") or {}).get("arguments"))
             result = _tool_observation(dispatch(name, args, ctx, db))
             trace.append(_step(name, str(result.get("status"))))
+            for citation in result.get("citations") or []:
+                tool_citations[citation["id"]] = citation
+            if name == "search_food_options" and result.get("status") == "ok":
+                data = result.get("data") or {}
+                if data.get("options"):
+                    food_meals[data["meal_slot"]] = {
+                        "slot": data["meal_slot"],
+                        "target_kcal": data.get("target_kcal"),
+                        "options": data["options"],
+                    }
             messages.append({
                 "role": "tool",
                 "tool_call_id": call.get("id") or name,
@@ -122,6 +161,29 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
                                usage=usage_total, refused=True)
 
     raise RuntimeError("MAX_STEPS exceeded")
+
+
+def _assemble(answer: dict, food_meals: dict[str, dict], tool_citations: dict[str, dict]) -> dict:
+    """模型给文字，代码给餐食与引用：输出小、校验确定。"""
+    meals = [food_meals[slot] for slot in ("breakfast", "lunch", "dinner", "snack")
+             if slot in food_meals]
+    referenced = {
+        source_id
+        for item in (answer.get("tips") or []) + (answer.get("nutrition_notes") or [])
+        for source_id in item.get("source_ids") or []
+    }
+    citations = [tool_citations[cid] for cid in referenced if cid in tool_citations]
+    if not citations:
+        citations = list(tool_citations.values())[:3]
+    return {
+        "summary": answer["summary"],
+        "schedule": answer.get("schedule") or [],
+        "meals": meals,
+        "tips": answer.get("tips") or [],
+        "nutrition_notes": answer.get("nutrition_notes") or [],
+        "citations": citations,
+        "disclaimer": DEFAULT_DISCLAIMER,
+    }
 
 
 def _blocked_answer(trace: list[dict]) -> dict:
@@ -200,7 +262,7 @@ def _deterministic(db, ctx: dict, text: str) -> TodayResult:
 
     actions = plan.get("data", {}).get("actions", []) if plan.get("status") == "ok" else []
     citations = {item["id"]: item for item in (
-        (knowledge.get("citations") or []) + (recovery.get("citations") or []))}
+            (knowledge.get("citations") or []) + (recovery.get("citations") or []))}
 
     # 动作要领：逐个动作查知识库，作为 tips 给出来（Agent 没讲时由这里兜底）
     cue_tips: list[dict] = []

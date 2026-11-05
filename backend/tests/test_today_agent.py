@@ -52,16 +52,15 @@ class FakeClient:
                               "options": data["options"]})
             if isinstance(data, dict) and data.get("tips"):
                 tips = data["tips"]
+        # 新契约：模型只写文字，餐食由代码用工具结果拼
         final = {
             "summary": "今天按计划训练，餐食给了替换选项。",
             "schedule": [{"time": "18:30", "activity": "力量训练 35 分钟", "why": "按计划"}],
-            "meals": meals,
             "tips": tips or [{"text": "训练前热身", "source_ids": list(citations)[:1]}],
             "nutrition_notes": [{"text": "蛋白按目标吃够", "source_ids": list(citations)[:1]}],
-            "citations": list(citations.values()),
-            "disclaimer": "本内容不构成医疗建议；如身体不适请立即就医。",
         }
         return {"message": {"role": "assistant", "content": json.dumps(final, ensure_ascii=False)},
+                "finish_reason": "stop",
                 "usage": {"prompt_tokens": 200, "completion_tokens": 80}}
 
 
@@ -156,3 +155,70 @@ def test_no_model_uses_deterministic_tools(ready) -> None:
     assert result.fallback
     assert result.final["meals"], "降级也要给出餐食选项"
     assert result.final["citations"], "降级也要带引用"
+
+
+class BrokenThenGoodClient(FakeClient):
+    """先返回坏 JSON（模拟被截断），repair 时返回合法 JSON。"""
+
+    def __init__(self, tool_calls, bad_content: str):
+        super().__init__(tool_calls)
+        self.bad_content = bad_content
+        self.calls = 0
+
+    def complete(self, messages, tools=None, **kwargs):
+        self.calls += 1
+        if self.calls == 1:
+            calls = [
+                {"id": f"c{index}", "type": "function",
+                 "function": {"name": name, "arguments": json.dumps(args)}}
+                for index, (name, args) in enumerate(self.tool_calls)
+            ]
+            return {"message": {"role": "assistant", "content": "", "tool_calls": calls},
+                    "finish_reason": "tool_calls", "usage": {}}
+        if self.calls == 2:
+            return {"message": {"role": "assistant", "content": self.bad_content},
+                    "finish_reason": "length", "usage": {}}
+        answer = {"summary": "修复后的答案", "schedule": [], "tips": [], "nutrition_notes": []}
+        return {"message": {"role": "assistant", "content": json.dumps(answer)},
+                "finish_reason": "stop", "usage": {}}
+
+
+def test_truncated_output_is_repaired(ready) -> None:
+    """被截断（finish_reason=length）时先让模型重发一次 JSON，而不是直接降级。"""
+    db, user, day = ready
+    client = BrokenThenGoodClient([
+        ("search_food_options", {"meal_slot": "breakfast"}),
+        ("search_food_options", {"meal_slot": "lunch"}),
+        ("search_food_options", {"meal_slot": "dinner"}),
+    ], bad_content='{"summary": "被截断的')
+    result = run(db, user, day, "规划今天", client=client)
+    assert not result.fallback
+    assert result.final["summary"] == "修复后的答案"
+    nodes = [event["node"] for event in result.trace]
+    assert "parse" in nodes, "trace 里要记录解析失败/修复"
+
+
+def test_invalid_schema_is_repaired(ready) -> None:
+    """JSON 合法但字段类型不对（Pydantic 拦下）也要走 repair。"""
+    db, user, day = ready
+    client = BrokenThenGoodClient([
+        ("search_food_options", {"meal_slot": "breakfast"}),
+        ("search_food_options", {"meal_slot": "lunch"}),
+        ("search_food_options", {"meal_slot": "dinner"}),
+    ], bad_content='{"summary": 12345}')
+    result = run(db, user, day, "规划今天", client=client)
+    assert not result.fallback
+    assert result.final["meals"], "餐食必须由工具结果拼出来"
+
+
+def test_meals_come_from_tool_results_not_model(ready) -> None:
+    """模型输出里没有 meals 字段，最终答案仍有 3 餐 × 3 选项。"""
+    db, user, day = ready
+    client = FakeClient([
+        ("search_food_options", {"meal_slot": "breakfast"}),
+        ("search_food_options", {"meal_slot": "lunch"}),
+        ("search_food_options", {"meal_slot": "dinner"}),
+    ])
+    result = run(db, user, day, "规划今天", client=client)
+    assert len(result.final["meals"]) == 3
+    assert all(len(meal["options"]) == 3 for meal in result.final["meals"])
