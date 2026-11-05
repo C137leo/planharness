@@ -179,6 +179,14 @@ export interface RunPatch {
   reason_text: string
   diff: Record<string, number>
   operations: PatchOperation[]
+  /** 安全门结论：safety=触发的规则列表（空=通过），approved=审批时是否重跑通过 */
+  validation?: {
+    safety?: string[]
+    approved?: boolean
+    intent?: Record<string, unknown>
+    explanation?: string
+    risks?: string[]
+  }
 }
 
 export interface RunContextSection {

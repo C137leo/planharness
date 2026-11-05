@@ -1005,6 +1005,8 @@ def get_run(
                 "diff": patch.diff or {},
                 # 补中文名：Console 里直接显示"深蹲 → 臀桥"，而不是 goblet-squat
                 "operations": _operations_with_names(patch.operations or []),
+                # 安全门的结论与触发规则，Console 用它显示"凭什么放行/为什么拒"
+                "validation": patch.validation or {},
             }
             if patch is not None
             else None

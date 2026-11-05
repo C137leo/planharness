@@ -70,6 +70,38 @@ const unchangedSlots = computed(() => {
 
 const patchOps = computed(() => selected.value?.patch?.operations || [])
 
+/** 安全门：补丁触发的规则 / 红旗阻断都在这里汇总（Console 的 SAFETY 卡） */
+const safetyInfo = computed(() => {
+  const patch = selected.value?.patch
+  if (patch) {
+    const hits = patch.validation?.safety || []
+    return {
+      kind: 'patch' as const,
+      passed: hits.length === 0,
+      hits,
+      approved: patch.validation?.approved === true,
+      scope: patch.validation?.intent?.kind || patch.reason_code,
+    }
+  }
+  const output = selected.value?.output as
+    | { blocked?: boolean; reason?: string; summary?: string }
+    | undefined
+  if (output?.blocked) {
+    return {
+      kind: 'red_flag' as const,
+      passed: false,
+      hits: [
+        output.reason ||
+          output.summary ||
+          '命中红旗症状关键词，停止规划并建议就医',
+      ],
+      approved: false,
+      scope: 'red_flag',
+    }
+  }
+  return { kind: 'none' as const, passed: true, hits: [] as string[], approved: false, scope: '' }
+})
+
 /** 操作清单的一行："替换：深蹲 → 臀桥" */
 function opLabel(op: { op: string; before_name?: string; before_action_ref?: string; slot_key: string }) {
   return op.before_name || op.before_action_ref || op.slot_key
@@ -443,6 +475,42 @@ onShow(() => {
       </view>
 
       <view class="card">
+        <view class="row">
+          <view class="eyebrow">SAFETY · 安全门</view>
+          <view class="chip" :class="safetyInfo.passed ? 'succeeded' : 'failed'">
+            {{ safetyInfo.kind === 'none' ? '未触发' : safetyInfo.passed ? '通过' : '拦截' }}
+          </view>
+        </view>
+
+        <template v-if="safetyInfo.kind === 'none'">
+          <view class="muted small" style="margin-top: 8px">
+            这次运行没有补丁、也没有红旗症状，安全门未介入。
+          </view>
+        </template>
+        <template v-else>
+          <view class="safety-scope">
+            作用域：{{ safetyInfo.scope }}
+            <text v-if="safetyInfo.kind === 'patch'">
+              · 审批时重跑安全门：{{ safetyInfo.approved ? '已通过' : '未提交' }}
+            </text>
+          </view>
+          <view v-if="safetyInfo.hits.length" class="checks">
+            <view v-for="(hit, index) in safetyInfo.hits" :key="index" class="check bad">
+              <text class="mark">✗</text>
+              <text class="name">{{ hit }}</text>
+            </view>
+          </view>
+          <view v-else class="muted small" style="margin-top: 8px">
+            确定性规则全部通过：没有膝痛禁忌动作、训练日不超过可用天数、忌口与链接白名单无冲突。
+          </view>
+          <view class="muted small" style="margin-top: 8px">
+            判定全部由代码完成（动作目录元数据 + 规则表），模型不参与放行；红旗关键词只用于
+            「先就医」这类宁可误伤的判定。
+          </view>
+        </template>
+      </view>
+
+      <view class="card">
         <view class="eyebrow">CONTEXT</view>
         <view v-if="selected.context" class="kv">
           <view class="kv-item">
@@ -564,6 +632,13 @@ onShow(() => {
 </template>
 
 <style>
+.safety-scope {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+
 .diff-sentence {
   color: var(--ink-soft);
   font-size: 12px;
