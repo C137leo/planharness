@@ -122,6 +122,24 @@ class TodayState(TypedDict, total=False):
 ...
 ```
 
+### 模型选择：deepseek-flash
+
+`DEEPSEEK_MODEL=deepseek-flash`（DeepSeek-V4.1-Flash，1M 上下文）实测可用：
+工具调用、`response_format=json_object`、整轮规划（3 餐 ×3 选项 + 麦当劳块）都正常。
+
+它默认带思考，同一句话的耗时/输出 token 明显高于 deepseek-chat，
+所以加了 `DEEPSEEK_REASONING_EFFORT`（`low` / `high` / `max`，留空=服务端默认 high）
+并默认设为 `low`；本机实测同一个规划任务：
+
+| 配置 | 耗时 | 输出 token |
+|---|---|---|
+| deepseek-chat | 12.6s | 2119 |
+| flash（默认 high） | 21.2s | 3784 |
+| flash（low） | 10.0s | 1778 |
+
+注意点：flash 会思考，单轮可能吃到 30s 以上，`DEEPSEEK_TIMEOUT_S` 已从 30 调到 60，
+否则超时会触发确定性降级（用户看到的就是"模板答案"而不是模型答案）。
+
 **trace 是边跑边写的**：`run()` 接受一个 `on_step` 回调，每记一步就回调一次；
 后台任务在回调里把 `run.trace` 追加并 commit，前端每 800ms 轮询 `/runs/{id}` 就能看到进度。
 不这样做的话，`trace` 要等整轮跑完才出现，用户点完"帮我规划"只能干等十几秒。

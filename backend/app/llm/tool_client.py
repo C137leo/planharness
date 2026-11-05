@@ -15,11 +15,14 @@ import httpx
 
 class ToolCallingClient:
     def __init__(self, *, api_key: str, base_url: str, model: str,
-                 timeout_s: float = 30.0, client: httpx.Client | None = None) -> None:
+                 timeout_s: float = 30.0, reasoning_effort: str = "",
+                 client: httpx.Client | None = None) -> None:
         self.api_key = api_key
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout_s = timeout_s
+        # low / high / max；留空 = 不传，用服务端默认（deepseek-flash 默认 high）
+        self.reasoning_effort = (reasoning_effort or "").strip().lower()
         self._client = client or httpx.Client(timeout=timeout_s, trust_env=False)
 
     def available(self) -> bool:
@@ -41,6 +44,9 @@ class ToolCallingClient:
         if tools:
             body["tools"] = tools
             body["tool_choice"] = tool_choice
+        if self.reasoning_effort:
+            # 思考档位：flash 默认 high，规划这种"多步工具调用"用 low 会明显快
+            body["reasoning_effort"] = self.reasoning_effort
 
         started = time.perf_counter()
         response = self._client.post(
@@ -71,4 +77,5 @@ def tool_client_from_settings(settings) -> ToolCallingClient:
         base_url=settings.deepseek_base_url,
         model=settings.deepseek_model,
         timeout_s=float(getattr(settings, "deepseek_timeout_s", 30.0) or 30.0),
+        reasoning_effort=str(getattr(settings, "deepseek_reasoning_effort", "") or ""),
     )

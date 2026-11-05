@@ -80,6 +80,12 @@ def _run_agent(run_id: str, user_id: str, day: dt.date, text: str, session_facto
             run.error_code = type(exc).__name__
             run.output = {"error": str(exc)[:200]}
         run.finished_at = dt.datetime.now(dt.timezone.utc)
+        # 顺手把耗时算出来：Console 的 latency 列之前对 today_plan 一直是 0
+        if run.created_at:
+            created = run.created_at
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=dt.timezone.utc)
+            run.latency_ms = max(0, int((run.finished_at - created).total_seconds() * 1000))
         db.commit()
 
 

@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     deepseek_api_key: str = ""
     deepseek_model: str = "deepseek-flash"
     deepseek_timeout_s: float = 30.0
+    # deepseek-flash 的思考档位：low / high / max；留空 = 用服务端默认（high）
+    deepseek_reasoning_effort: str = ""
 
     # 上下文预算（token）。P0 材料只有几百 token，默认值远大于实际用量；
     # 演示/测试时可用 CONTEXT_TOKEN_BUDGET 调小，观察裁剪行为。
