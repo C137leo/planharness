@@ -69,8 +69,10 @@ def _run_agent(run_id: str, user_id: str, day: dt.date, text: str, session_facto
             run.tokens_in = int(result.usage.get("prompt_tokens") or 0)
             run.tokens_out = int(result.usage.get("completion_tokens") or 0)
             run.error_code = (result.error or "")[:64] or None
-            if result.final:
-                # 和"这一天"绑定：重开页面就能拿到同一份（含麦当劳那块）
+            # 和"这一天"绑定：重开页面就能拿到同一份（含麦当劳那块）。
+            # 红旗拒答不覆盖当天快照：那次运行的结论是"今天别练"，但当天仍然有一份
+            # 可执行的计划；拒答本身留在 run 历史和 Console 里，不需要顶掉计划。
+            if result.final and not result.refused:
                 from app.domain.today_snapshot import save_today_plan
 
                 save_today_plan(db, user, day, request_text=text,
