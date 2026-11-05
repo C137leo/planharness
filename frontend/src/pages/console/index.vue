@@ -8,6 +8,7 @@ import {
   type CompareResult,
   type EvalScenario,
   type EvalScenarioResult,
+  type PlanVersionHistory,
   type RunDetail,
   type RunSummary,
 } from '../../api'
@@ -18,6 +19,7 @@ const error = ref('')
 const loading = ref(false)
 const statusFilter = ref('')
 const limit = ref(20)
+const versions = ref<PlanVersionHistory | null>(null)
 const auditEvents = ref<AuditEvent[]>([])
 const auditVerify = ref<AuditVerify | null>(null)
 const auditBusy = ref(false)
@@ -160,10 +162,33 @@ async function verifyAuditChain() {
 async function select(id: string) {
   try {
     selected.value = await api.getRun(id)
-    await loadAudit(selected.value.plan_id)
+    await Promise.all([loadAudit(selected.value.plan_id), loadVersions(selected.value.plan_id)])
   } catch (err) {
     error.value = err instanceof Error ? err.message : '读取 run 失败'
   }
+}
+
+/** 版本链：没有关联计划就退回"当前计划"的版本历史 */
+async function loadVersions(planId: string | null) {
+  versions.value = null
+  try {
+    let target = planId
+    if (!target) {
+      const plan = await api.getCurrentPlan()
+      target = plan.plan_id
+    }
+    if (!target) return
+    versions.value = await api.planVersions(target, 8)
+  } catch {
+    versions.value = null // 没有计划就不显示这一块
+  }
+}
+
+function versionChanges(row: PlanVersionHistory['versions'][number]) {
+  const changes = row.changes
+  if (!changes) return '初始版本'
+  const meals = (changes as unknown as { meals_changed?: number }).meals_changed
+  return `改 ${changes.changed_slots}/${changes.total_slots} 个槽位${meals ? ` · ${meals} 餐` : ''}`
 }
 
 async function loadScenarios() {
@@ -562,6 +587,33 @@ onShow(() => {
 
       <view class="card">
         <view class="row">
+          <view class="eyebrow">VERSIONS · 版本链</view>
+          <view v-if="versions" class="chip">共 {{ versions.total }} 版 · 当前 v{{ versions.current_version }}</view>
+        </view>
+        <view v-if="!versions" class="muted" style="margin-top: 8px">
+          这条运行没有关联计划，或计划还没有版本记录。
+        </view>
+        <view v-else class="version-list">
+          <view v-for="row in versions.versions" :key="row.version" class="version-row">
+            <view class="version-head">
+              <text class="version-no">v{{ row.version }}</text>
+              <text v-if="row.is_current" class="chip">当前</text>
+              <text v-else class="muted small">{{ row.status === 'superseded' ? '已被取代' : row.status }}</text>
+              <text class="muted small">来自 v{{ row.parent_version ?? '—' }}</text>
+            </view>
+            <text class="version-summary">{{ row.summary }}</text>
+            <view class="version-meta">
+              <text class="muted small">{{ versionChanges(row) }}</text>
+              <text v-if="row.patch?.reason_text" class="muted small">
+                · {{ row.patch.reason_text }}
+              </text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="card">
+        <view class="row">
           <view class="eyebrow">AUDIT CHAIN</view>
           <view v-if="auditVerify" class="chip" :class="auditVerify.valid ? 'succeeded' : 'failed'">
             {{ auditVerify.valid ? '链完整' : `断裂 @ #${auditVerify.broken_at}` }}
@@ -632,6 +684,49 @@ onShow(() => {
 </template>
 
 <style>
+.version-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.version-row {
+  border-top: 1px dashed var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 8px;
+}
+
+.version-row:first-child {
+  border-top: none;
+}
+
+.version-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.version-no {
+  color: var(--primary-deep);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.version-summary {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.version-meta {
+  display: flex;
+  gap: 4px;
+}
+
 .safety-scope {
   color: var(--ink-soft);
   font-size: 12px;

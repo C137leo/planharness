@@ -28,6 +28,7 @@ import type {
   PlanPatchSummary,
   RunDetail,
   RunSummary,
+  PlanVersionHistory,
   TodayPlanSnapshot,
   McdStore,
   McdMenuPayload,
@@ -233,6 +234,12 @@ export const api = {
     ),
   rejectPatchRequest: (requestId: string, comment = '') =>
     request<PatchRequest>('POST', `/patch-requests/${requestId}/reject`, { comment }),
+  planVersions: (planId: string, limit = 20) =>
+    request<PlanVersionHistory>('GET', `/plans/${planId}/versions?limit=${limit}`),
+  rollbackPlan: (planId: string, targetVersion: number) =>
+    request<{ new_version: number }>('POST', `/plans/${planId}/rollback`, {
+      target_version: targetVersion,
+    }),
   undoPlan: (planId: string) =>
     request<{ new_version: number; plan: CurrentPlan }>('POST', `/plans/${planId}/undo`),
   logWorkout: (payload: WorkoutLogPayload) =>

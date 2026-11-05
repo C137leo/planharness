@@ -7,7 +7,7 @@
  */
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { api, type CurrentPlan, type PlanAction, type PlanPatchSummary } from '../../api'
+import { api, type CurrentPlan, type PlanAction, type PlanPatchSummary, type PlanVersionHistory } from '../../api'
 import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
 import { actionLabel, describeOperation, slotLabel, sortMeals } from '../../styles/copy'
@@ -20,6 +20,8 @@ const loading = ref(true)
 const busy = ref(false)
 const error = ref('')
 const toast = ref('')
+const versions = ref<PlanVersionHistory | null>(null)
+const historyOpen = ref(false)
 const composerOpen = ref(false)
 const draftOpen = ref(false)
 
@@ -41,6 +43,14 @@ async function load() {
     // 只取真正等待确认的：已拒绝/已提交的补丁留在这里，点确认会 422
     const patches = await api.listPatches(20, 'pending_approval')
     pending.value = patches.filter((item) => item.status === 'pending_approval')
+    // 版本链：撤销/回滚前先让用户看到"现在在哪一版、之前改过什么"
+    if (plan.value) {
+      try {
+        versions.value = await api.planVersions(plan.value.plan_id, 8)
+      } catch {
+        versions.value = null
+      }
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载失败'
   } finally {
@@ -61,6 +71,33 @@ async function undo() {
   } finally {
     busy.value = false
   }
+}
+
+/** 回到某个历史版本：不是删历史，而是用旧内容再提交一个新版本 */
+async function rollbackTo(version: number) {
+  if (!plan.value || busy.value) return
+  if (version === plan.value.version) return
+  busy.value = true
+  error.value = ''
+  try {
+    const result = await api.rollbackPlan(plan.value.plan_id, version)
+    toast.value = `已回到 v${version} 的内容，记为 v${result.new_version}`
+    await load()
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '回滚失败'
+  } finally {
+    busy.value = false
+  }
+}
+
+function versionLabel(row: PlanVersionHistory['versions'][number]) {
+  const changes = row.changes
+  if (!changes) return row.patch?.reason_text || '初始版本'
+  const parts = [`改 ${changes.changed_slots}/${changes.total_slots} 个动作`]
+  const meals = (changes as unknown as { meals_changed?: number }).meals_changed
+  if (meals) parts.push(`${meals} 餐`)
+  if (row.patch?.reason_text) parts.push(row.patch.reason_text)
+  return parts.join(' · ')
 }
 
 async function onApplied() {
@@ -315,6 +352,31 @@ onShow(load)
         撤销会新建一个版本，历史版本不会被删除。
       </view>
 
+      <view v-if="versions" class="card">
+        <view class="row" @click="historyOpen = !historyOpen">
+          <view class="section-title">版本记录</view>
+          <text class="link">
+            共 {{ versions.total }} 版 · 当前 v{{ versions.current_version }}
+            {{ historyOpen ? '收起' : '查看 →' }}
+          </text>
+        </view>
+        <view v-if="historyOpen" class="version-list">
+          <view v-for="row in versions.versions" :key="row.version" class="version-row">
+            <view class="list-main">
+              <text class="list-title">
+                v{{ row.version }}
+                <text v-if="row.is_current" class="version-now">当前</text>
+              </text>
+              <text class="list-meta">{{ versionLabel(row) }}</text>
+              <text class="list-meta">来自 v{{ row.parent_version ?? '—' }} · {{ row.status }}</text>
+            </view>
+            <view class="btn-sm" v-if="!row.is_current" @click="rollbackTo(row.version)">
+              回到这一版
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!-- #ifdef H5 -->
       <view class="console-link" @click="openConsole">打开 Harness Console →</view>
       <!-- #endif -->
@@ -337,6 +399,28 @@ onShow(load)
 </template>
 
 <style>
+.version-list {
+  margin-top: 10px;
+}
+
+.version-row {
+  align-items: center;
+  border-top: 1px dashed var(--line-soft);
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.version-now {
+  background: var(--primary-soft);
+  border-radius: 999px;
+  color: var(--primary-deep);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+}
+
 .pending {
   border-top: 1px solid var(--line-soft);
   display: flex;

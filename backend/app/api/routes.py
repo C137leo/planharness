@@ -13,7 +13,7 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from langgraph.types import Command
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.audit import append_event, verify_stream
@@ -359,6 +359,92 @@ def current_plan(
 ):
     """读取当前生效版本的计划。"""
     return ok(request, _current_plan_payload(db, user).model_dump())
+
+
+def _meals_changed(db: Session, parent_version_id: str, version_id: str) -> int:
+    """两版之间"餐食"改了几处（按 day_index + slot 比对标题与热量）。"""
+    parent = {
+        (row.day_index, row.slot): (row.title, int(row.kcal or 0))
+        for row in db.scalars(select(MealPlan).where(MealPlan.plan_version_id == parent_version_id))
+    }
+    current = {
+        (row.day_index, row.slot): (row.title, int(row.kcal or 0))
+        for row in db.scalars(select(MealPlan).where(MealPlan.plan_version_id == version_id))
+    }
+    return sum(1 for key in set(parent) | set(current) if parent.get(key) != current.get(key))
+
+
+@router.get("/plans/{plan_id}/versions")
+def plan_versions(
+    plan_id: str,
+    request: Request,
+    limit: int = 20,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """版本历史 + 每个版本相对上一版改了什么。
+
+    为什么要单独给这个接口：`/plans/current` 只回当前版本，
+    用户点"撤销"时看不到"撤销到哪一版、会丢掉什么"，观感就像黑盒。
+    这里把 parent_version / 来源补丁 / 与上一版的差异一起返回。
+    """
+    from app.domain.patches import _action_dict, _actions_for_version, _diff
+
+    plan = db.get(Plan, plan_id)
+    if plan is None or plan.user_id != user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="plan not found")
+    limit = max(1, min(limit, 50))
+    versions = db.scalars(
+        select(PlanVersion)
+        .where(PlanVersion.plan_id == plan.id)
+        .order_by(PlanVersion.version.desc())
+        .limit(limit)
+    ).all()
+
+    by_number = {row.version: row for row in versions}
+    payload: list[dict] = []
+    for row in versions:
+        actions = [_action_dict(item) for item in _actions_for_version(db, row.id)]
+        changes = None
+        if row.parent_version is not None:
+            parent = by_number.get(row.parent_version)
+            if parent is None:
+                parent = db.scalar(
+                    select(PlanVersion).where(
+                        PlanVersion.plan_id == plan.id,
+                        PlanVersion.version == row.parent_version,
+                    )
+                )
+            if parent is not None:
+                base = [_action_dict(item) for item in _actions_for_version(db, parent.id)]
+                changes = _diff(base, actions, required_changes=0)
+                # 动作没变但餐食变了（比如"换一顿清淡的"）：只报告 0 改动会很误导
+                changes["meals_changed"] = _meals_changed(db, parent.id, row.id)
+        patch = db.get(PlanPatch, row.created_from_patch_id) if row.created_from_patch_id else None
+        payload.append({
+            "version": row.version,
+            "parent_version": row.parent_version,
+            "status": row.status,
+            "summary": row.summary,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "activated_at": row.activated_at.isoformat() if row.activated_at else None,
+            "is_current": row.version == plan.current_version,
+            "changes": changes,
+            "patch": (
+                {"id": patch.id, "reason_code": patch.reason_code,
+                 "reason_text": patch.reason_text, "status": patch.status}
+                if patch is not None else None
+            ),
+            "action_refs": [item["action_ref"] for item in actions],
+        })
+    return ok(request, {
+        "plan_id": plan.id,
+        "current_version": plan.current_version,
+        "total": db.scalar(
+            select(func.count()).select_from(PlanVersion).where(PlanVersion.plan_id == plan.id)
+        ),
+        "versions": payload,
+    })
 
 
 @router.post("/plans/generate")

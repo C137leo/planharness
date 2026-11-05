@@ -218,6 +218,32 @@ export interface RunDetail extends RunSummary {
   verification: RunVerification | null
 }
 
+export interface PlanVersionItem {
+  version: number
+  parent_version: number | null
+  status: string
+  summary: string
+  created_at: string | null
+  activated_at: string | null
+  is_current: boolean
+  changes: {
+    total_slots: number
+    changed_slots: number
+    churn: number
+    unchanged_ratio: number
+    meals_changed?: number
+  } | null
+  patch: { id: string; reason_code: string; reason_text: string; status: string } | null
+  action_refs: string[]
+}
+
+export interface PlanVersionHistory {
+  plan_id: string
+  current_version: number
+  total: number
+  versions: PlanVersionItem[]
+}
+
 export interface PlanPatchSummary {
   id: string
   plan_id: string
