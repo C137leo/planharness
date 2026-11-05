@@ -159,3 +159,48 @@ def test_audit_stream_of_other_user_is_404(client: TestClient, auth_headers) -> 
     other_headers = {"Authorization": f"Bearer {other}"}
     assert client.get(f"/api/v1/audit/{plan_id}", headers=other_headers).status_code == 404
     assert client.get(f"/api/v1/audit/{plan_id}/verify", headers=other_headers).status_code == 404
+
+def test_verify_returns_head_and_signature(client: TestClient, auth_headers) -> None:
+    """链头 + 签名：把这三个值抄到库外，就能发现"整链重写/尾部截断"。"""
+    from app.audit import sign_head
+
+    header = auth_headers
+    plan = client.get("/api/v1/plans/current", headers=header).json()["data"]
+    client.post(f"/api/v1/plans/{plan['plan_id']}/patch-requests", headers=header,
+                json={"text": "今天想休息", "quick_action": "rest"})
+    result = client.get(f"/api/v1/audit/{plan['plan_id']}/verify", headers=header).json()["data"]
+
+    assert result["valid"] is True
+    assert result["head_seq"] == result["count"]
+    assert len(result["head_hash"]) == 64
+    assert result["signature_alg"].startswith("HMAC-SHA256")
+    expected = sign_head(client.app.state.settings.secret_key, plan["plan_id"],
+                         result["head_seq"], result["head_hash"])
+    assert result["signature"] == expected
+
+
+def test_signature_changes_when_stream_is_rewritten(client: TestClient, auth_headers) -> None:
+    """尾部截断在链内是"合法的"，但链头/签名会变——这就是锚点的意义。"""
+    from app.audit import sign_head
+    from app.models import AuditEvent
+
+    header = auth_headers
+    plan = client.get("/api/v1/plans/current", headers=header).json()["data"]
+    client.post(f"/api/v1/plans/{plan['plan_id']}/patch-requests", headers=header,
+                json={"text": "今天想休息", "quick_action": "rest"})
+    first = client.get(f"/api/v1/audit/{plan['plan_id']}/verify", headers=header).json()["data"]
+
+    with client.app.state.session_factory() as db:
+        last = db.query(AuditEvent).filter(AuditEvent.stream_id == plan["plan_id"]) \
+            .order_by(AuditEvent.seq.desc()).first()
+        db.delete(last)          # 模拟"删掉最后一条"
+        db.commit()
+
+    second = client.get(f"/api/v1/audit/{plan['plan_id']}/verify", headers=header).json()["data"]
+    assert second["valid"] is True          # 链内看仍然合法
+    assert second["head_seq"] != first["head_seq"]
+    assert second["head_hash"] != first["head_hash"]
+    assert second["signature"] != first["signature"]
+    # 旧签名只对旧的 (seq, hash) 有效，拿来验现在的链头会失败
+    assert sign_head(client.app.state.settings.secret_key, plan["plan_id"],
+                     first["head_seq"], first["head_hash"]) == first["signature"]

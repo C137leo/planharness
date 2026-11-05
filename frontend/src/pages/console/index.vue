@@ -21,6 +21,7 @@ const statusFilter = ref('')
 const limit = ref(20)
 const versions = ref<PlanVersionHistory | null>(null)
 const auditEvents = ref<AuditEvent[]>([])
+const auditPlanId = ref('')
 const auditVerify = ref<AuditVerify | null>(null)
 const auditBusy = ref(false)
 const compare = ref<CompareResult | null>(null)
@@ -138,16 +139,24 @@ function clock(iso?: string | null): string {
 async function loadAudit(planId?: string | null) {
   auditEvents.value = []
   auditVerify.value = null
-  if (!planId) return
+  auditPlanId.value = ''
   try {
-    auditEvents.value = await api.getAudit(planId)
+    // 没有关联计划（比如今日规划）就退回当前计划的审计流，别显示成"没有审计"
+    let target = planId || ''
+    if (!target) {
+      const plan = await api.getCurrentPlan()
+      target = plan.plan_id
+    }
+    if (!target) return
+    auditEvents.value = await api.getAudit(target)
+    auditPlanId.value = target
   } catch {
     auditEvents.value = []
   }
 }
 
 async function verifyAuditChain() {
-  const planId = selected.value?.plan_id
+  const planId = auditPlanId.value || selected.value?.plan_id
   if (!planId || auditBusy.value) return
   auditBusy.value = true
   try {
@@ -157,6 +166,22 @@ async function verifyAuditChain() {
   } finally {
     auditBusy.value = false
   }
+}
+
+function copyCheckpoint() {
+  const verify = auditVerify.value
+  if (!verify) return
+  const payload = {
+    stream_id: verify.stream_id,
+    head_seq: verify.head_seq,
+    head_hash: verify.head_hash,
+    signature: verify.signature,
+    algorithm: verify.signature_alg,
+  }
+  uni.setClipboardData({
+    data: JSON.stringify(payload),
+    success: () => uni.showToast({ title: '校验点已复制', icon: 'none' }),
+  })
 }
 
 async function select(id: string) {
@@ -651,6 +676,25 @@ onShow(() => {
             ? `✓ ${auditVerify.count} 条事件逐条校验通过`
             : `✗ 在 #${auditVerify.broken_at} 断开：${auditVerify.reason}` }}
         </view>
+
+        <view v-if="auditVerify && auditVerify.head_seq" class="checkpoint">
+          <view class="checkpoint-line">
+            <text class="muted small">链头</text>
+            <text class="checkpoint-value">#{{ auditVerify.head_seq }} · {{ auditVerify.head_hash.slice(0, 16) }}…</text>
+          </view>
+          <view class="checkpoint-line">
+            <text class="muted small">签名</text>
+            <text class="checkpoint-value">{{ auditVerify.signature.slice(0, 20) }}…</text>
+          </view>
+          <view class="checkpoint-line">
+            <text class="muted small">{{ auditVerify.signature_alg }}</text>
+            <view class="btn-sm" @click="copyCheckpoint">复制校验点</view>
+          </view>
+          <text class="muted small">
+            把这三个值抄到数据库外（工单/邮件/另一台机器）。链内校验只能发现"中间被改"；
+            整链重写或尾部截断要靠这个签名对不对得上来发现。
+          </text>
+        </view>
       </view>
 
       <view class="card">
@@ -684,6 +728,28 @@ onShow(() => {
 </template>
 
 <style>
+.checkpoint {
+  border-top: 1px dashed var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.checkpoint-line {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.checkpoint-value {
+  color: var(--ink-soft);
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+}
+
 .version-list {
   display: flex;
   flex-direction: column;

@@ -83,6 +83,9 @@ event_hash = H(stream_id, seq, action, actor, payload_digest, prev_hash)
   `patch_committed` / `rollback_committed` / `plan_confirmed` / `mcd_order_created` …
 
 它和版本的分工：**版本回答"计划长什么样"，审计回答"谁在什么时候做了什么"**。
+
+链路本身只防"改中间"；**整链重写 / 尾部截断**要靠链头签名（`sign_head`）+
+把 `(seq, hash, signature)` 抄到库外。详见 `docs/29-audit-chain.md`。
 两者通过 `patch_id` / `version` 串起来。
 
 ## 4. Console 里怎么体现（本次新增）

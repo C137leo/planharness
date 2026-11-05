@@ -597,11 +597,22 @@ def verify_audit_stream(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """重算整条链：valid / broken_at / reason。"""
+    """重算整条链：valid / broken_at / reason，并给链头一个可带出去的签名。
+
+    链内校验只能发现"中间被改"；把 (head_seq, head_hash, signature) 抄到库外之后，
+    "整链重写"和"尾部截断"也能被发现。
+    """
+    from app.audit import sign_head
+
     plan = db.get(Plan, stream_id)
     if plan is None or plan.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="audit stream not found")
-    return ok(request, verify_stream(db, stream_id).to_dict())
+    result = verify_stream(db, stream_id)
+    data = result.to_dict()
+    secret = request.app.state.settings.secret_key
+    data["signature"] = sign_head(secret, stream_id, result.head_seq, result.head_hash)
+    data["signature_alg"] = "HMAC-SHA256(SECRET_KEY)"
+    return ok(request, data)
 
 
 @router.post("/compare/knee-patch")

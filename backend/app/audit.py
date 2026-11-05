@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 from dataclasses import dataclass, field
 
@@ -149,6 +150,9 @@ class VerifyResult:
     broken_at: int | None = None          # 出问题的 seq
     reason: str = ""
     checks: list[str] = field(default_factory=list)
+    # 链头（最后一条的 seq/hash）：配合外部签名，才能发现"整链重写"或"尾部截断"
+    head_seq: int | None = None
+    head_hash: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -158,7 +162,23 @@ class VerifyResult:
             "broken_at": self.broken_at,
             "reason": self.reason,
             "checks": self.checks,
+            "head_seq": self.head_seq,
+            "head_hash": self.head_hash,
         }
+
+
+def sign_head(secret: str, stream_id: str, seq: int | None, head_hash: str) -> str:
+    """给链头做 HMAC 签名：把"这条链当时长这样"变成可带出去的凭据。
+
+    为什么需要它：哈希链本身只能防"改中间几条"。
+    有人如果能改库，就可以**重算整条链**，或者**删掉尾部几条**，
+    这两种情况在纯链内校验里看起来都是"合法的"。
+    签名用的是服务端 SECRET_KEY（不在审计表里），把 (stream_id, seq, head_hash)
+    抄到数据库外（工单/邮件/另一台机器）之后，再被重写就会对不上签名。
+    """
+    material = f"{stream_id}|{seq}|{head_hash}"
+    return hmac.new(secret.encode("utf-8"), material.encode("utf-8"),
+                    hashlib.sha256).hexdigest()
 
 
 def verify_stream(db: Session, stream_id: str) -> VerifyResult:
@@ -231,6 +251,7 @@ def verify_stream(db: Session, stream_id: str) -> VerifyResult:
 
         expected_prev = event.hash
         rewritten = index
+        head_seq, head_hash = event.seq, event.hash
 
     return VerifyResult(
         stream_id,
@@ -238,4 +259,6 @@ def verify_stream(db: Session, stream_id: str) -> VerifyResult:
         len(events),
         reason="ok",
         checks=[f"{rewritten}/{len(events)} 条事件逐条校验通过"],
+        head_seq=head_seq,
+        head_hash=head_hash,
     )

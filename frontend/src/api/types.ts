@@ -301,6 +301,12 @@ export interface AuditVerify {
   broken_at: number | null
   reason: string
   checks: string[]
+  /** 链头：最后一条事件的 seq 与 hash */
+  head_seq: number | null
+  head_hash: string
+  /** 对链头的 HMAC 签名，可抄到数据库外当锚点 */
+  signature: string
+  signature_alg: string
 }
 
 // ---------------- A/B/C 三模式对比 ----------------
