@@ -7,7 +7,7 @@
  */
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { api, ApiError, type CurrentPlan, type PatchPreset, type TodayAgentResult } from '../../api'
+import { api, ApiError, type CurrentPlan, type PatchPreset, type TodayAgentResult, type TodayPlanSnapshot } from '../../api'
 import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
 import FoodOptionsSheet from '../../components/FoodOptionsSheet.vue'
@@ -43,6 +43,8 @@ const agentTrace = ref<Array<{ node: string; status: string }>>([])
 const agentResult = ref<TodayAgentResult | null>(null)
 const agentRunId = ref('')
 const mcdOrderOpen = ref(false)
+/** 今天已经保存过的规划（按天存，重开页面直接看到） */
+const savedPlan = ref<TodayPlanSnapshot | null>(null)
 const agentError = ref('')
 
 const MEAL_TITLES: Record<string, string> = {
@@ -94,6 +96,29 @@ async function applySelections() {
   }
 }
 
+/** 读今天的快照：有就直接能看，不用再花一次模型调用 */
+async function loadSavedPlan() {
+  try {
+    savedPlan.value = await api.getTodayPlan(todayStr())
+  } catch {
+    savedPlan.value = null // 读不到就当作没生成过，不挡页面
+  }
+}
+
+/** 打开抽屉看已保存的那一份（不再重新生成） */
+function viewSavedPlan() {
+  if (!savedPlan.value) return
+  agentResult.value = savedPlan.value.output
+  agentRunId.value = savedPlan.value.run_id || ''
+  agentOpen.value = true
+}
+
+/** 后端已按本地时间返回 "2026-11-05 20:23"，这里只取 "11-05 20:23" */
+function savedAtLabel() {
+  if (!savedPlan.value?.saved_at) return ''
+  return savedPlan.value.saved_at.slice(5, 16)
+}
+
 function openAgent(text = '') {
   agentText.value = text
   agentOpen.value = true
@@ -117,6 +142,8 @@ async function runAgent() {
           agentError.value = '规划失败，请重试'
         } else {
           agentResult.value = run.output as unknown as TodayAgentResult
+          // 后端已经按天存好了，前端同步一下"已保存"状态
+          await loadSavedPlan()
         }
         break
       }
@@ -348,6 +375,7 @@ function openCheckin() {
 onShow(() => {
   load()
   loadPresets()
+  loadSavedPlan()
 })
 </script>
 
@@ -400,11 +428,11 @@ onShow(() => {
           <text v-if="training.length && !restMode" class="badge">约 {{ totalMinutes }} 分钟</text>
         </view>
         <view class="hero-title">
-          {{ restMode || !training.length ? '今天休息。' : training.length + ' 个动作，练完就吃。' }}
+          {{ restMode || !training.length ? '今天休息' : '今日训练目标' }}
         </view>
         <view class="hero-sub">
           {{ training.length
-            ? '顺序按教练安排走；状态不对就点下面的胶囊改，改完你确认才生效。'
+            ? `${training.length} 个动作 · 顺序按教练安排走，状态不对就点下面的胶囊改，改完你确认才生效。`
             : '休息也是计划的一部分，明天继续。' }}
         </view>
       </view>
@@ -415,7 +443,17 @@ onShow(() => {
           <view class="section-title">今日规划</view>
           <text class="link" @click="openAgent('帮我规划今天')">让 Agent 规划 →</text>
         </view>
-        <view class="muted" style="margin-top: 6px">
+        <view v-if="savedPlan" class="saved-row">
+          <view class="saved-bits">
+            <text class="saved-chip">今天已保存</text>
+            <text class="list-meta">
+              v{{ savedPlan.plan_version ?? '—' }} · {{ savedAtLabel() }} 生成
+              <text v-if="savedPlan.has_mcdonalds"> · 含麦当劳推荐</text>
+            </text>
+          </view>
+          <text class="link" @click="viewSavedPlan">查看 →</text>
+        </view>
+        <view v-else class="muted" style="margin-top: 6px">
           它会自己决定先查知识、查计划，还是先找外卖；每一步都能看到。
         </view>
       </view>
@@ -856,6 +894,31 @@ onShow(() => {
   background: var(--primary-soft);
   box-shadow: inset 0 0 0 2px var(--primary);
 }
+.saved-row {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.saved-bits {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.saved-chip {
+  align-self: flex-start;
+  background: var(--primary-soft);
+  border-radius: 999px;
+  color: var(--primary-deep);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+
 /* ---- Agent 结果卡片 ----
    之前所有块都只有 .section-title + 一堆 list-row，视觉上糊成一片：
    给每个块一个卡片边界，今日安排用时间轴、麦当劳用品牌色，扫一眼就知道是什么。 */

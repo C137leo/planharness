@@ -9,7 +9,15 @@
  * 两边不互通；官方 MCP 也没有"加购物车"工具，只有 create-order。
  */
 import { computed, ref, watch } from 'vue'
-import { api, ApiError, type McdMenuItem, type McdOrder, type McdQuote, type McdStore } from '../api'
+import {
+  api,
+  ApiError,
+  type McdLocation,
+  type McdMenuItem,
+  type McdOrder,
+  type McdQuote,
+  type McdStore,
+} from '../api'
 
 const props = defineProps<{
   visible: boolean
@@ -33,6 +41,8 @@ const order = ref<McdOrder | null>(null)
 const loading = ref(false)
 const creating = ref(false)
 const error = ref('')
+const location = ref<McdLocation | null>(null)
+const locating = ref(false)
 
 const selected = computed(() =>
   Object.entries(qty.value)
@@ -60,24 +70,54 @@ function reset() {
 watch(
   () => props.visible,
   (open) => {
-    if (open) reset()
+    if (!open) return
+    reset()
+    // 打开就先按 IP 猜个城市，直接把最近几家店列出来；猜不到再让用户手填
+    autoLocate()
   },
 )
+
+async function autoLocate() {
+  locating.value = true
+  try {
+    const found = await api.mcdLocate()
+    location.value = found
+    if (found.city_for_search) {
+      city.value = found.city_for_search
+      keyword.value = found.city_for_search
+      await searchStores(true)
+    }
+  } catch {
+    location.value = null // 定位失败不影响手动选门店
+  } finally {
+    locating.value = false
+  }
+}
+
+function locationLabel() {
+  if (!location.value?.city) return ''
+  const how = location.value.source === 'ip' ? '按你的 IP' : '按服务器出口 IP'
+  return `定位：${location.value.city}（${how}）`
+}
 
 function fail(err: unknown, fallback: string) {
   error.value = err instanceof ApiError ? err.message : fallback
 }
 
-async function searchStores() {
+async function searchStores(auto = false) {
   if (!keyword.value.trim()) {
-    error.value = '填个门店或地标关键词，例如 人民广场'
+    if (!auto) error.value = '填个门店或地标关键词，例如 人民广场'
     return
   }
   loading.value = true
-  error.value = ''
+  if (!auto) error.value = ''
   try {
     const data = await api.mcdStores(city.value.trim() || '上海', keyword.value.trim())
-    stores.value = data.stores
+    // 官方已按距离排过，这里再稳一次：近的在前
+    stores.value = [...data.stores].sort(
+      (a, b) => (a.distance_m ?? 1e9) - (b.distance_m ?? 1e9),
+    )
+    if (auto) error.value = ''
   } catch (err) {
     fail(err, '搜门店失败')
   } finally {
@@ -200,9 +240,15 @@ function copy(text: string) {
       <!-- 1. 选门店 -->
       <view v-if="step === 'store'">
         <text class="mcd-order-tip">
-          官方 MCP 没有"加购物车"这个动作，但可以在麦当劳侧直接建一张**待支付**订单：
+          官方 MCP 没有"加购物车"这个动作，但可以在麦当劳侧直接建一张待支付订单：
           选好门店和餐品，我把订单建好，付款由你自己点。
         </text>
+        <view v-if="locating" class="muted" style="margin-top: 8px">正在按网络位置找最近的门店…</view>
+        <view v-else-if="locationLabel()" class="mcd-location">
+          <text class="mcd-location-text">{{ locationLabel() }}</text>
+          <text class="link" @click="autoLocate">重新定位</text>
+        </view>
+
         <view class="mcd-field">
           <text class="mcd-label">城市</text>
           <input v-model="city" class="input" placeholder="上海" />
@@ -220,13 +266,14 @@ function copy(text: string) {
         <view v-if="stores.length" class="mcd-store-list">
           <view v-for="item in stores" :key="item.store_code" class="mcd-store" @click="pickStore(item)">
             <view class="mcd-store-main">
-              <text class="list-title">{{ item.name }}</text>
-              <text class="list-meta">{{ item.address }}</text>
+              <text class="mcd-store-name">{{ item.name }}</text>
+              <text class="list-meta">
+                <text v-if="item.distance_m != null">{{ item.distance_m }} m · </text>{{ item.hours }}
+                <text v-if="!item.open"> · 休息中</text>
+              </text>
+              <text class="mcd-store-address">{{ item.address }}</text>
             </view>
-            <view class="mcd-store-right">
-              <text class="list-meta">{{ item.hours }}</text>
-              <text class="mcd-store-go">选这家 →</text>
-            </view>
+            <text class="mcd-store-go">选这家 →</text>
           </view>
         </view>
       </view>
@@ -339,6 +386,22 @@ function copy(text: string) {
   margin-top: 8px;
 }
 
+.mcd-location {
+  align-items: center;
+  background: #fff5f1;
+  border-radius: 10px;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 8px 10px;
+}
+
+.mcd-location-text {
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .mcd-field {
   margin-top: 10px;
 }
@@ -368,18 +431,25 @@ function copy(text: string) {
   min-width: 0;
 }
 
-.mcd-store-right {
-  align-items: flex-end;
-  display: flex;
-  flex: 0 0 auto;
-  flex-direction: column;
-  gap: 3px;
+.mcd-store-name {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.mcd-store-address {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .mcd-store-go {
   color: #c2410c;
+  flex: 0 0 auto;
   font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .mcd-picked-store {

@@ -49,6 +49,12 @@ def _run_agent(run_id: str, user_id: str, day: dt.date, text: str, session_facto
             run.tokens_in = int(result.usage.get("prompt_tokens") or 0)
             run.tokens_out = int(result.usage.get("completion_tokens") or 0)
             run.error_code = (result.error or "")[:64] or None
+            if result.final:
+                # 和"这一天"绑定：重开页面就能拿到同一份（含麦当劳那块）
+                from app.domain.today_snapshot import save_today_plan
+
+                save_today_plan(db, user, day, request_text=text,
+                                output=result.final, run_id=run.id)
         except Exception as exc:  # noqa: BLE001 - 后台任务不能把进程带崩
             run.status = "failed"
             run.error_code = type(exc).__name__
@@ -87,6 +93,24 @@ def create_today_plan(
         request.app.state.session_factory, request.app.state.settings,
     )
     return ok(request, {"run_id": run.id, "status": run.status}, message="accepted")
+
+
+@router.get("/agent/today-plan")
+def get_today_plan(
+    request: Request,
+    date: str = "",
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """取某一天已保存的规划（默认今天）。没有就返回 null，让前端走"重新生成"。"""
+    from app.domain.today_snapshot import load_today_plan, payload as snapshot_payload
+
+    try:
+        day = dt.date.fromisoformat(date) if date else dt.date.today()
+    except ValueError as exc:
+        raise HTTPException(422, "date 需要 YYYY-MM-DD") from exc
+    row = load_today_plan(db, user, day)
+    return ok(request, snapshot_payload(row) if row is not None else None)
 
 
 @router.post("/agent/today-plan/{run_id}/apply")

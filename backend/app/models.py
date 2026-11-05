@@ -476,6 +476,36 @@ class AgentRun(Base):
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class TodayAgentPlan(Base):
+    """某一天的 Agent 规划结果快照：和这一天绑定，重开页面还能看到同一份。
+
+    和 `AgentRun` 的分工：
+    - `AgentRun` 是观测日志（trace/token/耗时），会越攒越多，按次留；
+    - 这里回答的是"今天到底定了什么"：一天一条（user_id + day 唯一），
+      餐食、麦当劳推荐、tips 全在 output 里，重新规划就覆盖当天这条。
+
+    mcdonalds 也在 output 里，所以"那天推荐了哪几样、剩多少额度"能复现。
+    """
+
+    __tablename__ = "today_agent_plans"
+    __table_args__ = (UniqueConstraint("user_id", "day", name="uq_today_agent_plan_day"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    day: Mapped[date] = mapped_column(Date, index=True)
+    # 生成时的计划快照：版本变了也能看出"这条建议是基于哪一版"
+    plan_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    plan_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    request_text: Mapped[str] = mapped_column(Text, default="")
+    output: Mapped[dict] = mapped_column(JSON, default=dict)
+    # 生成它的那次 run（trace 去 /runs 查）
+    run_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
 class ContextSnapshot(Base):
     """一次「上下文装配」的快照：说清楚这次到底喂给模型看了什么。
 

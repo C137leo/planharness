@@ -28,6 +28,8 @@ import type {
   PlanPatchSummary,
   RunDetail,
   RunSummary,
+  TodayPlanSnapshot,
+  McdLocation,
   McdStore,
   McdMenuPayload,
   McdQuote,
@@ -247,7 +249,14 @@ export const api = {
   listCheckins: () => request<CheckinRecord[]>('GET', '/checkins'),
   getProfile: () => request<Profile>('GET', '/me/profile'),
   updateProfile: (payload: ProfileUpdate) => request<Profile>('PUT', '/me/profile', payload),
+  getTodayPlan: (date = '') =>
+    request<TodayPlanSnapshot | null>(
+      'GET',
+      `/agent/today-plan${date ? `?date=${date}` : ''}`,
+    ),
+
   // ---- 麦当劳点餐：找门店 → 菜单 → 算价 → 建单（付款留给用户）----
+  mcdLocate: () => request<McdLocation>('GET', '/mcd/locate'),
   mcdStatus: () => request<{ available: boolean; allow_order: boolean }>('GET', '/mcd/status'),
   mcdStores: (city: string, keyword: string) =>
     request<{ stores: McdStore[] }>(

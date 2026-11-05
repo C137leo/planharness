@@ -82,6 +82,14 @@ def mcd_status(request: Request, user: User = Depends(get_current_user)):
     })
 
 
+@router.get("/mcd/locate")
+def mcd_locate(request: Request, user: User = Depends(get_current_user)):
+    """按 IP 猜一个默认城市：前端打开点餐抽屉时先填好，用户仍可自己改。"""
+    from app.food import geo
+
+    return ok(request, geo.locate_from_request(request))
+
+
 @router.get("/mcd/stores")
 def mcd_stores(
     request: Request,

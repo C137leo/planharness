@@ -541,7 +541,27 @@ export interface FoodOption {
   links: Record<string, string>
 }
 
+// ---------------- 今日规划快照（按天保存） ----------------
+
+export interface TodayPlanSnapshot {
+  day: string
+  plan_version: number | null
+  request_text: string
+  output: TodayAgentResult
+  run_id: string | null
+  saved_at: string
+  has_mcdonalds: boolean
+}
+
 // ---------------- 麦当劳点餐（MCP，停在付款前） ----------------
+
+export interface McdLocation {
+  source: 'ip' | 'server_ip' | 'unknown'
+  city: string
+  region: string
+  city_for_search: string
+  ip: string
+}
 
 export interface McdStore {
   store_code: string
