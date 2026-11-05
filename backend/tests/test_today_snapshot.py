@@ -11,7 +11,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.domain import today_snapshot
-from app.food import geo
 
 
 def _db(app):
@@ -112,77 +111,6 @@ def test_snapshot_is_per_user(client: TestClient, auth_headers) -> None:
     assert first is None and second is None
 
 
-# ---------------------------------------------------------------- 定位
-
-def test_city_for_search_strips_suffix() -> None:
-    assert geo.city_for_search("济南市") == "济南"
-    assert geo.city_for_search("北京市") == "北京"
-    assert geo.city_for_search("延边朝鲜族自治州") == "延边朝鲜族"
-    assert geo.city_for_search("上海") == "上海"
-
-
-def test_mask_hides_last_octet() -> None:
-    assert geo.mask("120.244.23.39") == "120.244.23.xxx"
-    assert geo.mask("2001:db8::1") == "2001:db8:xxxx"
-    assert geo.mask("nope") == ""
-
-
-def test_private_ip_detection() -> None:
-    assert geo.is_private("127.0.0.1") is True
-    assert geo.is_private("192.168.1.8") is True
-    assert geo.is_private("10.0.0.2") is True
-    assert geo.is_private("120.244.23.39") is False
-    assert geo.is_private("") is True
-
-
-def test_locate_prefers_client_ip(monkeypatch) -> None:
-    monkeypatch.setattr(geo, "_lookup", lambda ip: {
-        "status": "success", "city": "上海市", "regionName": "上海", "query": ip or "1.1.1.1"})
-
-    class Req:
-        headers = {"x-forwarded-for": "120.244.23.39, 10.0.0.1"}
-
-        class client:
-            host = "10.0.0.1"
-
-    found = geo.locate_from_request(Req())
-    assert found["source"] == "ip"
-    assert found["city"] == "上海市"
-    assert found["city_for_search"] == "上海"
-    assert found["ip"] == "120.244.23.xxx"
-
-
-def test_locate_falls_back_to_server_ip(monkeypatch) -> None:
-    """本机开发（127.0.0.1）拿不到位置，就用服务器出口 IP 兜底。"""
-    monkeypatch.setattr(geo, "_lookup", lambda ip: {
-        "status": "success", "city": "北京", "regionName": "北京市", "query": "120.244.23.39"})
-
-    class Req:
-        headers = {}
-
-        class client:
-            host = "127.0.0.1"
-
-    found = geo.locate_from_request(Req())
-    assert found["source"] == "server_ip"
-    assert found["city_for_search"] == "北京"
-    # 展示的是真正用来定位的那个出口 IP，而不是 127.0.0.1
-    assert found["ip"] == "120.244.23.xxx"
-
-
-def test_locate_unknown_when_lookup_fails(monkeypatch) -> None:
-    monkeypatch.setattr(geo, "_lookup", lambda ip: {})
-
-    class Req:
-        headers = {}
-
-        class client:
-            host = "127.0.0.1"
-
-    assert geo.locate_from_request(Req())["source"] == "unknown"
-
-
-@pytest.mark.parametrize("city,keyword", [("上海", "人民广场")])
-def test_stores_route_requires_login(client: TestClient, city: str, keyword: str) -> None:
+def test_stores_route_requires_login(client: TestClient) -> None:
     assert client.get("/api/v1/mcd/stores",
-                      params={"city": city, "keyword": keyword}).status_code == 401
+                      params={"city": "上海", "keyword": "人民广场"}).status_code == 401

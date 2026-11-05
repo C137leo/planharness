@@ -39,6 +39,7 @@ ERROR_STATUS = {
     "mcd_need_order": 422,
     "mcd_no_store": 404,
     "mcd_rate_limited": 429,
+    "mcd_daily_order_limit": 429,
 }
 
 
@@ -51,17 +52,25 @@ class OrderIn(QuoteIn):
     take_way_code: str = Field(default="", max_length=32)
 
 
+# 已知错误码 → 给用户看的一句话（优先于官方原文，官方那句往往只有四个字）
+FRIENDLY = {
+    "mcd_mcp_unavailable": "还没配置 MCD_MCP_TOKEN",
+    "mcd_unauthorized": "MCD Token 无效或已过期",
+    "mcd_need_city_and_keyword": "官方要求城市和关键词都填（例如 上海 / 人民广场）",
+    "mcd_no_store": "没搜到门店，换个关键词试试",
+    "mcd_rate_limited": "调用太频繁，等一分钟再来",
+    "mcd_daily_order_limit": (
+        "麦当劳那边今天这个账号的下单次数已经到上限（官方限制，已取消的单也计入），"
+        "明天再试，或者点上面的「去麦当劳点餐」自己下单"
+    ),
+}
+
+
 def _fail(result: dict) -> None:
-    """把 MCP 的错误信封翻成 HTTP 错误，前端只看到一句人话 + 错误码。"""
+    """把 MCP 的错误信封翻成 HTTP 错误：错误码给人看的那句话优先，官方的原文兜底。"""
     code = result.get("error") or "mcd_error"
-    detail = result.get("detail") or {
-        "mcd_mcp_unavailable": "还没配置 MCD_MCP_TOKEN",
-        "mcd_unauthorized": "MCD Token 无效或已过期",
-        "mcd_need_city_and_keyword": "官方要求城市和关键词都填（例如 上海 / 人民广场）",
-        "mcd_no_store": "没搜到门店，换个关键词试试",
-        "mcd_rate_limited": "调用太频繁，等一分钟再来",
-    }.get(code, code)
-    raise HTTPException(ERROR_STATUS.get(code, 502), f"{detail}")
+    message = FRIENDLY.get(code) or result.get("detail") or code
+    raise HTTPException(ERROR_STATUS.get(code, 502), f"{message}")
 
 
 def _guard():
@@ -80,14 +89,6 @@ def mcd_status(request: Request, user: User = Depends(get_current_user)):
         "available": available(),
         "allow_order": bool(settings.mcd_mcp_allow_order),
     })
-
-
-@router.get("/mcd/locate")
-def mcd_locate(request: Request, user: User = Depends(get_current_user)):
-    """按 IP 猜一个默认城市：前端打开点餐抽屉时先填好，用户仍可自己改。"""
-    from app.food import geo
-
-    return ok(request, geo.locate_from_request(request))
 
 
 @router.get("/mcd/stores")

@@ -9,15 +9,7 @@
  * 两边不互通；官方 MCP 也没有"加购物车"工具，只有 create-order。
  */
 import { computed, ref, watch } from 'vue'
-import {
-  api,
-  ApiError,
-  type McdLocation,
-  type McdMenuItem,
-  type McdOrder,
-  type McdQuote,
-  type McdStore,
-} from '../api'
+import { api, ApiError, type McdMenuItem, type McdOrder, type McdQuote, type McdStore } from '../api'
 
 const props = defineProps<{
   visible: boolean
@@ -27,8 +19,11 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const step = ref<'store' | 'items' | 'order'>('store')
-const city = ref('上海')
-const keyword = ref('')
+// 上次搜过的城市/关键词记一下，下次打开直接带出来（没做定位，就记手动输入）
+const LAST_CITY_KEY = 'planharness_mcd_city'
+const LAST_KEYWORD_KEY = 'planharness_mcd_keyword'
+const city = ref((uni.getStorageSync(LAST_CITY_KEY) as string) || '上海')
+const keyword = ref((uni.getStorageSync(LAST_KEYWORD_KEY) as string) || '')
 const stores = ref<McdStore[]>([])
 const store = ref<McdStore | null>(null)
 const matched = ref<Array<McdMenuItem & { suggestion: string }>>([])
@@ -41,8 +36,8 @@ const order = ref<McdOrder | null>(null)
 const loading = ref(false)
 const creating = ref(false)
 const error = ref('')
-const location = ref<McdLocation | null>(null)
-const locating = ref(false)
+/** 官方账号级"今日下单数上限"：命中后当天不再让人点，免得白等 */
+const limitHit = ref(false)
 
 const selected = computed(() =>
   Object.entries(qty.value)
@@ -72,33 +67,8 @@ watch(
   (open) => {
     if (!open) return
     reset()
-    // 打开就先按 IP 猜个城市，直接把最近几家店列出来；猜不到再让用户手填
-    autoLocate()
   },
 )
-
-async function autoLocate() {
-  locating.value = true
-  try {
-    const found = await api.mcdLocate()
-    location.value = found
-    if (found.city_for_search) {
-      city.value = found.city_for_search
-      keyword.value = found.city_for_search
-      await searchStores(true)
-    }
-  } catch {
-    location.value = null // 定位失败不影响手动选门店
-  } finally {
-    locating.value = false
-  }
-}
-
-function locationLabel() {
-  if (!location.value?.city) return ''
-  const how = location.value.source === 'ip' ? '按你的 IP' : '按服务器出口 IP'
-  return `定位：${location.value.city}（${how}）`
-}
 
 function fail(err: unknown, fallback: string) {
   error.value = err instanceof ApiError ? err.message : fallback
@@ -113,6 +83,8 @@ async function searchStores(auto = false) {
   if (!auto) error.value = ''
   try {
     const data = await api.mcdStores(city.value.trim() || '上海', keyword.value.trim())
+    uni.setStorageSync(LAST_CITY_KEY, city.value.trim())
+    uni.setStorageSync(LAST_KEYWORD_KEY, keyword.value.trim())
     // 官方已按距离排过，这里再稳一次：近的在前
     stores.value = [...data.stores].sort(
       (a, b) => (a.distance_m ?? 1e9) - (b.distance_m ?? 1e9),
@@ -183,6 +155,7 @@ async function createOrder() {
     )
     step.value = 'order'
   } catch (err) {
+    if (err instanceof ApiError && err.statusCode === 429) limitHit.value = true
     fail(err, '建单失败')
   } finally {
     creating.value = false
@@ -243,12 +216,6 @@ function copy(text: string) {
           官方 MCP 没有"加购物车"这个动作，但可以在麦当劳侧直接建一张待支付订单：
           选好门店和餐品，我把订单建好，付款由你自己点。
         </text>
-        <view v-if="locating" class="muted" style="margin-top: 8px">正在按网络位置找最近的门店…</view>
-        <view v-else-if="locationLabel()" class="mcd-location">
-          <text class="mcd-location-text">{{ locationLabel() }}</text>
-          <text class="link" @click="autoLocate">重新定位</text>
-        </view>
-
         <view class="mcd-field">
           <text class="mcd-label">城市</text>
           <input v-model="city" class="input" placeholder="上海" />
@@ -327,7 +294,10 @@ function copy(text: string) {
         <view class="btn-row">
           <view class="btn-sm" @click="step = 'store'">换门店</view>
           <view class="btn-sm" @click="getQuote">{{ loading ? '算价中…' : '官方算价' }}</view>
-          <view class="btn-sm primary" @click="createOrder">
+          <view v-if="limitHit" class="btn-sm" style="opacity: 0.6">
+            今日下单已达上限
+          </view>
+          <view v-else class="btn-sm primary" @click="createOrder">
             {{ creating ? '建单中…' : '生成订单（到付款前）' }}
           </view>
         </view>
@@ -384,22 +354,6 @@ function copy(text: string) {
   font-size: 12px;
   line-height: 1.55;
   margin-top: 8px;
-}
-
-.mcd-location {
-  align-items: center;
-  background: #fff5f1;
-  border-radius: 10px;
-  display: flex;
-  justify-content: space-between;
-  margin-top: 10px;
-  padding: 8px 10px;
-}
-
-.mcd-location-text {
-  color: #c2410c;
-  font-size: 12px;
-  font-weight: 600;
 }
 
 .mcd-field {

@@ -203,6 +203,11 @@ def create_order(store_code: str, items: list[dict], take_way_code: str = "",
         "takeWayCode": take_way_code, "items": official, "needTableware": False,
     }, client=client)
     if result["status"] != "ok":
+        # 600039 = 官方账号级的"今日下单数已经上限"（不是我们的限流，也不是次数统计错误）。
+        # 已取消的订单也算一天里的下单数，所以调试/反复试单很容易把它用光。
+        if result.get("code") == 600039:
+            return {"status": "error", "error": "mcd_daily_order_limit",
+                    "detail": str(result.get("detail") or "")[:200], "retryable": False}
         return result
     data = result["data"].get("data") or {}
     detail = data.get("orderDetail") or {}

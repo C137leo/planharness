@@ -29,7 +29,6 @@ import type {
   RunDetail,
   RunSummary,
   TodayPlanSnapshot,
-  McdLocation,
   McdStore,
   McdMenuPayload,
   McdQuote,
@@ -256,7 +255,6 @@ export const api = {
     ),
 
   // ---- 麦当劳点餐：找门店 → 菜单 → 算价 → 建单（付款留给用户）----
-  mcdLocate: () => request<McdLocation>('GET', '/mcd/locate'),
   mcdStatus: () => request<{ available: boolean; allow_order: boolean }>('GET', '/mcd/status'),
   mcdStores: (city: string, keyword: string) =>
     request<{ stores: McdStore[] }>(

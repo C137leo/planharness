@@ -555,14 +555,6 @@ export interface TodayPlanSnapshot {
 
 // ---------------- 麦当劳点餐（MCP，停在付款前） ----------------
 
-export interface McdLocation {
-  source: 'ip' | 'server_ip' | 'unknown'
-  city: string
-  region: string
-  city_for_search: string
-  ip: string
-}
-
 export interface McdStore {
   store_code: string
   name: string
