@@ -16,14 +16,27 @@ import os
 
 import httpx
 
-MCD_MCP_URL = os.environ.get("MCD_MCP_URL", "")
-MCD_MCP_TOKEN = os.environ.get("MCD_MCP_TOKEN", "")
-DEFAULT_TOOL = os.environ.get("MCD_MCP_TOOL", "search_menu")
-TIMEOUT = float(os.environ.get("MCD_MCP_TIMEOUT", "15"))
+# 模块级常量优先（单元测试会直接改它）；否则读 Settings（backend/.env），
+# 最后才退回环境变量，保证"配置文件"和"export"两种方式都能用。
+MCD_MCP_URL = ""
+MCD_MCP_TOKEN = ""
+DEFAULT_TOOL = ""
+TIMEOUT = 0.0
+
+
+def _config() -> tuple[str, str, str, float]:
+    from app.config import get_settings
+
+    settings = get_settings()
+    url = MCD_MCP_URL or settings.mcd_mcp_url or os.environ.get("MCD_MCP_URL", "")
+    token = MCD_MCP_TOKEN or settings.mcd_mcp_token or os.environ.get("MCD_MCP_TOKEN", "")
+    tool = DEFAULT_TOOL or settings.mcd_mcp_tool or os.environ.get("MCD_MCP_TOOL", "search_menu")
+    timeout = TIMEOUT or settings.mcd_mcp_timeout or float(os.environ.get("MCD_MCP_TIMEOUT", "15"))
+    return url, token, tool, float(timeout)
 
 
 def available() -> bool:
-    return bool(MCD_MCP_URL)
+    return bool(_config()[0])
 
 
 def _parse_response(text: str) -> dict:
@@ -44,7 +57,8 @@ def _parse_response(text: str) -> dict:
 
 
 def call_tool(name: str, arguments: dict, *, client: httpx.Client | None = None) -> dict:
-    if not available():
+    url, token, _tool, timeout = _config()
+    if not url:
         return {"status": "error", "error": "mcd_mcp_unavailable", "retryable": False}
     payload = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
                "params": {"name": name, "arguments": arguments}}
@@ -52,11 +66,11 @@ def call_tool(name: str, arguments: dict, *, client: httpx.Client | None = None)
         "Content-Type": "application/json",
         "Accept": "application/json, text/event-stream",
     }
-    if MCD_MCP_TOKEN:
-        headers["Authorization"] = f"Bearer {MCD_MCP_TOKEN}"
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     try:
-        http = client or httpx.Client(timeout=TIMEOUT, trust_env=False)
-        response = http.post(MCD_MCP_URL, json=payload, headers=headers, timeout=TIMEOUT)
+        http = client or httpx.Client(timeout=timeout, trust_env=False)
+        response = http.post(url, json=payload, headers=headers, timeout=timeout)
         if response.status_code != 200:
             return {"status": "error", "error": f"mcd_http_{response.status_code}",
                     "retryable": True}
@@ -90,4 +104,5 @@ def search_menu(keyword: str = "", store: str = "", *, client=None) -> dict:
         args["keyword"] = keyword
     if store:
         args["store"] = store
-    return call_tool(DEFAULT_TOOL, args, client=client)
+    _url, _token, tool, _timeout = _config()
+    return call_tool(tool, args, client=client)

@@ -283,10 +283,18 @@ usage: 10827 prompt / 919 completion tokens → 约 0.029 元
 - 每次确定性规划结束后额外调一次，结果挂在 `final["mcdonalds"]`；
 - 价格原样引用，不编造；失败只记 `mcd_http_xxx` / `mcd_mcp_unavailable`，不抛出。
 
-配置：
+配置：**写进 `backend/.env`（dev）或服务器的 `deploy/planharness.env`（prod）**，
+和 DeepSeek Key、DATABASE_URL 同一套机制，`export` 只是临时验证用的写法。
 
-```bash
-export MCD_MCP_URL="https://open.mcd.cn/mcp"   # 以官方 MCP 控制台给的地址为准
-export MCD_MCP_TOKEN="<你的 token>"
-# 可选：MCD_MCP_TOOL=search_menu  MCD_MCP_TIMEOUT=15
+```dotenv
+# backend/.env（已被 .gitignore 忽略，不要提交）
+MCD_MCP_URL=https://open.mcd.cn/mcp
+MCD_MCP_TOKEN=***
+MCD_MCP_TOOL=search_menu
+MCD_MCP_TIMEOUT=15
 ```
+
+- 留空 = 不启用：工具不暴露给模型，规划流程照常；
+- 生产：systemd 用 `EnvironmentFile=/etc/planharness/planharness.env` 加载同一份配置，
+  改完 `systemctl restart planharness` 生效；
+- 验证：`python -c "from app.config import get_settings; s=get_settings(); print(bool(s.mcd_mcp_url))"`
