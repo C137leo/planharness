@@ -9,11 +9,17 @@ from app.llm.types import ExplainResult
 
 class DeepSeekExplainer:
 
-    def __init__(self,*,api_key:str,base_url:str,model:str,timeout_s: float =8.0,client:httpx.Client|None=None):
+    def __init__(self,*,api_key:str,base_url:str,model:str,timeout_s: float =8.0,
+                 max_tokens: int = 900, reasoning_effort: str = "",
+                 client:httpx.Client|None=None):
         self.api_key=api_key
         self.base_url=base_url
         self.model=model
         self.timeout_s=timeout_s
+        # 300 是给"不思考的模型"的预算；deepseek-flash 会先花 token 思考，
+        # 实测 300 里有 288 用在 reasoning 上，正文只剩半截 JSON → 只能降级成模板。
+        self.max_tokens=max_tokens
+        self.reasoning_effort=(reasoning_effort or "").strip().lower()
         self._client = client or httpx.Client(timeout=timeout_s, trust_env=False)
 
 
@@ -39,9 +45,11 @@ class DeepSeekExplainer:
                 "model": self.model,
                 "messages": messages,
                 "temperature": 0,
-                "max_tokens": 300,
+                "max_tokens": self.max_tokens,
                 "response_format": {"type": "json_object"},
             }
+            if self.reasoning_effort:
+                body["reasoning_effort"] = self.reasoning_effort
             content, usage = self.call_deepseek(body)
             text = self.format_explanation(content)
             return ExplainResult(
@@ -125,5 +133,6 @@ def explainer_from_settings(settings) -> "DeepSeekExplainer":
         api_key=settings.deepseek_api_key,
         base_url=settings.deepseek_base_url,
         model=settings.deepseek_model,
-        timeout_s=8,
+        timeout_s=float(getattr(settings, "deepseek_timeout_s", 30.0) or 30.0),
+        reasoning_effort=str(getattr(settings, "deepseek_reasoning_effort", "") or ""),
     )

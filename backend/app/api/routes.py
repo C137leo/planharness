@@ -436,7 +436,8 @@ def create_patch(
             api_key=settings.deepseek_api_key,
             base_url=settings.deepseek_base_url,
             model=settings.deepseek_model,
-            timeout_s=8,
+            timeout_s=float(getattr(settings, "deepseek_timeout_s", 30.0) or 30.0),
+            reasoning_effort=str(getattr(settings, "deepseek_reasoning_effort", "") or ""),
         )
         patch_id = str(uuid.uuid4())
         config = _graph_config(patch_id)

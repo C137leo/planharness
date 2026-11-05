@@ -140,6 +140,11 @@ class TodayState(TypedDict, total=False):
 注意点：flash 会思考，单轮可能吃到 30s 以上，`DEEPSEEK_TIMEOUT_S` 已从 30 调到 60，
 否则超时会触发确定性降级（用户看到的就是"模板答案"而不是模型答案）。
 
+还有一个坑：补丁解释器原来给 `max_tokens=300`，而 flash 会先把 token 花在思考上
+（实测 300 里有 288 是 reasoning），正文只剩半截 JSON，解析失败 → 自动降级成模板文案。
+所以 `DeepSeekExplainer` 的预算改成 900（`max_tokens`），超时也统一走 `DEEPSEEK_TIMEOUT_S`，
+不再写死 8 秒。
+
 **trace 是边跑边写的**：`run()` 接受一个 `on_step` 回调，每记一步就回调一次；
 后台任务在回调里把 `run.trace` 追加并 commit，前端每 800ms 轮询 `/runs/{id}` 就能看到进度。
 不这样做的话，`trace` 要等整轮跑完才出现，用户点完"帮我规划"只能干等十几秒。
