@@ -12,6 +12,7 @@ import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
 import FoodOptionsSheet from '../../components/FoodOptionsSheet.vue'
 import KnowledgeSheet from '../../components/KnowledgeSheet.vue'
+import McdOrderSheet from '../../components/McdOrderSheet.vue'
 import { QUICK_ACTIONS, actionLabel, slotLabel } from '../../styles/copy'
 import { THUMBS, thumbOf } from '../../styles/thumbs'
 import { WEEKDAY_LABELS, isoWeekday, todayStr } from '../../styles/dates'
@@ -41,6 +42,7 @@ const agentBusy = ref(false)
 const agentTrace = ref<Array<{ node: string; status: string }>>([])
 const agentResult = ref<TodayAgentResult | null>(null)
 const agentRunId = ref('')
+const mcdOrderOpen = ref(false)
 const agentError = ref('')
 
 const MEAL_TITLES: Record<string, string> = {
@@ -200,6 +202,17 @@ const eatenKcal = computed(() => meals.value.reduce((sum, meal) => sum + meal.kc
 /** 麦当劳营养库：预算来自后端（目标 - 今天已排），前端只做展示 */
 const mcdBudget = computed(() => agentResult.value?.mcdonalds?.budget || null)
 const mcdCombo = computed(() => agentResult.value?.mcdonalds?.combo || null)
+
+/** 去麦当劳点餐时要匹配的餐名：搭配里的 + 单点候选里的，去重后最多 5 个 */
+const mcdSuggestions = computed(() => {
+  const block = agentResult.value?.mcdonalds
+  if (!block) return [] as string[]
+  const names = [
+    ...(block.combo?.items || []).map((item) => item.name),
+    ...(block.options || []).map((item) => item.name),
+  ]
+  return [...new Set(names.filter(Boolean))].slice(0, 5)
+})
 
 /** 麦当劳失败原因：把后端错误码翻成人能看懂的一句话 */
 function mcdErrorLabel(code?: string) {
@@ -705,6 +718,9 @@ onShow(() => {
               <view class="mcd-cta" @click="openMcdOrder('')">
                 去麦当劳点餐（自己选门店）
               </view>
+              <view class="mcd-cta-outline" @click="mcdOrderOpen = true">
+                让 Agent 帮我点好（到付款前）→
+              </view>
               <text class="mcd-hint">
                 {{ agentResult.mcdonalds.order_hint || '登录 → 选门店 → 加购物车 → 想付再付' }}。
                 我们只推荐、不代下单也不收款；点某一项会先复制餐名，方便你在麦当劳页面直接搜。
@@ -763,6 +779,11 @@ onShow(() => {
       :meal-slot="foodMeal?.slot || ''"
       :meal-title="foodMeal?.title || '这一餐'"
       @close="foodOpen = false"
+    />
+    <McdOrderSheet
+      :visible="mcdOrderOpen"
+      :suggestions="mcdSuggestions"
+      @close="mcdOrderOpen = false"
     />
     <KnowledgeSheet
       :visible="knowledgeOpen"
@@ -1073,6 +1094,19 @@ onShow(() => {
   color: #c2410c;
   font-size: 11px;
   font-weight: 700;
+}
+
+.mcd-cta-outline {
+  align-items: center;
+  border: 1px solid #da291c;
+  border-radius: 999px;
+  color: #c2410c;
+  display: flex;
+  font-size: 13px;
+  font-weight: 700;
+  justify-content: center;
+  margin-top: 8px;
+  padding: 10px 16px;
 }
 
 .mcd-cta {

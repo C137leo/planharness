@@ -541,6 +541,60 @@ export interface FoodOption {
   links: Record<string, string>
 }
 
+// ---------------- 麦当劳点餐（MCP，停在付款前） ----------------
+
+export interface McdStore {
+  store_code: string
+  name: string
+  address: string
+  distance_m?: number
+  open: boolean
+  hours: string
+}
+
+export interface McdMenuItem {
+  product_code: string
+  name: string
+  price: number
+  original_price?: number
+  product_type?: number
+  image?: string
+}
+
+export interface McdMatchedItem extends McdMenuItem {
+  /** 来自推荐的餐名（营养库里的叫法） */
+  suggestion: string
+}
+
+export interface McdMenuPayload {
+  store_code: string
+  items: McdMenuItem[]
+  categories: Array<{ name: string; codes: string[] }>
+  matched: McdMatchedItem[]
+  missing: string[]
+}
+
+export interface McdQuote {
+  price: string
+  original_price?: string
+  discount?: string
+  take_way: Array<{ code: string; title: string; subtitle?: string }>
+  lines: Array<{ name: string; quantity: number; subtotal: string }>
+}
+
+export interface McdOrder {
+  order_id: string
+  pay_id?: string
+  pay_url: string
+  status: string
+  store_name: string
+  total: number
+  discount?: number
+  take_way?: string
+  expire_at?: string
+  items: Array<{ name: string; quantity: number; price: number }>
+}
+
 export interface FoodOptionPayload {
   meal_slot: string
   target_kcal: number

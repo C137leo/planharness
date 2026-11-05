@@ -43,6 +43,9 @@ ACTIONS = (
     "plan_draft_rejected",
     "plan_confirmed",
     "profile_updated",
+    # 麦当劳点餐：建单/取消都要能在审计链里查到（谁在什么时候点了多少钱）
+    "mcd_order_created",
+    "mcd_order_cancelled",
 )
 
 

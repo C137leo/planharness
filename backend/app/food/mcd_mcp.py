@@ -159,6 +159,48 @@ def call_tool(name: str, arguments: dict, *, client: httpx.Client | None = None)
             "citations": []}
 
 
+def extract_json(text: str) -> dict | None:
+    """从官方"说明 + JSON + 备注"的混合文本里抽出第一个完整 JSON 对象。
+
+    麦当劳的返回是「字段说明 + Original Response + ## 展示要求」拼起来的，
+    不是纯 JSON；用括号配平来定位，避免正则被嵌套对象坑到。
+    """
+    start = text.find("{")
+    while start != -1:
+        depth = 0
+        for index in range(start, len(text)):
+            char = text[index]
+            if char == "{":
+                depth += 1
+            elif char == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        data = json.loads(text[start:index + 1])
+                    except json.JSONDecodeError:
+                        break
+                    if isinstance(data, dict):
+                        return data
+                    break
+        start = text.find("{", start + 1)
+    return None
+
+
+def call_tool_json(name: str, arguments: dict, *, client=None) -> dict:
+    """调工具并把返回体解析成 JSON；业务失败（success=false）也当错误返回。"""
+    result = call_tool(name, arguments, client=client)
+    if result["status"] != "ok":
+        return result
+    payload = extract_json(result["data"].get("text") or "")
+    if payload is None:
+        return {"status": "error", "error": "mcd_bad_json", "retryable": True}
+    if payload.get("success") is False:
+        return {"status": "error", "error": "mcd_api_error",
+                "detail": str(payload.get("message") or "")[:200],
+                "code": payload.get("code"), "retryable": False}
+    return {"status": "ok", "data": payload, "citations": []}
+
+
 # ---------------------------------------------------------------- 营养表
 
 def _parse_nutrition(text: str) -> list[dict]:

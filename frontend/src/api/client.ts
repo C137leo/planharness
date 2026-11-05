@@ -28,6 +28,10 @@ import type {
   PlanPatchSummary,
   RunDetail,
   RunSummary,
+  McdStore,
+  McdMenuPayload,
+  McdQuote,
+  McdOrder,
 } from './types'
 
 const API_BASE = (import.meta.env.VITE_API_BASE || '/api/v1').replace(/\/$/, '')
@@ -243,6 +247,34 @@ export const api = {
   listCheckins: () => request<CheckinRecord[]>('GET', '/checkins'),
   getProfile: () => request<Profile>('GET', '/me/profile'),
   updateProfile: (payload: ProfileUpdate) => request<Profile>('PUT', '/me/profile', payload),
+  // ---- 麦当劳点餐：找门店 → 菜单 → 算价 → 建单（付款留给用户）----
+  mcdStatus: () => request<{ available: boolean; allow_order: boolean }>('GET', '/mcd/status'),
+  mcdStores: (city: string, keyword: string) =>
+    request<{ stores: McdStore[] }>(
+      'GET',
+      `/mcd/stores?city=${encodeURIComponent(city)}&keyword=${encodeURIComponent(keyword)}`,
+    ),
+  mcdMenu: (storeCode: string, names: string[] = []) =>
+    request<McdMenuPayload>(
+      'GET',
+      `/mcd/menu?store_code=${encodeURIComponent(storeCode)}${names.length ? `&names=${encodeURIComponent(names.join('|'))}` : ''}`,
+    ),
+  mcdQuote: (storeCode: string, items: Array<{ product_code: string; quantity: number }>) =>
+    request<McdQuote>('POST', '/mcd/quote', { store_code: storeCode, items }),
+  mcdCreateOrder: (
+    storeCode: string,
+    items: Array<{ product_code: string; quantity: number }>,
+    takeWayCode = '',
+  ) =>
+    request<McdOrder>('POST', '/mcd/orders', {
+      store_code: storeCode,
+      items,
+      take_way_code: takeWayCode,
+    }),
+  mcdGetOrder: (orderId: string) => request<McdOrder>('GET', `/mcd/orders/${orderId}`),
+  mcdCancelOrder: (orderId: string) =>
+    request<{ order_id: string; cancelled: boolean }>('POST', `/mcd/orders/${orderId}/cancel`, {}),
+
   foodOptions: (planId: string, date: string, mealSlot: string, refresh = false) =>
     request<FoodOptionPayload>(
       'GET',

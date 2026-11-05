@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     mcd_mcp_token: str = ""
     mcd_mcp_tool: str = "list-nutrition-foods"
     mcd_mcp_timeout: float = 15.0
+    # 是否允许"帮你点好（到付款前）"：建单是真的在麦当劳侧生成待支付订单，
+    # 想关掉写操作就设 MCD_MCP_ALLOW_ORDER=0（读营养库不受影响）
+    mcd_mcp_allow_order: bool = True
 
     # ---- 注册 / 登录防滥用 ----
     # 账号总量硬天花板：到顶就拒绝注册，避免被刷爆磁盘
