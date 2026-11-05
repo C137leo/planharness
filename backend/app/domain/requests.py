@@ -26,13 +26,7 @@ from app.domain.patches import (
     rollback_plan,
 )
 from app.agent.change_agent import propose_with_model, propose_without_model
-from app.domain.planner import (
-    Intent,
-    cover_injured_slots,
-    parse_intent,
-    plan_operations,
-    violates_constraints,
-)
+from app.domain.planner import (Intent, cover_injured_slots, parse_intent, plan_operations, trim_unrelated_ops, violates_constraints)
 from app.models import (
     PatchFeedback,
     PatchRequest,
@@ -114,6 +108,20 @@ def create_request(
         db.refresh(request)
         return request
 
+    # 红旗症状：无论改什么计划，都先就医，不在这里排训练
+    from app.knowledge.service import RED_FLAGS
+
+    red_flags = [word for word in RED_FLAGS if word in (text or "")]
+    if red_flags and quick_action not in ("rest",):
+        request.status = "invalid"
+        request.question = (
+            f"提到「{'、'.join(red_flags)}」这类症状，先暂停训练并做医疗评估；"
+            "等症状明确后我们再改计划。"
+        )
+        db.commit()
+        db.refresh(request)
+        return request
+
     intent = parse_intent(text, quick_action)
     request.intent = {**intent.to_dict(), "source": "pending"}
 
@@ -137,6 +145,16 @@ def create_request(
             proposal = None
     if proposal is None:
         proposal = propose_without_model(text, quick_action, base)
+    # 受伤类请求：意图已经明确（部位 + 避开它），模型再追问就没有意义，
+    # 直接退回规则表，避免"说了后背拉伤，它反问你到底想改什么"。
+    if (
+        proposal["status"] != "ready"
+        and intent.kind in ("injury_stop", "injury_swap")
+        and intent.body_parts
+    ):
+        fallback = propose_without_model(text, quick_action, base)
+        if fallback["status"] == "ready":
+            proposal = fallback
 
     request.intent = {**intent.to_dict(), "source": proposal.get("source", "rules")}
 
@@ -182,6 +200,14 @@ def create_request(
             for item in todays
         ]
         risks.append("休息日仍建议保持轻度活动（散步/拉伸），避免完全静止。")
+    # 模型可能"过度反应"：把跟受伤部位无关的槽位也删了。
+    # 先剪掉无关改动，再补全漏掉的（一紧一松都由代码兜住）。
+    operations, dropped = trim_unrelated_ops(intent, base, operations)
+    if dropped:
+        from app.domain.safety_rules import labels_of
+
+        risks.append(f"已忽略 {dropped} 处与{labels_of(intent.body_parts)}无关的改动（保持最小补丁）")
+
     # 模型可能只改了一部分；硬约束必须被补齐（模型提议 + 代码补全）
     extra = cover_injured_slots(intent, base, operations)
     if extra:
@@ -193,10 +219,11 @@ def create_request(
     # 1) 通用约束（受伤部位 / 力量日）
     problems = violates_constraints(proposed, intent)
 
-    # 2) 膝痛专用安全门：**只有确实提到膝盖时才跑**。
-    #    否则「想加点强度」这种请求会被膝痛规则误伤 —— 它跟膝盖无关。
-    if "knee" in intent.body_parts:
-        problems += _safety_check(proposed, intent.available_days or 7)
+    # 2) 部位安全门：只检查用户真正提到的不适部位（膝/踝/腿/髋/腰/背/胸/肩/肘/腕/手臂）。
+    #    没提部位就不跑，否则「想加点强度」会被无关规则误伤。
+    if intent.body_parts:
+        problems += _safety_check(proposed, intent.available_days or 7,
+                                  regions=intent.body_parts)
 
     if problems:
         request.status = "invalid"
@@ -354,6 +381,13 @@ def load_request(db: Session, user: User, request_id: str) -> PatchRequest:
     return _owned_request(db, user, request_id)
 
 
+def ops_for_display(operations: list[dict]) -> list[dict]:
+    """草案里的操作补上中文名（前端直接显示"深蹲 → 臀桥"）。"""
+    from app.domain.catalog import enrich_operations
+
+    return enrich_operations(operations)
+
+
 def request_payload(db: Session, request: PatchRequest) -> dict:
     """把 request + 草案补丁拼成前端要的形状。"""
     patch = db.get(PlanPatch, request.patch_id) if request.patch_id else None
@@ -368,7 +402,7 @@ def request_payload(db: Session, request: PatchRequest) -> dict:
         "draft": (
             {
                 "patch_id": patch.id,
-                "operations": patch.operations or [],
+                "operations": ops_for_display(patch.operations or []),
                 "summary": patch.reason_text,
                 "explanation": (patch.validation or {}).get("explanation", ""),
                 "risks": (patch.validation or {}).get("risks", []),

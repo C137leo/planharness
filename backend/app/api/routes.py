@@ -909,19 +909,9 @@ def _operations_with_names(operations: list[dict]) -> list[dict]:
     前端拿到的操作里只有 slug（goblet-squat），直接展示对用户不友好；
     名字统一由后端解析，避免前端再维护一份映射。
     """
-    from app.domain.catalog import name_of
+    from app.domain.catalog import enrich_operations
 
-    enriched: list[dict] = []
-    for op in operations or []:
-        item = dict(op)
-        before = item.get("before_action_ref")
-        if before:
-            item["before_name"] = name_of(str(before))
-        after = (item.get("after_action") or {}).get("action_ref")
-        if after:
-            item["after_name"] = name_of(str(after))
-        enriched.append(item)
-    return enriched
+    return enrich_operations(operations)
 
 
 def _run_summary(run: AgentRun, db: Session | None = None) -> RunSummaryOut:

@@ -177,24 +177,14 @@ KNEE_RISK_MOVEMENTS = {"knee_dominant"}
 
 
 def is_knee_risky(item: dict) -> bool:
-    """判断一个动作是否对膝痛不安全（ref 归一化 + skill 目录 + movement_mode）。"""
-    raw_ref = str(item.get("action_ref") or "")
-    ref = raw_ref.replace("-", "_").lower()
-    if ref in FORBIDDEN_KNEE_REFS:
-        return True
-    if any(keyword in ref for keyword in KNEE_RISK_KEYWORDS):
-        return True
-    # skill 目录里标注过的膝痛风险动作（按 slug 判断）
-    from app.domain.exercise_catalog import KNEE_RISKY_SLUGS
+    """这个动作对膝盖是否有风险（保留旧入口，逻辑委托给通用规则表）。"""
+    from app.domain.safety_rules import is_risky_for
 
-    if raw_ref in KNEE_RISKY_SLUGS:
-        return True
-    meta = item.get("meta") or {}
-    return str(meta.get("movement_mode") or "") in KNEE_RISK_MOVEMENTS
+    return is_risky_for(str(item.get("action_ref") or ""), "knee", item.get("meta") or {})
 
 
 def _safety_check(proposed: list[dict], available_days: int, *,
-                  check_knee: bool = True) -> list[str]:
+                  check_knee: bool = True, regions: list[str] | None = None) -> list[str]:
     """确定性安全门（第一道闸口）：膝痛禁忌动作 + 训练日不超过可用天数。
 
     `check_knee` 只在"膝痛换动作"这类补丁里开启：
@@ -204,14 +194,18 @@ def _safety_check(proposed: list[dict], available_days: int, *,
 
     返回错误列表，空表示通过。审批时会再跑一次，防止两次审批之间计划被改动。
     """
+    from app.domain.safety_rules import why_risky
+
+    # 兼容两种调用：老代码给 check_knee=True，新代码直接给 regions=[...]
+    scoped = list(regions) if regions is not None else (["knee"] if check_knee else [])
     errors: list[str] = []
-    if check_knee:
-        for item in proposed:
-            if item["action_type"] != "exercise":
-                continue
-            if is_knee_risky(item):
-                name = (item.get("meta") or {}).get("name_zh") or item["action_ref"]
-                errors.append(f"膝痛禁忌动作: {name}")
+    for item in proposed:
+        if item["action_type"] != "exercise":
+            continue
+        hit = why_risky(item["action_ref"], scoped, item.get("meta") or {})
+        if hit:
+            name = (item.get("meta") or {}).get("name_zh") or item["action_ref"]
+            errors.append(f"{hit}禁忌动作: {name}")
     strength_days = {
         item["day_index"]
         for item in proposed
@@ -673,11 +667,14 @@ def approve_patch(
     base = [_action_dict(item) for item in _actions_for_version(db, base_version.id)]
     proposed = _apply_operations(base, patch.operations)
     available_days = int(patch.diff.get("available_days", 2))
-    intent_kind = str(((patch.validation or {}).get("intent") or {}).get("kind") or "")
-    # 只有"膝痛/换部位"类补丁才用膝痛禁忌卡；休息/停练补丁保留原动作是合理的
-    check_knee = intent_kind in ("", "injury", "injury_swap")
+    intent = (patch.validation or {}).get("intent") or {}
+    intent_kind = str(intent.get("kind") or "")
+    regions = [str(item) for item in intent.get("body_parts") or []]
+    if not regions and intent_kind in ("", "injury", "injury_swap"):
+        # 老补丁没有 body_parts 字段：保持原来的膝痛语义
+        regions = ["knee"]
     # 第二道安全门：审批时重跑，防止草稿期与审批期之间的状态漂移
-    safety = _safety_check(proposed, available_days, check_knee=check_knee)
+    safety = _safety_check(proposed, available_days, regions=regions)
     if safety:
         raise PatchValidationError(safety)
 

@@ -17,8 +17,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from app.domain.patches import FORBIDDEN_KNEE_REFS
 from app.domain.planning import MEALS
+from app.domain.safety_rules import (
+    detect_regions,
+    labels_of,
+    name_of as movement_name,
+    regions_of,
+    safe_replacement,
+    why_risky,
+)
 
 # ---------------------------------------------------------------- 意图
 
@@ -88,11 +95,8 @@ SAFE_FALLBACKS = ("glute_bridge", "backpack_row", "pushup", "easy_walk", "stretc
 
 
 def _find_body_parts(text: str) -> list[str]:
-    found: list[str] = []
-    for part, words in BODY_KEYWORDS.items():
-        if any(word in text for word in words):
-            found.append(part)
-    return found
+    """部位识别交给通用规则表：膝/踝/腿/髋/腰/背/胸/肩/肘/腕/手臂都认。"""
+    return detect_regions(text)
 
 
 CN_NUMBERS = {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7}
@@ -122,7 +126,8 @@ def parse_intent(text: str, quick_action: str = "") -> Intent:
         #    「膝盖疼，换上肢」应该被理解成"换部位"，而不是"停止训练"，
         #    所以 swap 的判定必须排在 injury_stop 前面。
         swap_hints = ("换部位", "换一个部位", "换个部位", "换上肢", "练上肢", "避开", "换个练法")
-        stop_hints = ("受伤", "疼", "痛", "不舒服", "拉伤", "扭到")
+        stop_hints = ("受伤", "疼", "痛", "酸", "不舒服", "不适", "别扭", "拉伤", "扭到")
+        explicit_stop = ("停止", "不能练", "先别练", "不练了", "别练了", "彻底休息")
         increase_hints = ("加强度", "增加强度", "加点强度", "强度", "加量", "进阶", "上重量")
 
         if any(w in text for w in ("休息", "不想练", "太累", "歇一天", "今天不练")):
@@ -146,12 +151,17 @@ def parse_intent(text: str, quick_action: str = "") -> Intent:
     parts = _find_body_parts(text)
     days = _find_days(text)
 
-    # 「膝盖疼，这周只能练两天」不是"停练"，而是"少练 + 换动作"。
-    # 只有在明确说"停止/不能练"时才按 injury_stop 处理。
-    if kind == "injury_stop" and days is not None and not any(
-        w in text for w in ("停止", "不能练", "先别练", "不练了")
+    # 默认语义是"避开这个部位"，而不是"整份计划停掉"：
+    # - 说了部位（膝/踝/腿/腰/背/肩/肘/腕/胸/手臂）→ injury_swap（只改涉及的槽位）
+    # - 只有明确说"停止 / 不能练 / 不练了"，或者点了快捷项"先停练"→ injury_stop
+    if (
+        kind == "injury_stop"
+        and parts
+        and action != "injury_stop"
+        and not any(word in text for word in explicit_stop)
     ):
         kind = "injury_swap"
+
     intent = Intent(
         kind=kind,
         body_parts=parts if kind in ("injury_stop", "injury_swap") else [],
@@ -193,25 +203,13 @@ MEAL_INDEX: dict[str, dict] = {meal["ref"]: meal for meal in MEALS}
 
 
 def _action_body_parts(ref: str) -> list[str]:
-    return EXERCISE_BODY_PARTS.get(ref, [])
+    """动作涉及哪些部位：老映射表优先（更具体），查不到就用目录元数据推。"""
+    return EXERCISE_BODY_PARTS.get(ref) or sorted(regions_of(ref))
 
 
 def _pick_safe_replacement(item: dict, injured: set[str], used: set[str]) -> str | None:
-    """挑一个不涉及受伤部位、且没被用过的替代动作。"""
-    current = item["action_ref"]
-    current_parts = set(_action_body_parts(current))
-    candidates = [
-        ref
-        for ref in SAFE_FALLBACKS
-        if ref != current and not (set(_action_body_parts(ref)) & injured)
-    ]
-    # 优先挑"原本就没用到"的动作，避免整份计划变成同一个动作
-    fresh = [ref for ref in candidates if ref not in used]
-    for ref in fresh or candidates:
-        if current_parts <= injured:
-            return ref
-        return ref
-    return None
+    """挑一个不涉及受伤部位、且没被用过的替代动作（通用规则表给候选）。"""
+    return safe_replacement(item["action_ref"], injured, used)
 
 
 def plan_operations(intent: Intent, actions: list[dict]) -> tuple[list[dict], list[str]]:
@@ -285,9 +283,10 @@ def plan_operations(intent: Intent, actions: list[dict]) -> tuple[list[dict], li
                         "duration_min": 20 if replacement == "easy_walk" else None,
                         "sets": 3 if replacement not in ("easy_walk", "stretch") else None,
                         "reps": 12 if replacement not in ("easy_walk", "stretch") else None,
-                        "meta": {"name": replacement, "equipment": []},
+                        "meta": {"name": replacement, "name_zh": movement_name(replacement),
+                             "equipment": []},
                     },
-                    "reason": f"{'/'.join(intent.body_parts)} 不适，换掉涉及该部位的动作",
+                    "reason": f"{labels_of(intent.body_parts)}不适，换掉涉及该部位的动作",
                 }
             )
         # 天数限制：力量日超过可用天数 → 删掉靠后的力量日
@@ -299,20 +298,29 @@ def plan_operations(intent: Intent, actions: list[dict]) -> tuple[list[dict], li
                     if a["action_type"] == "exercise" and a["slot"] == "strength"
                 }
             )
-            overflow = strength_days[intent.available_days:]
-            for day in overflow:
+            overflow = set(strength_days[intent.available_days:])
+            if overflow:
+                by_slot = {item["slot_key"]: item for item in actions}
+                # 整天的槽位都要删：如果只删"没被替换过"的那些，
+                # 这一天仍然有动作，力量日数不会真的下降。
+                operations = [
+                    op for op in operations
+                    if by_slot.get(op.get("slot_key"), {}).get("day_index") not in overflow
+                ]
                 for item in actions:
                     if (
                         item["action_type"] == "exercise"
                         and item["slot"] == "strength"
-                        and item["day_index"] == day
+                        and item["day_index"] in overflow
                     ):
                         operations.append(
                             {
                                 "op": "remove_action",
                                 "slot_key": item["slot_key"],
                                 "before_action_ref": item["action_ref"],
-                                "reason": f"本周只能练 {intent.available_days} 天，删除第 {day} 天力量",
+                                # 标记用途：它不是为了"避开受伤部位"，剪枝时不能删
+                                "why": "day_limit",
+                                "reason": f"本周只能练 {intent.available_days} 天，删除第 {item['day_index']} 天力量",
                             }
                         )
 
@@ -434,7 +442,7 @@ def cover_injured_slots(intent: Intent, base: list[dict],
                 "op": "remove_action",
                 "slot_key": item["slot_key"],
                 "before_action_ref": item["action_ref"],
-                "reason": f"{'/'.join(intent.body_parts)} 不适，补删这个仍涉及该部位的动作",
+                "reason": f"{labels_of(intent.body_parts)}不适，补删这个仍涉及该部位的动作",
             })
             continue
         replacement = _pick_safe_replacement(item, injured, used_refs)
@@ -452,9 +460,40 @@ def cover_injured_slots(intent: Intent, base: list[dict],
                 "reps": 12 if replacement not in ("easy_walk", "stretch") else None,
                 "meta": {"name": replacement, "equipment": []},
             },
-            "reason": f"{'/'.join(intent.body_parts)} 不适，补齐替换",
+            "reason": f"{labels_of(intent.body_parts)}不适，补齐替换",
         })
     return extra
+
+
+def trim_unrelated_ops(intent: Intent, base: list[dict],
+                       operations: list[dict]) -> tuple[list[dict], int]:
+    """剪掉"被改的槽位和受伤部位无关"的操作，返回 (保留的操作, 剪掉数)。
+
+    模型经常"受伤 = 整份计划停掉"：实测让它处理"脚踝扭到了"，
+    它把 9 个槽位全删了（含卧推、俯卧撑这种跟脚踝没关系的东西）。
+    这是 harness 该管的事——模型可以激进，落库的补丁必须最小。
+    """
+    if intent.kind not in ("injury_stop", "injury_swap") or not intent.body_parts:
+        return operations, 0
+    injured = set(intent.body_parts)
+    by_key = {item["slot_key"]: item for item in base}
+    kept: list[dict] = []
+    dropped = 0
+    for op in operations:
+        if op.get("why") == "day_limit":
+            # 压训练日跟"哪个部位受伤"无关，不能当无关改动剪掉
+            kept.append(op)
+            continue
+        item = by_key.get(op.get("slot_key"))
+        if item is None:
+            kept.append(op)
+            continue
+        risky = why_risky(item["action_ref"], injured, item.get("meta"))
+        if risky:
+            kept.append(op)
+        else:
+            dropped += 1
+    return kept, dropped
 
 
 def violates_constraints(actions: list[dict], intent: Intent) -> list[str]:
@@ -466,10 +505,9 @@ def violates_constraints(actions: list[dict], intent: Intent) -> list[str]:
         if item["action_type"] != "exercise":
             continue
         ref = item["action_ref"]
-        if "knee" in injured and ref in FORBIDDEN_KNEE_REFS:
-            problems.append(f"膝盖不适却仍安排了 {ref}")
-        if injured and set(_action_body_parts(ref)) & injured and intent.kind == "injury_swap":
-            problems.append(f"仍安排了涉及受伤部位的 {ref}")
+        hit = why_risky(ref, injured, item.get("meta"))
+        if hit:
+            problems.append(f"{hit}不适却仍安排了 {movement_name(ref)}（{ref}）")
 
     if intent.available_days:
         strength_days = {

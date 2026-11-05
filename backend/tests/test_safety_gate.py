@@ -78,7 +78,7 @@ def test_unknown_ref_is_not_blocked_by_name_rule() -> None:
 def test_safety_check_blocks_knee_risk_with_name() -> None:
     errors = _safety_check([action("goblet-squat", meta={"name_zh": "高脚杯深蹲"})],
                            available_days=3)
-    assert errors == ["膝痛禁忌动作: 高脚杯深蹲"]
+    assert errors == ["膝盖禁忌动作: 高脚杯深蹲"]
 
 
 def test_safety_check_can_skip_knee_for_rest_patch() -> None:

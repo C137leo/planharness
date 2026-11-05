@@ -74,3 +74,26 @@ def refs_for_actions(actions: list[dict]) -> list[str]:
     if "meal" in kinds:
         refs += all_meal_refs()
     return refs
+
+def enrich_operations(operations: list[dict]) -> list[dict]:
+    """给补丁操作补中文名（before_name / after_name）。
+
+    补丁详情、草案、Console 三处都要显示"深蹲 → 臀桥"，
+    名字统一在这里解析，前端不用再维护一份映射。
+    """
+    from app.domain.safety_rules import name_of as catalog_name_of
+
+    def resolve(ref: str) -> str:
+        return catalog_name_of(ref) or name_of(ref)
+
+    enriched: list[dict] = []
+    for op in operations or []:
+        item = dict(op)
+        before = item.get("before_action_ref")
+        if before:
+            item["before_name"] = resolve(str(before))
+        after = (item.get("after_action") or {}).get("action_ref")
+        if after:
+            item["after_name"] = resolve(str(after))
+        enriched.append(item)
+    return enriched

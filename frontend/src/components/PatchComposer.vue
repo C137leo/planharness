@@ -64,6 +64,27 @@ watch(
   },
 )
 
+/** 受伤部位快捷项：点一下就等于说了"XX 不舒服，先避开它"。
+    规则表和模型都认这些部位（膝/踝/腿/髋/腰/背/肩/肘/腕/胸/手臂）。 */
+const BODY_PARTS: Array<{ key: string; text: string }> = [
+  { key: '膝盖', text: '膝盖不舒服，先避开它' },
+  { key: '脚踝', text: '脚踝不舒服，先避开它' },
+  { key: '腿', text: '腿有点疼，先避开它' },
+  { key: '髋', text: '髋部不舒服，先避开它' },
+  { key: '腰', text: '腰疼，先避开它' },
+  { key: '背', text: '后背拉伤，先避开它' },
+  { key: '肩', text: '肩膀不舒服，先避开它' },
+  { key: '肘', text: '手肘疼，先避开它' },
+  { key: '腕', text: '手腕疼，先避开它' },
+  { key: '胸', text: '胸肌拉伤，先避开它' },
+  { key: '手臂', text: '手臂酸，先避开它' },
+]
+
+function pickBodyPart(part: { key: string; text: string }) {
+  quickAction.value = 'injury_swap'
+  text.value = part.text
+}
+
 function pickQuick(key: string, sample: string) {
   quickAction.value = key
   text.value = sample
@@ -168,6 +189,15 @@ function describeError(err: unknown): string {
           </view>
         </view>
 
+        <view class="part-row">
+          <text class="part-label">哪里不舒服</text>
+          <view class="part-chips">
+            <view v-for="part in BODY_PARTS" :key="part.key" class="chip" @click="pickBodyPart(part)">
+              {{ part.key }}
+            </view>
+          </view>
+        </view>
+
         <textarea
           v-model="text"
           class="input"
@@ -254,6 +284,22 @@ function describeError(err: unknown): string {
 </template>
 
 <style>
+.part-row {
+  margin-top: 12px;
+}
+
+.part-label {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.part-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 .row {
   align-items: center;
   display: flex;
