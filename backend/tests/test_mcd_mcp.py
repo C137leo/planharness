@@ -26,6 +26,14 @@ class FakeHttp:
 
 def test_unavailable_without_config(monkeypatch) -> None:
     monkeypatch.setattr(mcd_mcp, "MCD_MCP_URL", "")
+
+    class Empty:
+        mcd_mcp_url = ""
+        mcd_mcp_token = ""
+        mcd_mcp_tool = "search_menu"
+        mcd_mcp_timeout = 15.0
+
+    monkeypatch.setattr("app.config.get_settings", lambda: Empty())
     result = mcd_mcp.search_menu("麦香鱼")
     assert result["status"] == "error"
     assert result["error"] == "mcd_mcp_unavailable"

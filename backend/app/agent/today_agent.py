@@ -102,6 +102,7 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
     usage_total = {"prompt_tokens": 0, "completion_tokens": 0}
     food_meals: dict[str, dict] = {}
     tool_citations: dict[str, dict] = {}
+    mcd_data: dict | None = None
 
     for step in range(MAX_STEPS):
         # 最终 JSON 含 3 餐 × 3 选项，1200 token 容易被截断成非法 JSON；
@@ -128,7 +129,7 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
                 # 修复一次：只让模型重发文字部分，餐食本来就不在模型输出里
                 answer = _repair(client, messages, f"{type(exc).__name__}: {str(exc)[:100]}")
                 trace.append(_step("parse", "repaired"))
-            final = _assemble(answer, food_meals, tool_citations)
+            final = _assemble(answer, food_meals, tool_citations, mcd_data)
             return TodayResult(final=final, trace=trace, usage=usage_total)
 
         messages.append({"role": "assistant", "content": message.get("content") or "",
@@ -141,6 +142,8 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
             trace.append(_step(name, str(result.get("status"))))
             for citation in result.get("citations") or []:
                 tool_citations[citation["id"]] = citation
+            if name == "search_mcdonalds_menu" and result.get("status") == "ok":
+                mcd_data = result.get("data")
             if name == "search_food_options" and result.get("status") == "ok":
                 data = result.get("data") or {}
                 if data.get("options"):
@@ -163,7 +166,8 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
     raise RuntimeError("MAX_STEPS exceeded")
 
 
-def _assemble(answer: dict, food_meals: dict[str, dict], tool_citations: dict[str, dict]) -> dict:
+def _assemble(answer: dict, food_meals: dict[str, dict], tool_citations: dict[str, dict],
+              mcd_data: dict | None = None) -> dict:
     """模型给文字，代码给餐食与引用：输出小、校验确定。"""
     meals = [food_meals[slot] for slot in ("breakfast", "lunch", "dinner", "snack")
              if slot in food_meals]
@@ -183,6 +187,7 @@ def _assemble(answer: dict, food_meals: dict[str, dict], tool_citations: dict[st
         "nutrition_notes": answer.get("nutrition_notes") or [],
         "citations": citations,
         "disclaimer": DEFAULT_DISCLAIMER,
+        "mcdonalds": mcd_data,
     }
 
 

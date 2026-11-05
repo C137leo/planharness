@@ -603,4 +603,6 @@ export interface TodayAgentResult {
   citations: AgentCitation[]
   disclaimer: string
   blocked?: boolean
+  /** 麦当劳 MCP 返回的菜单/价格（未配置时为 null） */
+  mcdonalds?: { items?: unknown[]; raw?: unknown } | null
 }

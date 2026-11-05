@@ -603,6 +603,18 @@ onShow(() => {
             </view>
           </view>
 
+          <view v-if="agentResult.mcdonalds" class="block">
+            <view class="section-title">麦当劳 · 可直接点餐</view>
+            <view class="muted" style="margin-top: 4px">
+              {{ agentResult.mcdonalds.items && agentResult.mcdonalds.items.length
+                ? '以下价格来自麦当劳 MCP，点单前以官方 App 为准。'
+                : '麦当劳 MCP 暂无数据。' }}
+            </view>
+            <view v-for="(item, index) in agentResult.mcdonalds.items || []" :key="index" class="list-row">
+              <text class="list-meta">{{ JSON.stringify(item).slice(0, 120) }}</text>
+            </view>
+          </view>
+
           <view v-if="agentResult.tips.length" class="block">
             <view class="section-title">注意事项</view>
             <view v-for="(tip, index) in agentResult.tips" :key="index" class="tip-row">
