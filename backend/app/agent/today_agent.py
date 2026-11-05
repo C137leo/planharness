@@ -360,6 +360,8 @@ def _all_knowledge_ids(db) -> set[str]:
 
 def run(db, user, day, text: str, client=None) -> TodayResult:
     ctx = load_context(db, user, day)
+    # 手机比价工具需要 VLM 客户端（同一个 OpenAI 兼容客户端即可）
+    ctx["vlm_client"] = client
     try:
         result = _run_loop(db, ctx, text, client) if client else _deterministic(db, ctx, text)
     except Exception as exc:  # noqa: BLE001 - 模型失败要能降级

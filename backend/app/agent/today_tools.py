@@ -68,6 +68,14 @@ TOOLS: list[dict] = [
         }, "required": ["meal_slot"]},
     }},
     {"type": "function", "function": {
+        "name": "compare_food_prices",
+        "description": "（可选，需要已连接手机）在美团 App 里搜索某个商品并读出到手价。只在用户明确要比价时调用；不可用时不要重试。",
+        "parameters": {"type": "object", "properties": {
+            "product_name": {"type": "string", "description": "商品名，例如 鸡胸肉沙拉"},
+            "platform": {"type": "string", "description": "平台，默认美团"},
+        }, "required": ["product_name"]},
+    }},
+    {"type": "function", "function": {
         "name": "get_recovery_tips",
         "description": "根据训练时间和用餐时间给出恢复建议（如饭后多久再训练），带知识库引用。",
         "parameters": {"type": "object", "properties": {
@@ -233,6 +241,21 @@ def search_food_options(args: dict, ctx: dict, db) -> dict:
     }
 
 
+def compare_food_prices(args: dict, ctx: dict, db) -> dict:
+    """手机比价：需要已连接设备 + 模型；任一缺失都返回结构化错误。"""
+    import os
+
+    if os.environ.get("ORDERWISE_ENABLED", "").lower() not in ("1", "true", "yes"):
+        return {"status": "error", "error": "phone_compare_disabled", "retryable": False}
+    from app.food.phone_compare import compare_prices
+
+    product = str(args.get("product_name") or "").strip()
+    if not product:
+        return _error("empty_product")
+    platform = str(args.get("platform") or "美团")
+    return compare_prices(product, apps=[platform], client=ctx.get("vlm_client"))
+
+
 def get_recovery_tips(args: dict, ctx: dict, db) -> dict:
     training = str(args.get("training_time") or "18:30")
     meal_time = str(args.get("meal_time") or "19:00")
@@ -258,6 +281,7 @@ DISPATCH = {
     "search_knowledge": search_knowledge,
     "search_food_options": search_food_options,
     "get_recovery_tips": get_recovery_tips,
+    "compare_food_prices": compare_food_prices,
 }
 
 
