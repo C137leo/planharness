@@ -76,8 +76,17 @@ def test_bad_json_is_error_not_crash(fake_adb) -> None:
     assert result["error"].startswith("model_error")
 
 
-def test_max_steps(fake_adb) -> None:
+def test_repeated_action_requires_takeover(fake_adb) -> None:
+    """同一个动作连续 3 次 = 卡住，转人工，而不是烧完所有步数。"""
     client = FakeClient(['{"action":"wait"}'] * 5)
+    result = phone_compare.compare_prices("鸡胸肉沙拉", client=client, max_steps=6)
+    assert result["status"] == "needs_takeover"
+    assert result["error"] == "stuck_repeating"
+
+
+def test_max_steps(fake_adb) -> None:
+    # 动作各不相同（坐标变化），不会触发重复检测
+    client = FakeClient([f'{{"action":"tap","x":{i},"y":{i}}}' for i in range(6)])
     result = phone_compare.compare_prices("鸡胸肉沙拉", client=client, max_steps=3)
     assert result["status"] == "error"
     assert result["error"] == "max_steps_exceeded"

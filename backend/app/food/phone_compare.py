@@ -71,7 +71,19 @@ def execute(step: dict) -> None:
         adb("shell", "input", "swipe", str(int(step["x1"])), str(int(step["y1"])),
             str(int(step["x2"])), str(int(step["y2"])), str(int(step.get("ms", 300))))
     elif action == "text":
-        adb("shell", "input", "text", str(step.get("text") or "").replace(" ", "%s"))
+        raw = str(step.get("text") or "")
+        try:
+            adb("shell", "input", "text", raw.replace(" ", "%s"))
+        except RuntimeError:
+            # adb input text 不支持中文；需要手机装 ADBKeyboard，
+            # 用它的广播输入。没装就明确报错，让上层转人工。
+            try:
+                adb("shell", "am", "broadcast", "-a", "ADB_INPUT_TEXT",
+                    "--es", "msg", raw)
+            except RuntimeError as exc:
+                raise RuntimeError(
+                    "中文输入失败：请在手机上安装 ADBKeyboard 并用 adb 设为默认输入法"
+                ) from exc
     elif action == "back":
         adb("shell", "input", "keyevent", "4")
     elif action == "home":
@@ -112,6 +124,8 @@ def compare_prices(product_name: str, *, apps: list[str] | None = None,
 
     steps = max_steps or MAX_STEPS
     trace: list[dict] = []
+    sticky: tuple | None = None
+    repeat = 0
     for index in range(steps):
         try:
             shot = screenshot_b64()
@@ -121,7 +135,11 @@ def compare_prices(product_name: str, *, apps: list[str] | None = None,
         messages = [
             {"role": "system", "content": PROMPT},
             {"role": "user", "content": [
-                {"type": "text", "text": f"目标：在 {apps[0]} 搜索「{product_name}」并读到价格。第 {index + 1} 步。"},
+                {"type": "text", "text": (
+                    f"目标：在 {apps[0]} 搜索「{product_name}」并读到价格。第 {index + 1} 步。"
+                    + ("上一次动作无效或重复，请换一个动作（例如点输入框后用 text 输入，"
+                       "再点搜索）。" if repeat >= 2 else "")
+                )},
                 {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{shot}"}},
             ]},
         ]
@@ -133,6 +151,15 @@ def compare_prices(product_name: str, *, apps: list[str] | None = None,
                     "retryable": True, "trace": trace}
         trace.append({"step": index + 1, "action": step.get("action"),
                       "why": str(step.get("why") or "")[:40]})
+
+        # 同一步反复点同一个位置 = 卡住：先提示换动作，连续 3 次交给人
+        signature = (step.get("action"), step.get("x"), step.get("y"))
+        repeat = repeat + 1 if signature == sticky else 1
+        sticky = signature
+        if repeat >= 3:
+            return {"status": "needs_takeover", "error": "stuck_repeating",
+                    "reason": f"连续 {repeat} 次相同动作：{signature[0]}，可能界面没响应",
+                    "retryable": True, "trace": trace}
         action = str(step.get("action") or "")
         if action == "done":
             result = step.get("result") or {}
