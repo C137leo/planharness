@@ -603,6 +603,31 @@ export interface TodayAgentResult {
   citations: AgentCitation[]
   disclaimer: string
   blocked?: boolean
-  /** 麦当劳 MCP 返回的菜单/价格（未配置时为 null） */
-  mcdonalds?: { items?: unknown[]; raw?: unknown } | null
+  /** 麦当劳官方营养库（mcp.mcd.cn）：规划后额外查一次，失败也带 status/error */
+  mcdonalds?: McdBlock | null
+}
+
+/** 麦当劳 MCP 营养库块：combo 是"今天剩余额度"能凑出的一份搭配 */
+export interface McdItem {
+  name: string
+  kcal: number
+  protein_g: number
+  fat_g?: number
+  carb_g?: number
+}
+
+export interface McdBlock {
+  status: string
+  error?: string
+  source?: string
+  fetched_at?: string
+  budget?: {
+    target_kcal: number
+    plan_kcal: number
+    remaining_kcal: number
+    remaining_protein_g: number
+  }
+  combo?: { items: McdItem[]; kcal: number; protein_g: number; left_kcal: number } | null
+  options?: Array<{ name: string; kcal: number; protein_g: number; why: string }>
+  note?: string
 }

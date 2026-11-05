@@ -56,11 +56,12 @@ class Settings(BaseSettings):
     # 连接池上限：checkpointer 的读写都走这个池，别和应用自身的 SQLAlchemy 池抢满连接
     checkpointer_pool_size: int = 5
 
-    # ---- 麦当劳 MCP（open.mcd.cn）：可直接点餐的出口，可选 ----
-    # 留空 = 不启用：工具不会暴露给模型，规划流程照常
-    mcd_mcp_url: str = ""
+    # ---- 麦当劳 MCP（mcp.mcd.cn）：官方营养库，规划后额外调一次，可选 ----
+    # 地址是根路径（官方文档：Streamable HTTP，加 /mcp 会 404）；
+    # token 留空 = 不启用：工具不会暴露给模型，规划流程照常
+    mcd_mcp_url: str = "https://mcp.mcd.cn"
     mcd_mcp_token: str = ""
-    mcd_mcp_tool: str = "search_menu"
+    mcd_mcp_tool: str = "list-nutrition-foods"
     mcd_mcp_timeout: float = 15.0
 
     # ---- 注册 / 登录防滥用 ----

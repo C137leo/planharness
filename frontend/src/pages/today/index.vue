@@ -179,6 +179,20 @@ const macro = computed(() => {
   }
 })
 const eatenKcal = computed(() => meals.value.reduce((sum, meal) => sum + meal.kcal, 0))
+/** 麦当劳营养库：预算来自后端（目标 - 今天已排），前端只做展示 */
+const mcdBudget = computed(() => agentResult.value?.mcdonalds?.budget || null)
+const mcdCombo = computed(() => agentResult.value?.mcdonalds?.combo || null)
+
+/** 麦当劳失败原因：把后端错误码翻成人能看懂的一句话 */
+function mcdErrorLabel(code?: string) {
+  if (!code) return '未知原因'
+  if (code === 'mcd_mcp_unavailable') return '未配置 MCD_MCP_TOKEN'
+  if (code === 'mcd_unauthorized') return 'MCP Token 无效或已过期'
+  if (code === 'mcd_rate_limited') return '调用过于频繁（上限 600 次/分钟）'
+  if (code === 'mcd_empty_menu') return '官方营养表解析失败'
+  if (code === 'no_active_plan') return '当前没有生效中的计划'
+  return code
+}
 /** 所有动作都被换成了拉伸 = 今天是休息日：显示成一条，而不是三行拉伸。 */
 const restMode = computed(
   () =>
@@ -604,14 +618,41 @@ onShow(() => {
           </view>
 
           <view v-if="agentResult.mcdonalds" class="block">
-            <view class="section-title">麦当劳 · 可直接点餐</view>
-            <view class="muted" style="margin-top: 4px">
-              {{ agentResult.mcdonalds.items && agentResult.mcdonalds.items.length
-                ? '以下价格来自麦当劳 MCP，点单前以官方 App 为准。'
-                : '麦当劳 MCP 暂无数据。' }}
+            <view class="section-title">麦当劳 · 官方营养库</view>
+
+            <view v-if="agentResult.mcdonalds.status !== 'ok'" class="muted" style="margin-top: 4px">
+              这次没取到麦当劳数据（{{ mcdErrorLabel(agentResult.mcdonalds.error || agentResult.mcdonalds.status) }}），其余推荐不受影响。
             </view>
-            <view v-for="(item, index) in agentResult.mcdonalds.items || []" :key="index" class="list-row">
-              <text class="list-meta">{{ JSON.stringify(item).slice(0, 120) }}</text>
+
+            <view v-else>
+              <view v-if="mcdBudget" class="muted" style="margin-top: 4px">
+                今天的计划排了 {{ mcdBudget.plan_kcal }} / {{ mcdBudget.target_kcal }} kcal，
+                还剩 {{ mcdBudget.remaining_kcal }} kcal、蛋白 {{ mcdBudget.remaining_protein_g }} g
+              </view>
+
+              <view v-if="mcdCombo" class="list-row" style="align-items: flex-start; flex-direction: column; gap: 4px">
+                <text class="list-value">想点麦当劳可以这么凑</text>
+                <text class="list-meta">
+                  {{ mcdCombo.items.map((item) => `${item.name}（${item.kcal} kcal）`).join(' + ') }}
+                  = {{ mcdCombo.kcal }} kcal / 蛋白 {{ mcdCombo.protein_g }} g
+                </text>
+              </view>
+              <view v-else class="muted" style="margin-top: 6px">
+                今天的热量额度已经排满，想吃麦当劳就替换一顿，别把它当加餐。
+              </view>
+
+              <view v-for="item in agentResult.mcdonalds.options || []" :key="item.name" class="list-row">
+                <view class="list-main">
+                  <text class="list-value">{{ item.name }}</text>
+                  <text class="list-meta">{{ item.why }}</text>
+                </view>
+                <text class="list-value">{{ item.kcal }} kcal · 蛋白 {{ item.protein_g }}g</text>
+              </view>
+
+              <view class="muted" style="margin-top: 6px">
+                {{ agentResult.mcdonalds.note }}
+                <text v-if="agentResult.mcdonalds.fetched_at">（官方数据取于 {{ agentResult.mcdonalds.fetched_at }}）</text>
+              </view>
             </view>
           </view>
 

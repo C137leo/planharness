@@ -72,10 +72,10 @@ TOOLS: list[dict] = [
         }, "required": ["meal_slot"]},
     }},
     {"type": "function", "function": {
-        "name": "search_mcdonalds_menu",
-        "description": "查询麦当劳菜单与价格（open.mcd.cn MCP）。规划完成后，如果要给用户一个可直接点餐的选项，调用它并原样引用返回价格，不要自己编。",
+        "name": "mcd_nutrition",
+        "description": "查询麦当劳官方营养库（mcp.mcd.cn MCP），返回可用剩余热量搭配的餐品及其热量/蛋白质。用户提到麦当劳、或你想给一个可直接点餐的备选时调用，数字必须原样引用，不要自己编价格。",
         "parameters": {"type": "object", "properties": {
-            "keyword": {"type": "string", "description": "商品关键词，例如 麦香鱼"},
+            "keyword": {"type": "string", "description": "只看名字里含这个词的餐品，可省略"},
         }},
     }},
     {"type": "function", "function": {
@@ -95,7 +95,7 @@ except Exception:  # noqa: BLE001
     _mcd_available = lambda: False  # noqa: E731
 if not _mcd_available():
     TOOLS = [tool for tool in TOOLS
-             if tool["function"]["name"] != "search_mcdonalds_menu"]
+             if tool["function"]["name"] != "mcd_nutrition"]
 
 TOOL_NAMES = {tool["function"]["name"] for tool in TOOLS}
 
@@ -241,10 +241,12 @@ def search_food_options(args: dict, ctx: dict, db) -> dict:
     # 保证 3 个选项：不足时把"按原计划这一餐"作为兜底选项补上
     if len(options) < 3 and (meal.items or []):
         from app.food.links import platform_links
-        from app.food.provider import FoodOption
+        from app.food.provider import FoodOption, title_of
 
+        # 标题用食材拼出来（"按计划：鸡胸肉米饭 + 西兰花"），而不是只写"午餐"，
+        # 用户才知道这一项到底吃的是什么
         original = FoodOption(
-            title=str(meal.title or "按原计划这一餐"),
+            title=f"按计划：{title_of(list(meal.items or [])) or str(meal.title or '')}",
             items=list(meal.items or []),
             kcal=int(meal.kcal or 0),
             protein_g=float(meal.protein_g or 0),
@@ -269,13 +271,46 @@ def search_food_options(args: dict, ctx: dict, db) -> dict:
     }
 
 
-def search_mcdonalds_menu(args: dict, ctx: dict, db) -> dict:
-    from app.food.mcd_mcp import available, search_menu
+def _remaining(ctx: dict) -> dict:
+    """今天还剩多少热量/蛋白额度：目标来自计划版本，已排进去的是当天 MealPlan 之和。"""
+    if ctx.get("plan") is None:
+        return {"target_kcal": 0, "plan_kcal": 0, "target_protein": 0.0, "plan_protein": 0.0}
+    meals = list((ctx.get("meals") or {}).values())
+    return {
+        "target_kcal": int(ctx["version"].calorie_target or 0),
+        "plan_kcal": int(sum(int(meal.kcal or 0) for meal in meals)),
+        "target_protein": float(ctx["version"].protein_target_g or 0),
+        "plan_protein": float(sum(float(meal.protein_g or 0) for meal in meals)),
+    }
+
+
+def mcd_nutrition(args: dict, ctx: dict, db) -> dict:
+    """麦当劳官方营养库：拿官方热量表算"今天还剩的额度能点哪几样"。
+
+    先拉表（带 6h 缓存），再做加减法；失败只返回错误码，不影响主流程。
+    """
+    from app.food.mcd_mcp import available, build_block, fetch_nutrition
 
     if not available():
         return {"status": "error", "error": "mcd_mcp_unavailable", "retryable": False}
-    return search_menu(keyword=str(args.get("keyword") or ""),
-                       store=str(args.get("store") or ""))
+    fetched = fetch_nutrition()
+    if fetched["status"] != "ok":
+        return fetched
+    data = fetched["data"]
+    items = data["items"]
+    keyword = str(args.get("keyword") or "").strip()
+    if keyword:
+        narrowed = [item for item in items if keyword in item["name"]]
+        items = narrowed or items  # 没匹配到就用全表，别让模型自己补
+    block = build_block(
+        items,
+        target_kcal=_remaining(ctx)["target_kcal"],
+        plan_kcal=_remaining(ctx)["plan_kcal"],
+        target_protein=_remaining(ctx)["target_protein"],
+        plan_protein=_remaining(ctx)["plan_protein"],
+        fetched_at=data.get("fetched_at") or "",
+    )
+    return {"status": "ok", "data": block, "citations": []}
 
 
 def get_recovery_tips(args: dict, ctx: dict, db) -> dict:
@@ -303,7 +338,7 @@ DISPATCH = {
     "search_knowledge": search_knowledge,
     "search_food_options": search_food_options,
     "get_recovery_tips": get_recovery_tips,
-    "search_mcdonalds_menu": search_mcdonalds_menu,
+    "mcd_nutrition": mcd_nutrition,
 }
 
 

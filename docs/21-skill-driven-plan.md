@@ -273,28 +273,54 @@ usage: 10827 prompt / 919 completion tokens → 约 0.029 元
 - 小程序端未回归（需要 AppID）。
 
 
-## 附：麦当劳 MCP（可选的"直接点餐"出口）
+## 附：麦当劳 MCP（规划后的"能在麦当劳吃什么"）
 
 淘宝/京东/美团网页端都要登录，拿不到稳定价格，所以比价能力下线，只保留搜索深链。
-作为替代，接入麦当劳 MCP（open.mcd.cn）作为**可直接点餐**的演示项：
+作为替代，接入麦当劳 MCP（<https://mcp.mcd.cn>）作为**真实数据**的演示项。
 
-- 代码：`backend/app/food/mcd_mcp.py`（JSON-RPC over HTTP，兼容 SSE 返回）；
-- 工具：`search_mcdonalds_menu`，**未配置 `MCD_MCP_URL` 时不对模型暴露**；
-- 每次确定性规划结束后额外调一次，结果挂在 `final["mcdonalds"]`；
-- 价格原样引用，不编造；失败只记 `mcd_http_xxx` / `mcd_mcp_unavailable`，不抛出。
+**为什么用营养库而不是点餐链路**：官方工具里 `query-nearby-stores → query-meals →
+calculate-price → create-order` 是一条"选门店 → 算价 → 下单"的链路，属于代下单，
+这个项目不做；而 `list-nutrition-foods` 不需要登录/门店/地址，返回 156 个餐品的
+官方热量与蛋白质，正好能回答"今天还剩的额度够不够点一份、该点哪个"。
 
-配置：**写进 `backend/.env`（dev）或服务器的 `deploy/planharness.env`（prod）**，
+- 代码：`backend/app/food/mcd_mcp.py`
+  - 协议：Streamable HTTP，**地址就是根路径 `https://mcp.mcd.cn`**（加 `/mcp`、`/sse` 会 404）；
+  - 先 `initialize`（protocolVersion `2025-06-18`）→ `notifications/initialized` →
+    再 `tools/call`，少了握手会被拒；
+  - 响应纯 JSON / SSE 都解析；营养表缓存 6 小时（`CACHE_TTL_S`）。
+- 工具：`mcd_nutrition`，**未配置 token 时不对模型暴露**；
+- **每次规划结束都会补调一次**（模型路径在 `_mcd_block()` 里兜底，确定性路径同理），
+  结果挂在 `final["mcdonalds"]`，所以"看不到麦当劳"不再取决于模型想不想调；
+- 只会做加减法：`剩余热量 = 版本目标 - 当天 MealPlan 之和`，主食按
+  "每 100 kcal 的蛋白质克数"排序，配菜只从 50-180 kcal 且蛋白 ≥3g 里挑，
+  严格不超预算；配不出来就明确说"额度已排满，想吃就替换一顿"；
+- 失败也返回结构（`status/error`），前端显示"这次没取到麦当劳数据（mcd_xxx）"，
+  不会整块消失。
+
+配置：**写进 `backend/.env`（dev）或服务器的 `/etc/planharness/planharness.env`（prod）**，
 和 DeepSeek Key、DATABASE_URL 同一套机制，`export` 只是临时验证用的写法。
 
 ```dotenv
 # backend/.env（已被 .gitignore 忽略，不要提交）
-MCD_MCP_URL=https://open.mcd.cn/mcp
-MCD_MCP_TOKEN=***
-MCD_MCP_TOOL=search_menu
+MCD_MCP_URL=https://mcp.mcd.cn
+MCD_MCP_TOKEN=***            # 在 https://open.mcd.cn/mcp 控制台"激活"后生成
+MCD_MCP_TOOL=list-nutrition-foods
 MCD_MCP_TIMEOUT=15
 ```
 
-- 留空 = 不启用：工具不暴露给模型，规划流程照常；
+- 留空 token = 不启用：工具不暴露给模型，规划流程照常，前端那一块显示"未取到"；
 - 生产：systemd 用 `EnvironmentFile=/etc/planharness/planharness.env` 加载同一份配置，
   改完 `systemctl restart planharness` 生效；
-- 验证：`python -c "from app.config import get_settings; s=get_settings(); print(bool(s.mcd_mcp_url))"`
+- 验证（不消耗模型额度）：
+
+```bash
+cd backend && .venv/bin/python -c "
+from app.food import mcd_mcp
+print(mcd_mcp.available())
+r = mcd_mcp.fetch_nutrition(force=True)
+print(r['status'], len((r.get('data') or {}).get('items') or []))
+"
+```
+
+错误码：`mcd_unauthorized`（token 无效）、`mcd_rate_limited`（>600 次/分钟）、
+`mcd_empty_menu`（表解析不出来）、`mcd_error:*`（网络）。

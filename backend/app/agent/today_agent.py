@@ -39,6 +39,8 @@ SYSTEM_PROMPT = """你是今日活动规划 Agent。你可以按任意顺序调�
    并把依据 id 写进这条 tip 的 source_ids。
 9. meals 必须覆盖工具返回的每一餐（早/午/晚），每餐 options 原样复制工具结果的 3 个选项，
    不要省略、不要改写标题和链接；citations 里放上所有被引用条目的 id/title/source_url。
+10. 用户提到麦当劳、或问"能不能点外卖"时，调用 mcd_nutrition，用官方营养表的热量/蛋白质
+    数字回答；那是营养数据，不是价格，不要编价格。
 
 输出结构（**不要输出 meals**，餐食由程序用工具结果拼好）：
 {
@@ -130,6 +132,9 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
                 answer = _repair(client, messages, f"{type(exc).__name__}: {str(exc)[:100]}")
                 trace.append(_step("parse", "repaired"))
             final = _assemble(answer, food_meals, tool_citations, mcd_data)
+            # 不管模型有没有主动查，规划完成后都补一次麦当劳营养库：
+            # 这是产品需求（"每次规划后额外调一次"），不能靠模型自觉。
+            final["mcdonalds"] = _mcd_block(db, ctx, trace, cached=mcd_data)
             return TodayResult(final=final, trace=trace, usage=usage_total)
 
         messages.append({"role": "assistant", "content": message.get("content") or "",
@@ -142,7 +147,7 @@ def _run_loop(db, ctx: dict, text: str, client) -> TodayResult:
             trace.append(_step(name, str(result.get("status"))))
             for citation in result.get("citations") or []:
                 tool_citations[citation["id"]] = citation
-            if name == "search_mcdonalds_menu" and result.get("status") == "ok":
+            if name == "mcd_nutrition" and result.get("status") == "ok":
                 mcd_data = result.get("data")
             if name == "search_food_options" and result.get("status") == "ok":
                 data = result.get("data") or {}
@@ -189,6 +194,24 @@ def _assemble(answer: dict, food_meals: dict[str, dict], tool_citations: dict[st
         "disclaimer": DEFAULT_DISCLAIMER,
         "mcdonalds": mcd_data,
     }
+
+
+def _mcd_block(db, ctx: dict, trace: list[dict], cached: dict | None = None) -> dict:
+    """麦当劳官方营养库块：模型调用过就复用，没调用就补一次。
+
+    失败也返回结构（带 status/error），前端能显示"为什么没有麦当劳"，
+    而不是整块消失让人以为功能没做。
+    """
+    if cached:
+        return cached
+    if ctx.get("plan") is None:
+        return {"status": "disabled", "error": "no_active_plan"}
+    result = dispatch("mcd_nutrition", {}, ctx, db)
+    trace.append(_step("mcd_nutrition", str(result.get("status"))))
+    if result.get("status") == "ok" and result.get("data"):
+        return result["data"]
+    return {"status": result.get("status") or "error",
+            "error": result.get("error") or "mcd_unknown"}
 
 
 def _blocked_answer(trace: list[dict]) -> dict:
@@ -262,9 +285,8 @@ def _deterministic(db, ctx: dict, text: str) -> TodayResult:
             "options": food["data"]["options"],
         })
 
-    # 每次规划后额外补一次麦当劳（可直接点餐的替代选项）
-    mcd = dispatch("search_mcdonalds_menu", {}, ctx, db)
-    trace.append(_step("search_mcdonalds_menu", str(mcd.get("status"))))
+    # 每次规划后额外补一次麦当劳营养库（可直接点餐的替代选项）
+    mcd = _mcd_block(db, ctx, trace)
 
     recovery = dispatch("get_recovery_tips", {}, ctx, db)
     trace.append(_step("get_recovery_tips", str(recovery.get("status"))))
@@ -307,8 +329,7 @@ def _deterministic(db, ctx: dict, text: str) -> TodayResult:
         "fallback": True,
     }
     # 留痕：ok 给数据，失败也带 error，前端和排查都能看到
-    final["mcdonalds"] = mcd.get("data") if mcd.get("status") == "ok" else {
-        "status": mcd.get("status"), "error": mcd.get("error")}
+    final["mcdonalds"] = mcd
     return TodayResult(final=final, trace=trace, fallback=True)
 
 

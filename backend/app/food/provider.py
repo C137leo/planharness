@@ -46,6 +46,11 @@ class FoodOption:
         }
 
 
+def title_of(items: list[dict]) -> str:
+    """公开版菜名（口径与 _title_of 一致），给托盘/兜底选项复用。"""
+    return _title_of(items)
+
+
 def _title_of(items: list[dict]) -> str:
     """菜名：主蛋白 + 主食，再带上蔬菜，方便平台搜索"成品餐"。"""
     protein = next((item["name"] for item in items if item["name"] in {
