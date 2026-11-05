@@ -149,6 +149,24 @@ function openAgentLink(url: string) {
   uni.setClipboardData({ data: url })
 }
 
+/**
+ * 打开麦当劳官方订餐页（https://www.mcd.cn/）。
+ * 麦当劳网页端要先手机号登录、选门店才能下单，所以只能整页跳过去；
+ * 单项没有可用的深链，点名字时顺便把餐名复制到剪贴板，省得用户自己打。
+ */
+function openMcdOrder(name: string) {
+  const url = agentResult.value?.mcdonalds?.links?.order || 'https://www.mcd.cn/'
+  // 先同步开新窗口：iOS Safari / Chrome 会把"异步回调里的 window.open"当弹窗拦掉，
+  // 复制餐名放在后面，失败了也不影响跳转
+  openAgentLink(url)
+  if (name) {
+    uni.setClipboardData({
+      data: name,
+      success: () => uni.showToast({ title: `已复制「${name}」`, icon: 'none' }),
+    })
+  }
+}
+
 function openKnowledge(question: string, bodyPart = '') {
   knowledgeQuestion.value = question
   knowledgeBodyPart.value = bodyPart
@@ -580,10 +598,22 @@ onShow(() => {
         <template v-if="agentResult">
           <view class="draft-summary">{{ agentResult.summary }}</view>
 
-          <view v-if="agentResult.schedule.length" class="block">
-            <view class="section-title">今日安排</view>
-            <view v-for="item in agentResult.schedule" :key="item.time" class="list-row">
-              <text class="list-title">{{ item.time }} · {{ item.activity }}</text>
+          <view v-if="agentResult.schedule.length" class="agent-card schedule-card">
+            <view class="card-head">
+              <text class="section-title">今日安排</text>
+              <text class="card-badge">{{ agentResult.schedule.length }} 个时段</text>
+            </view>
+            <view class="timeline">
+              <view v-for="item in agentResult.schedule" :key="item.time" class="tl-item">
+                <view class="tl-rail">
+                  <text class="tl-time">{{ item.time }}</text>
+                  <view class="tl-dot" />
+                </view>
+                <view class="tl-body">
+                  <text class="tl-activity">{{ item.activity }}</text>
+                  <text v-if="item.why" class="tl-why">{{ item.why }}</text>
+                </view>
+              </view>
             </view>
           </view>
 
@@ -617,46 +647,77 @@ onShow(() => {
             </view>
           </view>
 
-          <view v-if="agentResult.mcdonalds" class="block">
-            <view class="section-title">麦当劳 · 官方营养库</view>
+          <view v-if="agentResult.mcdonalds" class="agent-card mcd-card">
+            <view class="card-head">
+              <view class="mcd-head-left">
+                <view class="mcd-mark">M</view>
+                <view class="mcd-titles">
+                  <text class="mcd-name">麦当劳 · 官方营养库</text>
+                  <text class="mcd-sub">留够额度再点，数字来自官方营养表</text>
+                </view>
+              </view>
+            </view>
 
-            <view v-if="agentResult.mcdonalds.status !== 'ok'" class="muted" style="margin-top: 4px">
+            <view v-if="agentResult.mcdonalds.status !== 'ok'" class="muted" style="margin-top: 6px">
               这次没取到麦当劳数据（{{ mcdErrorLabel(agentResult.mcdonalds.error || agentResult.mcdonalds.status) }}），其余推荐不受影响。
             </view>
 
             <view v-else>
-              <view v-if="mcdBudget" class="muted" style="margin-top: 4px">
-                今天的计划排了 {{ mcdBudget.plan_kcal }} / {{ mcdBudget.target_kcal }} kcal，
-                还剩 {{ mcdBudget.remaining_kcal }} kcal、蛋白 {{ mcdBudget.remaining_protein_g }} g
+              <view v-if="mcdBudget" class="mcd-budget">
+                <view class="mcd-budget-bit">
+                  <text class="mcd-budget-value">{{ mcdBudget.remaining_kcal }}<text class="mcd-budget-unit">kcal</text></text>
+                  <text class="mcd-budget-label">今天还剩的热量</text>
+                </view>
+                <view class="mcd-budget-bit">
+                  <text class="mcd-budget-value">{{ mcdBudget.remaining_protein_g }}<text class="mcd-budget-unit">g</text></text>
+                  <text class="mcd-budget-label">蛋白缺口</text>
+                </view>
+                <text class="mcd-budget-note">计划 {{ mcdBudget.plan_kcal }} / 目标 {{ mcdBudget.target_kcal }} kcal</text>
               </view>
 
-              <view v-if="mcdCombo" class="list-row" style="align-items: flex-start; flex-direction: column; gap: 4px">
-                <text class="list-value">想点麦当劳可以这么凑</text>
-                <text class="list-meta">
-                  {{ mcdCombo.items.map((item) => `${item.name}（${item.kcal} kcal）`).join(' + ') }}
-                  = {{ mcdCombo.kcal }} kcal / 蛋白 {{ mcdCombo.protein_g }} g
+              <view v-if="mcdCombo" class="mcd-combo">
+                <text class="mcd-combo-label">想点麦当劳可以这么凑</text>
+                <text class="mcd-combo-line">
+                  {{ mcdCombo.items.map((item) => `${item.name}（${item.kcal}）`).join(' + ') }}
+                  = {{ mcdCombo.kcal }} kcal · 蛋白 {{ mcdCombo.protein_g }} g
                 </text>
               </view>
               <view v-else class="muted" style="margin-top: 6px">
                 今天的热量额度已经排满，想吃麦当劳就替换一顿，别把它当加餐。
               </view>
 
-              <view v-for="item in agentResult.mcdonalds.options || []" :key="item.name" class="list-row">
-                <view class="list-main">
-                  <text class="list-value">{{ item.name }}</text>
-                  <text class="list-meta">{{ item.why }}</text>
+              <view
+                v-for="item in agentResult.mcdonalds.options || []"
+                :key="item.name"
+                class="mcd-item"
+                @click="openMcdOrder(item.name)"
+              >
+                <view class="mcd-item-main">
+                  <text class="mcd-item-name">{{ item.name }}</text>
+                  <text class="mcd-item-why">{{ item.why }}</text>
                 </view>
-                <text class="list-value">{{ item.kcal }} kcal · 蛋白 {{ item.protein_g }}g</text>
+                <view class="mcd-item-right">
+                  <text class="mcd-item-kcal">{{ item.kcal }} kcal · 蛋白 {{ item.protein_g }}g</text>
+                  <text class="mcd-item-go">去点餐 →</text>
+                </view>
               </view>
 
-              <view class="muted" style="margin-top: 6px">
+              <view class="mcd-cta" @click="openMcdOrder('')">
+                去麦当劳点餐（自己选门店）
+              </view>
+              <text class="mcd-hint">
+                {{ agentResult.mcdonalds.order_hint || '登录 → 选门店 → 加购物车 → 想付再付' }}。
+                我们只推荐、不代下单也不收款；点某一项会先复制餐名，方便你在麦当劳页面直接搜。
+              </text>
+
+              <text class="mcd-note">
                 {{ agentResult.mcdonalds.note }}
                 <text v-if="agentResult.mcdonalds.fetched_at">（官方数据取于 {{ agentResult.mcdonalds.fetched_at }}）</text>
-              </view>
+              </text>
             </view>
           </view>
 
-          <view v-if="agentResult.tips.length" class="block">
+          <view v-if="agentResult.tips.length" class="agent-card">
             <view class="section-title">注意事项</view>
             <view v-for="(tip, index) in agentResult.tips" :key="index" class="tip-row">
               <text class="list-meta">{{ tip.text }}</text>
@@ -673,7 +734,7 @@ onShow(() => {
             </view>
           </view>
 
-          <view v-if="agentResult.citations.length" class="block">
+          <view v-if="agentResult.citations.length" class="agent-card">
             <view class="section-title">依据</view>
             <view v-for="item in agentResult.citations" :key="item.id" class="list-row">
               <text class="list-meta">{{ item.title }}</text>
@@ -774,6 +835,277 @@ onShow(() => {
   background: var(--primary-soft);
   box-shadow: inset 0 0 0 2px var(--primary);
 }
+/* ---- Agent 结果卡片 ----
+   之前所有块都只有 .section-title + 一堆 list-row，视觉上糊成一片：
+   给每个块一个卡片边界，今日安排用时间轴、麦当劳用品牌色，扫一眼就知道是什么。 */
+.agent-card {
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: 16px;
+  margin-top: 14px;
+  padding: 14px;
+}
+
+.card-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.card-badge {
+  background: var(--primary-soft);
+  border-radius: 999px;
+  color: var(--primary-deep);
+  font-size: 11px;
+  padding: 2px 8px;
+}
+
+/* 今日安排：左边时间、右边做什么 + 为什么，竖线把它们串成一天 */
+.schedule-card {
+  background: linear-gradient(180deg, #fff7f1 0%, #ffffff 62%);
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+}
+
+.tl-item {
+  display: flex;
+  gap: 10px;
+  padding: 9px 0;
+}
+
+.tl-item + .tl-item {
+  border-top: 1px dashed var(--line-soft);
+}
+
+.tl-rail {
+  align-items: center;
+  display: flex;
+  flex: 0 0 44px;
+  flex-direction: column;
+  width: 44px;
+}
+
+.tl-time {
+  color: var(--primary-deep);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-dot {
+  background: var(--primary);
+  border-radius: 999px;
+  height: 6px;
+  margin-top: 6px;
+  width: 6px;
+}
+
+.tl-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tl-activity {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.tl-why {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* 麦当劳：金拱门红 + 黄，和上面的计划块明显区分 */
+.mcd-card {
+  border-color: #f1d7cd;
+}
+
+.mcd-head-left {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.mcd-mark {
+  align-items: center;
+  background: #da291c;
+  border-radius: 9px;
+  color: #ffc72c;
+  display: flex;
+  flex: 0 0 30px;
+  font-size: 17px;
+  font-weight: 800;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.mcd-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mcd-name {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.mcd-sub {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.mcd-budget {
+  align-items: baseline;
+  background: #fff5f1;
+  border-radius: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 10px;
+  padding: 10px 12px;
+}
+
+.mcd-budget-bit {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.mcd-budget-unit {
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+.mcd-budget-value {
+  color: #c2410c;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.mcd-budget-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.mcd-budget-note {
+  color: var(--muted);
+  font-size: 11px;
+  margin-left: auto;
+}
+
+.mcd-combo {
+  border: 1px dashed #e6b9a9;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+  padding: 10px 12px;
+}
+
+.mcd-combo-label {
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mcd-combo-line {
+  color: var(--ink-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.mcd-item {
+  align-items: center;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 11px 0;
+}
+
+.mcd-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.mcd-item-name {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mcd-item-why {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.mcd-item-right {
+  align-items: flex-end;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mcd-item-kcal {
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mcd-item-go {
+  color: #c2410c;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.mcd-cta {
+  align-items: center;
+  background: #da291c;
+  border-radius: 999px;
+  color: #fff;
+  display: flex;
+  font-size: 14px;
+  font-weight: 700;
+  justify-content: center;
+  margin-top: 12px;
+  padding: 11px 16px;
+}
+
+.mcd-hint {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+.mcd-note {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line-soft);
+}
+
 .tip-row {
   border-top: 1px solid var(--line-soft);
   display: flex;

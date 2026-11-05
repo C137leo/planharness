@@ -159,6 +159,9 @@ def test_build_block_fits_combo_into_budget() -> None:
     assert "美式咖啡" not in [item["name"] for item in combo["items"]]
     assert len(block["options"]) == 3
     assert block["options"][0]["why"]
+    # 有可跳转的官方订餐入口（用户自己登录/选门店/付款，我们不代下单）
+    assert block["links"]["order"].startswith("https://")
+    assert "登录" in block["order_hint"]
 
 
 def test_build_block_without_budget_still_ranks() -> None:

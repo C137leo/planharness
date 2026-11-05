@@ -629,5 +629,8 @@ export interface McdBlock {
   }
   combo?: { items: McdItem[]; kcal: number; protein_g: number; left_kcal: number } | null
   options?: Array<{ name: string; kcal: number; protein_g: number; why: string }>
+  /** 官方网上订餐入口：用户自己登录/选门店/加购物车/付款 */
+  links?: { order?: string }
+  order_hint?: string
   note?: string
 }

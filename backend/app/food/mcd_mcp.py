@@ -39,6 +39,11 @@ _CACHE: dict = {"at": 0.0, "items": [], "fetched_at": ""}
 
 NUTRITION_TOOL = "list-nutrition-foods"
 
+# 官方网上订餐入口（"麦当劳网上订餐"，需用户自己用手机号登录 → 选门店 → 加购物车）。
+# 我们不代下单、不收款：这里只给一个可跳转的入口，付款在麦当劳页面完成。
+ORDER_URL = "https://www.mcd.cn/"
+ORDER_HINT = "自己登录 → 选门店/地址 → 搜餐名加购物车 → 想付款再付"
+
 NOTE = ("热量/蛋白质为麦当劳官方营养表数值，不是价格，也不代表门店当前供应；"
         "这里只做推荐，不代下单。")
 
@@ -283,5 +288,8 @@ def build_block(items: list[dict], *, target_kcal: int = 0, plan_kcal: int = 0,
         },
         "combo": combo,
         "options": options,
+        # 可跳转的官方订餐入口：用户自己登录、选门店、加购物车、自己付款
+        "links": {"order": ORDER_URL},
+        "order_hint": ORDER_HINT,
         "note": NOTE,
     }
