@@ -72,6 +72,13 @@ TOOLS: list[dict] = [
         }, "required": ["meal_slot"]},
     }},
     {"type": "function", "function": {
+        "name": "search_mcdonalds_menu",
+        "description": "查询麦当劳菜单与价格（open.mcd.cn MCP）。规划完成后，如果要给用户一个可直接点餐的选项，调用它并原样引用返回价格，不要自己编。",
+        "parameters": {"type": "object", "properties": {
+            "keyword": {"type": "string", "description": "商品关键词，例如 麦香鱼"},
+        }},
+    }},
+    {"type": "function", "function": {
         "name": "get_recovery_tips",
         "description": "根据训练时间和用餐时间给出恢复建议（如饭后多久再训练），带知识库引用。",
         "parameters": {"type": "object", "properties": {
@@ -80,6 +87,15 @@ TOOLS: list[dict] = [
         }},
     }},
 ]
+
+# 麦当劳 MCP 未配置时不要把工具暴露给模型（否则它会调用一个必然失败的工具）
+try:
+    from app.food.mcd_mcp import available as _mcd_available
+except Exception:  # noqa: BLE001
+    _mcd_available = lambda: False  # noqa: E731
+if not _mcd_available():
+    TOOLS = [tool for tool in TOOLS
+             if tool["function"]["name"] != "search_mcdonalds_menu"]
 
 TOOL_NAMES = {tool["function"]["name"] for tool in TOOLS}
 
@@ -237,6 +253,15 @@ def search_food_options(args: dict, ctx: dict, db) -> dict:
     }
 
 
+def search_mcdonalds_menu(args: dict, ctx: dict, db) -> dict:
+    from app.food.mcd_mcp import available, search_menu
+
+    if not available():
+        return {"status": "error", "error": "mcd_mcp_unavailable", "retryable": False}
+    return search_menu(keyword=str(args.get("keyword") or ""),
+                       store=str(args.get("store") or ""))
+
+
 def get_recovery_tips(args: dict, ctx: dict, db) -> dict:
     training = str(args.get("training_time") or "18:30")
     meal_time = str(args.get("meal_time") or "19:00")
@@ -262,6 +287,7 @@ DISPATCH = {
     "search_knowledge": search_knowledge,
     "search_food_options": search_food_options,
     "get_recovery_tips": get_recovery_tips,
+    "search_mcdonalds_menu": search_mcdonalds_menu,
 }
 
 

@@ -271,3 +271,22 @@ usage: 10827 prompt / 919 completion tokens → 约 0.029 元
 - 模型路径的手工验证只覆盖了少数几条原话，失败率与稳定性没有统计（单元测试跑的是
   确定性编排，以免测试消耗额度）。
 - 小程序端未回归（需要 AppID）。
+
+
+## 附：麦当劳 MCP（可选的"直接点餐"出口）
+
+淘宝/京东/美团网页端都要登录，拿不到稳定价格，所以比价能力下线，只保留搜索深链。
+作为替代，接入麦当劳 MCP（open.mcd.cn）作为**可直接点餐**的演示项：
+
+- 代码：`backend/app/food/mcd_mcp.py`（JSON-RPC over HTTP，兼容 SSE 返回）；
+- 工具：`search_mcdonalds_menu`，**未配置 `MCD_MCP_URL` 时不对模型暴露**；
+- 每次确定性规划结束后额外调一次，结果挂在 `final["mcdonalds"]`；
+- 价格原样引用，不编造；失败只记 `mcd_http_xxx` / `mcd_mcp_unavailable`，不抛出。
+
+配置：
+
+```bash
+export MCD_MCP_URL="https://open.mcd.cn/mcp"   # 以官方 MCP 控制台给的地址为准
+export MCD_MCP_TOKEN="<你的 token>"
+# 可选：MCD_MCP_TOOL=search_menu  MCD_MCP_TIMEOUT=15
+```

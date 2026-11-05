@@ -257,6 +257,10 @@ def _deterministic(db, ctx: dict, text: str) -> TodayResult:
             "options": food["data"]["options"],
         })
 
+    # 每次规划后额外补一次麦当劳（可直接点餐的替代选项）
+    mcd = dispatch("search_mcdonalds_menu", {}, ctx, db)
+    trace.append(_step("search_mcdonalds_menu", str(mcd.get("status"))))
+
     recovery = dispatch("get_recovery_tips", {}, ctx, db)
     trace.append(_step("get_recovery_tips", str(recovery.get("status"))))
 
@@ -297,6 +301,8 @@ def _deterministic(db, ctx: dict, text: str) -> TodayResult:
         "disclaimer": DEFAULT_DISCLAIMER,
         "fallback": True,
     }
+    if mcd.get("status") == "ok":
+        final["mcdonalds"] = mcd.get("data")
     return TodayResult(final=final, trace=trace, fallback=True)
 
 
