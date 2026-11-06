@@ -59,6 +59,11 @@ export interface NutritionTargets {
   scale_check?: string
   cautions?: string[]
   boundaries?: string[]
+  /** 这版目标是按多少公斤算的；和当前档案体重差 5% 以上会标 stale */
+  basis_weight_kg?: number
+  current_weight_kg?: number
+  targets_stale?: boolean
+  stale_hint?: string
 }
 
 export interface CurrentPlan {
@@ -157,6 +162,10 @@ export interface RunSummary {
   created_at: string
   finished_at: string | null
   latency_ms: number
+  /** 这次运行真实消耗（来自服务端 usage），不是估算 */
+  tokens_in: number
+  tokens_out: number
+  cost_cny: number
   error_code: string | null
 }
 

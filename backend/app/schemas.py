@@ -254,6 +254,9 @@ class RunSummaryOut(BaseModel):
     created_at: datetime
     finished_at: datetime | None = None
     latency_ms: int = 0
+    tokens_in: int = 0
+    tokens_out: int = 0
+    cost_cny: float = 0.0
     error_code: str | None = None
 
 

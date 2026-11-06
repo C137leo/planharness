@@ -330,6 +330,8 @@ onShow(() => {
 
     <view v-if="error" class="error">{{ error }}</view>
 
+    <view class="console-grid">
+      <view class="console-col">
     <view class="card">
       <view class="row">
         <view class="eyebrow">A/B/C COMPARISON</view>
@@ -489,6 +491,9 @@ onShow(() => {
       </button>
     </view>
 
+      </view>
+
+      <view class="console-col">
     <template v-if="selected">
       <view class="card">
         <view class="row">
@@ -504,7 +509,10 @@ onShow(() => {
                 <text class="muted small">{{ step.status }}</text>
                 <text class="muted small">{{ clock(step.ts) }}</text>
               </view>
-              <view v-if="step.detail" class="muted small">
+              <view
+                v-if="step.detail && Object.keys(step.detail).length"
+                class="muted small"
+              >
                 <text>{{ JSON.stringify(step.detail) }}</text>
               </view>
             </view>
@@ -630,15 +638,15 @@ onShow(() => {
         <view class="kv">
           <view class="kv-item">
             <text class="k">tokens in</text>
-            <text class="v">{{ selected.output?.tokens_in ?? 0 }}</text>
+            <text class="v">{{ selected.tokens_in ?? 0 }}</text>
           </view>
           <view class="kv-item">
             <text class="k">tokens out</text>
-            <text class="v">{{ selected.output?.tokens_out ?? 0 }}</text>
+            <text class="v">{{ selected.tokens_out ?? 0 }}</text>
           </view>
           <view class="kv-item">
             <text class="k">成本（元）</text>
-            <text class="v">{{ Number(selected.output?.cost_cny ?? 0).toFixed(4) }}</text>
+            <text class="v">{{ Number(selected.cost_cny ?? 0).toFixed(4) }}</text>
           </view>
           <view class="kv-item">
             <text class="k">预算超限</text>
@@ -776,12 +784,37 @@ onShow(() => {
         </view>
       </view>
     </template>
+      </view>
+    </view>
 
     <button class="btn secondary" @click="load">刷新</button>
   </view>
 </template>
 
 <style>
+.console-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.console-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* 桌面端：左边执行/评测列表，右边详情；手机宽度仍然单列 */
+@media (min-width: 900px) {
+  .console-grid {
+    align-items: start;
+    display: grid;
+    gap: 20px;
+    grid-template-columns: 360px minmax(0, 1fr);
+  }
+}
+
 .audit-intro {
   color: var(--muted);
   display: block;

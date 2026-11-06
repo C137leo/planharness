@@ -161,6 +161,7 @@ const agentRunId = ref('')
 const mcdOrderOpen = ref(false)
 /** 今天已经保存过的规划（按天存，重开页面直接看到） */
 const savedPlan = ref<TodayPlanSnapshot | null>(null)
+const retargeting = ref(false)
 const agentError = ref('')
 
 const MEAL_TITLES: Record<string, string> = {
@@ -466,6 +467,20 @@ function muscleOf(action: { meta?: Record<string, unknown> }): string {
   return typeof value === 'string' ? value : ''
 }
 
+async function retarget() {
+  if (!plan.value || retargeting.value) return
+  retargeting.value = true
+  try {
+    const result = await api.retargetPlan(plan.value.plan_id)
+    uni.showToast({ title: `已按当前体重重算（v${result.new_version}）`, icon: 'none' })
+    await load()
+  } catch (err) {
+    uni.showToast({ title: err instanceof Error ? err.message : '重算失败', icon: 'none' })
+  } finally {
+    retargeting.value = false
+  }
+}
+
 async function load() {
   loading.value = true
   error.value = ''
@@ -710,6 +725,12 @@ onShow(() => {
           <view class="stat">
             <text class="stat-value">{{ meals.length }}</text>
             <text class="stat-label">餐次</text>
+          </view>
+        </view>
+        <view v-if="plan.nutrition?.targets_stale" class="stale-notice">
+          <text class="stale-text">{{ plan.nutrition?.stale_hint }}</text>
+          <view class="btn-sm primary" @click="retarget">
+            {{ retargeting ? '重算中…' : '按当前体重重算' }}
           </view>
         </view>
         <view class="muted" style="margin-top: 10px">
@@ -1154,6 +1175,24 @@ onShow(() => {
   gap: 10px;
   justify-content: space-between;
   margin-top: 10px;
+}
+
+.stale-notice {
+  align-items: flex-start;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+}
+
+.stale-text {
+  color: #b45309;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .saved-row {

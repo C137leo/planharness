@@ -37,6 +37,7 @@ ACTIONS = (
     "patch_committed",
     "verification_failed",
     "rollback_committed",
+    "plan_retargeted",
     # 教练计划的生成链路：草案 → 修订 → 确认/拒绝。审计要能看出
     # "这份计划是谁确认的、改过几轮、有没有走模型降级"。
     "plan_draft_created",

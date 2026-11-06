@@ -69,6 +69,17 @@ def _run_agent(run_id: str, user_id: str, day: dt.date, text: str, session_facto
             run.tokens_in = int(result.usage.get("prompt_tokens") or 0)
             run.tokens_out = int(result.usage.get("completion_tokens") or 0)
             run.error_code = (result.error or "")[:64] or None
+            # 成本护栏：今天这条链路也要跟 planner 一样记账，超预算在 Console 里标出来
+            cost = (
+                run.tokens_in / 1_000_000 * float(settings.llm_price_in_cny_per_mtok)
+                + run.tokens_out / 1_000_000 * float(settings.llm_price_out_cny_per_mtok)
+            )
+            budget = float(getattr(settings, "max_cost_cny_per_run", 0) or 0)
+            if budget and cost > budget:
+                run.output = {**run.output, "budget": {
+                    "exceeded": f"本次成本 {cost:.4f} 元，超过单次预算 {budget:.2f} 元",
+                    "cost_cny": round(cost, 4),
+                }}
             # 和"这一天"绑定：重开页面就能拿到同一份（含麦当劳那块）。
             # 红旗拒答不覆盖当天快照：那次运行的结论是"今天别练"，但当天仍然有一份
             # 可执行的计划；拒答本身留在 run 历史和 Console 里，不需要顶掉计划。

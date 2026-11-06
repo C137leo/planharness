@@ -42,6 +42,10 @@ logger = logging.getLogger(__name__)
 # 膝痛场景的确定性禁忌动作集：出现即拒绝，不交给模型判断
 FORBIDDEN_KNEE_REFS = {"squat", "goblet_squat", "run", "jump", "lunge"}
 
+# "没传 meals_from" ≠ "不要餐食"：前者要沿用基线版本的餐食，
+# 后者（比如按新目标重建餐食）必须留空，否则会复制旧餐再写新餐 → 一天两套菜。
+MEALS_FROM_UNSET = object()
+
 
 class PatchValidationError(ValueError):
     """补丁校验/状态机失败：携带错误列表，由接口层转成 422。"""
@@ -560,7 +564,8 @@ def _new_version_from_actions(
     patch_id: str | None = None,
     summary_prefix: str = "计划调整",
     summary_text: str | None = None,
-    meals_from: "PlanVersion | None" = None,
+    meals_from: "PlanVersion | None | object" = MEALS_FROM_UNSET,
+    targets=None,
 ) -> tuple[PlanVersion, list[PlanAction]]:
     """用给定动作快照生成新版本，并把计划指针前移。
 
@@ -581,10 +586,11 @@ def _new_version_from_actions(
         parent_version=old_version,
         created_from_patch_id=patch_id,
         status="active",
-        # 补丁只动动作，不重算营养目标：热量/蛋白质沿用基线版本
-        calorie_target=base_version.calorie_target,
-        protein_target_g=base_version.protein_target_g,
-        step_target=base_version.step_target,
+        # 补丁只动动作，不重算营养目标：热量/蛋白质沿用基线版本；
+        # 只有"按当前档案重算目标"这条链路会显式传 targets
+        calorie_target=getattr(targets, "calories", None) or base_version.calorie_target,
+        protein_target_g=getattr(targets, "protein_g", None) or base_version.protein_target_g,
+        step_target=getattr(targets, "step_target", None) or base_version.step_target,
         summary=summary_text or f"{summary_prefix}（记为 v{old_version + 1}）：保留热量/蛋白质目标。",
     )
     db.add(new_version)
@@ -613,8 +619,9 @@ def _new_version_from_actions(
 
     # 餐食不在 PlanAction 里，是单独一张表：新版本必须把旧版本的餐食复制过来，
     # 否则"改训练动作"会把当天食谱一起弄丢（用户看到"这一版没有餐食"）。
-    source_version = meals_from or base_version
-    _copy_meals(db, source_version, new_version)
+    source_version = base_version if meals_from is MEALS_FROM_UNSET else meals_from
+    if source_version is not None:
+        _copy_meals(db, source_version, new_version)
 
     plan.current_version = new_version.version
     return new_version, records
@@ -753,6 +760,67 @@ def reject_patch(db: Session, user: User, patch_id: str, comment: str = "") -> P
     db.commit()
     db.refresh(patch)
     return patch
+
+
+def retarget_plan(db: Session, user: User, plan_id: str) -> PlanVersion:
+    """按当前档案重算营养目标：动作/餐食不动，只换目标，仍生成新版本。
+
+    什么时候需要：用户改了体重（88kg → 65kg），旧版本的 176g 蛋白质就变成 2.7 g/kg。
+    直接改旧版本会破坏审计，所以走"新增版本"这条老路。
+    """
+    from app.domain.planning import calculate_targets, validate_targets
+    from app.models import Profile
+
+    plan = _load_plan(db, user, plan_id)
+    profile = db.get(Profile, user.id)
+    if profile is None:
+        raise PatchValidationError(["先填基础档案才能重算目标"])
+    targets = calculate_targets(profile)
+    problems = validate_targets(profile, targets)
+    if problems:
+        raise PatchValidationError(problems)
+
+    current = _current_version(db, plan)
+    actions = [_action_dict(item) for item in _actions_for_version(db, current.id)]
+
+    # 只改目标不改餐食，会让"三餐合计"和"目标"对不上（2360 → 1785 但饭还是 1995）。
+    # 所以用同一套食物库按新目标重建餐食，动作保持不变。
+    from app.agent.planning_agent import _build_meals, skill_profile
+
+    nutrition = dict(plan.nutrition or {})
+    nutrition["target_kcal"] = round(targets.calories, 1)
+    nutrition["bmr"] = round(targets.bmr, 1)
+    nutrition["tdee"] = round(targets.tdee, 1)
+    macros = dict(nutrition.get("macros") or {})
+    macros["protein_g"] = {"low_g": targets.protein_g, "high_g": targets.protein_g}
+    macros["fat_g"] = {"low_g": targets.fat_g, "high_g": targets.fat_g}
+    macros["carbs_g"] = {"low_g": targets.carbs_g, "high_g": targets.carbs_g}
+    nutrition["macros"] = macros
+    nutrition["basis_weight_kg"] = round(float(profile.weight_kg), 1)
+    meals = _build_meals(skill_profile(profile), nutrition)
+
+    version, _ = _new_version_from_actions(
+        db, plan, current, actions, targets=targets,
+        summary_text=(
+            f"按当前档案（{profile.weight_kg:g}kg）重算目标：{targets.calories:.0f} kcal / "
+            f"蛋白 {targets.protein_g:.0f} g，并重建三餐（动作不变）"
+        ),
+        meals_from=None,
+    )
+    from app.domain.coach import _write_meals
+
+    _write_meals(db, user.id, version.id, meals)
+    # 计划上的 nutrition 是"当前口径"，跟着一起更新
+    plan.nutrition = nutrition
+    append_event(
+        db, plan.id, "plan_retargeted",
+        {"version": version.version, "calorie_target": targets.calories,
+         "protein_g": targets.protein_g, "basis_weight_kg": profile.weight_kg},
+        actor_type="system", actor_id="planharness",
+    )
+    db.commit()
+    db.refresh(version)
+    return version
 
 
 def rollback_plan(db: Session, user: User, plan_id: str, target_version: int) -> PlanVersion:

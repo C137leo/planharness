@@ -91,6 +91,31 @@ def _tool_observation(result: dict) -> dict:
     return result
 
 
+def _brief(result: dict) -> dict:
+    """工具结果的"摘要"，给 trace 看：不要整段数据，只留能看懂这一行信息的部分。"""
+    data = result.get("data")
+    detail: dict = {"error": result.get("error")} if result.get("error") else {}
+    if isinstance(data, dict):
+        for key in ("meal_slot", "target_kcal", "blocked", "actions", "meals",
+                    "items", "options", "tips"):
+            value = data.get(key)
+            if isinstance(value, list):
+                detail[f"{key}_count"] = len(value)
+            elif isinstance(value, dict):
+                detail[f"{key}_count"] = len(value)
+            elif value is not None:
+                detail[key] = value
+        budget = data.get("budget") or {}
+        if isinstance(budget, dict) and budget.get("remaining_kcal") is not None:
+            detail["remaining_kcal"] = budget["remaining_kcal"]
+    elif isinstance(data, list):
+        detail["count"] = len(data)
+    citations = result.get("citations") or []
+    if citations:
+        detail["citations"] = len(citations)
+    return detail
+
+
 def _parse_answer(content: str) -> dict:
     """JSON + Pydantic 双重校验：先保证是 JSON，再保证字段类型对。"""
     data = _parse_json(content)
@@ -161,7 +186,8 @@ def _run_loop(db, ctx: dict, text: str, client, on_step=None) -> TodayResult:
             name = (call.get("function") or {}).get("name") or ""
             args = _parse_args((call.get("function") or {}).get("arguments"))
             result = _tool_observation(dispatch(name, args, ctx, db))
-            _push(trace, on_step, name, str(result.get("status")))
+            _push(trace, on_step, name, str(result.get("status")),
+                  args=args, brief=_brief(result))
             for citation in result.get("citations") or []:
                 tool_citations[citation["id"]] = citation
             if name == "mcd_nutrition" and result.get("status") == "ok":

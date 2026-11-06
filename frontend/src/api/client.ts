@@ -240,6 +240,8 @@ export const api = {
     request<{ new_version: number }>('POST', `/plans/${planId}/rollback`, {
       target_version: targetVersion,
     }),
+  retargetPlan: (planId: string) =>
+    request<{ new_version: number }>('POST', `/plans/${planId}/retarget`, {}),
   undoPlan: (planId: string) =>
     request<{ new_version: number; plan: CurrentPlan }>('POST', `/plans/${planId}/undo`),
   logWorkout: (payload: WorkoutLogPayload) =>

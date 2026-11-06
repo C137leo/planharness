@@ -87,7 +87,7 @@ SEEDS: list[dict] = [
 
     # ---- 营养基础 ----
     {"id": "protein-basics", "title": "蛋白质吃多少", "body_part": "general", "topic": "nutrition",
-     "content": "有规律力量训练的人，蛋白质大致按每公斤体重 1.4-2.0 克/天分配；分到 3-4 餐比集中一顿更容易吃够。",
+     "content": "一般成年人每天约 0.8-1.2 g/kg；有规律力量训练、减脂期建议 1.6-2.0 g/kg（按体重 88 kg 约 141-176 g），分到 3-4 餐比集中一顿更容易吃够；肾功能异常者需遵医嘱。",
      "tags": ['蛋白质', '吃多少'],
      "source_title": "中国居民膳食指南（2022）", "source_url": "https://www.cnsoc.org/"},
     {"id": "calorie-deficit", "title": "减脂的热量缺口", "body_part": "general", "topic": "nutrition",

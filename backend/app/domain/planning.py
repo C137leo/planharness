@@ -100,6 +100,39 @@ def calculate_targets(profile: Profile) -> PlanTargets:
     )
 
 
+PROTEIN_MIN_G_PER_KG = 1.2
+# 减脂 + 力量训练的常用上限；再高没有额外收益，只会挤掉碳水和脂肪
+PROTEIN_MAX_G_PER_KG = 2.0
+
+
+def clamp_protein_band(nutrition: dict, weight_kg: float) -> dict:
+    """把外部 skill 给的蛋白区间收进 [1.2, 2.0] g/kg，并记下"按多少公斤算的"。
+
+    为什么需要这一步：skill 的宏量分配是它自己算的（常见按体重 ×2.0 或按 30% 热量），
+    用户之后改体重（88kg → 65kg）时，旧计划的 176g 就变成 2.7 g/kg，明显不合理。
+    这里只夹紧蛋白质，热量与其它宏量保持 skill 的结果，避免两套口径打架。
+    """
+    band = dict(((nutrition or {}).get("macros") or {}).get("protein_g") or {})
+    if not band or not weight_kg:
+        return nutrition
+    low = band.get("low_g")
+    high = band.get("high_g")
+    ceiling = round(PROTEIN_MAX_G_PER_KG * weight_kg, 1)
+    floor = round(PROTEIN_MIN_G_PER_KG * weight_kg, 1)
+    if high is not None:
+        band["high_g"] = min(float(high), ceiling)
+    if low is not None:
+        band["low_g"] = min(max(float(low), floor), band.get("high_g") or ceiling)
+    if band.get("high_g") is not None and band.get("low_g") is None:
+        band["low_g"] = min(floor, band["high_g"])
+    macros = dict((nutrition or {}).get("macros") or {})
+    macros["protein_g"] = band
+    result = dict(nutrition or {})
+    result["macros"] = macros
+    result["basis_weight_kg"] = round(float(weight_kg), 1)
+    return result
+
+
 def validate_targets(profile: Profile, targets: PlanTargets) -> list[str]:
     """目标安全门：热量下限、缺口比例、蛋白区间、训练天数四类硬约束。
 

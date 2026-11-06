@@ -326,6 +326,11 @@ class PlanningAgent:
         if program_result.get("status") == "needs_input" or targets.get("status") == "needs_input":
             status = "needs_input"
 
+        from app.domain.planning import clamp_protein_band
+
+        weight = float(profile_payload.get("weight_kg") or 0)
+        clamped = clamp_protein_band(targets, weight) if targets.get("status") == "ready" else targets
+
         payload: dict[str, Any] = {
             "status": status,
             "summary": str(parsed.get("summary") or ""),
@@ -334,7 +339,7 @@ class PlanningAgent:
             "question": str(parsed.get("question") or ""),
             "program": (program_result.get("program") or {}),
             "prescription": (program_result.get("program") or {}).get("prescription") or {},
-            "nutrition": targets if targets.get("status") == "ready" else {},
+            "nutrition": clamped if targets.get("status") == "ready" else {},
             "screen": {
                 "level": screen.get("level"),
                 "must_avoid": screen.get("must_avoid") or [],

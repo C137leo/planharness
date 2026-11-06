@@ -315,7 +315,12 @@ def confirm_draft(
         raise PatchValidationError(["draft has no days to commit"])
 
     plan = db.scalar(select(Plan).where(Plan.user_id == user.id, Plan.status == "active"))
-    nutrition = payload.get("nutrition") or {}
+    from app.domain.planning import clamp_protein_band
+    from app.models import Profile
+
+    profile = db.get(Profile, user.id)
+    weight = float(getattr(profile, "weight_kg", 0) or 0)
+    nutrition = clamp_protein_band(payload.get("nutrition") or {}, weight)
     program = payload.get("program") or {}
     if plan is None:
         goal = _ensure_goal(db, user, payload)

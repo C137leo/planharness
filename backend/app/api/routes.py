@@ -183,6 +183,22 @@ def _current_plan_payload(db: Session, user: User) -> CurrentPlanOut:
     weekday = date.today().isoweekday()
     today = coach_plans.today_payload(db, plan, version, weekday)
 
+    # 目标是否"过期"：档案体重和"这版按多少公斤算的"差 5% 以上就提示重算。
+    # 典型场景：用户从 88kg 减到 65kg，旧版本还写着 176g 蛋白质（2.7 g/kg）。
+    nutrition = dict(plan.nutrition or {})
+    profile = db.get(Profile, user.id)
+    current_weight = float(getattr(profile, "weight_kg", 0) or 0)
+    basis = float(nutrition.get("basis_weight_kg") or 0) or 0
+    nutrition["current_weight_kg"] = current_weight
+    nutrition["basis_weight_kg"] = basis or current_weight
+    stale = bool(current_weight and basis and abs(current_weight - basis) / basis >= 0.05)
+    nutrition["targets_stale"] = stale
+    if stale:
+        nutrition["stale_hint"] = (
+            f"这版目标是按 {basis:g} kg 算的，你现在 {current_weight:g} kg，"
+            "蛋白质/热量建议按当前体重重算"
+        )
+
     return CurrentPlanOut(
         plan_id=plan.id,
         status=plan.status,
@@ -192,7 +208,7 @@ def _current_plan_payload(db: Session, user: User) -> CurrentPlanOut:
         step_target=version.step_target,
         summary=version.summary,
         source=plan.source or "template",
-        nutrition=plan.nutrition or {},
+        nutrition=nutrition,
         program=plan.program or {},
         actions=[ActionOut.model_validate(item) for item in actions],
         meals=[MealPlanOut.model_validate(item) for item in meals],
@@ -1011,13 +1027,22 @@ def _operations_with_names(operations: list[dict]) -> list[dict]:
     return enrich_operations(operations)
 
 
-def _run_summary(run: AgentRun, db: Session | None = None) -> RunSummaryOut:
+def _run_summary(run: AgentRun, db: Session | None = None,
+                 settings=None) -> RunSummaryOut:
     output = run.output or {}
     plan_id = None
     patch_id = output.get("patch_id")
     if db is not None and patch_id:
         patch = db.get(PlanPatch, patch_id)
         plan_id = patch.plan_id if patch is not None else None
+    # 成本按"当期模型价格"换算；价格在配置里，写死在前端会过期
+    cost = 0.0
+    if settings is not None:
+        cost = round(
+            run.tokens_in / 1_000_000 * float(settings.llm_price_in_cny_per_mtok)
+            + run.tokens_out / 1_000_000 * float(settings.llm_price_out_cny_per_mtok),
+            4,
+        )
     return RunSummaryOut(
         id=run.id,
         kind=run.kind,
@@ -1029,6 +1054,9 @@ def _run_summary(run: AgentRun, db: Session | None = None) -> RunSummaryOut:
         created_at=run.created_at,
         finished_at=run.finished_at,
         latency_ms=run.latency_ms,
+        tokens_in=run.tokens_in,
+        tokens_out=run.tokens_out,
+        cost_cny=cost,
         error_code=run.error_code,
     )
 
@@ -1051,7 +1079,8 @@ def list_runs(
     if status_filter:
         stmt = stmt.where(AgentRun.status == status_filter)
     runs = db.scalars(stmt.order_by(AgentRun.created_at.desc()).limit(limit)).all()
-    return ok(request, [_run_summary(run, db).model_dump() for run in runs])
+    settings = request.app.state.settings
+    return ok(request, [_run_summary(run, db, settings).model_dump() for run in runs])
 
 
 @router.get("/runs/{run_id}")
@@ -1067,7 +1096,7 @@ def get_run(
         # 不区分「不存在」和「不是你的」，避免探测
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="run not found")
 
-    summary = _run_summary(run, db)
+    summary = _run_summary(run, db, request.app.state.settings)
     output = run.output or {}
     patch = db.get(PlanPatch, output.get("patch_id")) if output.get("patch_id") else None
 
@@ -1113,6 +1142,26 @@ def get_run(
         verification=output.get("verification"),
     )
     return ok(request, detail.model_dump())
+
+
+@router.post("/plans/{plan_id}/retarget")
+def retarget(
+    plan_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """按当前档案重算营养目标（动作/餐食不变，生成新版本）。"""
+    from app.domain.patches import retarget_plan
+
+    try:
+        version = retarget_plan(db, user, plan_id)
+    except PatchValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=exc.errors
+        ) from exc
+    plan = _current_plan_payload(db, user)
+    return ok(request, {"new_version": version.version, "plan": plan.model_dump()})
 
 
 @router.post("/plans/{plan_id}/rollback")
