@@ -257,6 +257,8 @@ class RunSummaryOut(BaseModel):
     tokens_in: int = 0
     tokens_out: int = 0
     cost_cny: float = 0.0
+    # 单次预算是否超限（不是生命周期状态，所以单独一个字段）
+    budget_exceeded: bool = False
     error_code: str | None = None
 
 

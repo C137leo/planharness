@@ -778,13 +778,39 @@ def approve_patch_request(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """确认应用：走真实审批 + 验证 + 审计。"""
+    """确认应用：审批 → 提交新版本 → **独立验证** → 失败自动回滚 → 审计。"""
+    from app.agent.verify import verify_commit
+
     req = patch_requests.load_request(db, user, request_id)
     patch_id = req.patch_id
+    plan_id = req.plan_id
+    base_version = req.base_version
     try:
         _, version = patch_requests.approve_request(db, user, request_id, payload.comment)
     except PatchValidationError as exc:
         raise HTTPException(422, detail=exc.errors) from exc
+
+    # 独立验证：核对"补丁真的提交成 vN 了、动作确实变了、目标没漂"。
+    # 验证器不信任审批流程，直接查库；不通过就回滚（回滚同样生成新版本）。
+    verification = verify_commit(
+        db, plan_id=plan_id, patch_id=patch_id, expected_version=version.version,
+    )
+    rollback_version = None
+    if not verification.passed:
+        from app.domain.patches import rollback_plan
+
+        append_event(
+            db, plan_id, "verification_failed",
+            {"patch_id": patch_id, "version": version.version,
+             "failed_checks": verification.failed_names()},
+            actor_type="system", actor_id="verifier",
+        )
+        try:
+            rolled = rollback_plan(db, user, plan_id, base_version)
+            rollback_version = rolled.version
+        except PatchValidationError:
+            rollback_version = None
+
     record_run(
         db, user,
         kind="patch_approval",
@@ -792,14 +818,19 @@ def approve_patch_request(
             step("load_request", request_id=request_id),
             step("safety_check", "ok"),
             step("commit", f"v{version.version}"),
-        ],
+            step("verify", "passed" if verification.passed else "failed",
+                 failed_checks=verification.failed_names()),
+        ] + ([step("rollback", f"v{rollback_version}")] if rollback_version else []),
         output={
             "request_id": request_id,
             # 带上 patch_id，Console 才能把这次运行和"改了哪几个槽位"对上
             "patch_id": patch_id,
             "committed_version": version.version,
+            "verification": verification.to_dict(),
+            "rollback_version": rollback_version,
             "source": "patch_request",
         },
+        status="succeeded" if verification.passed else "failed",
         input_payload={"request_id": request_id, "comment": payload.comment},
     )
     db.commit()
@@ -810,9 +841,11 @@ def approve_patch_request(
         {
             "request_id": request_id,
             "committed_version": version.version,
+            "verification": verification.to_dict(),
+            "rollback_version": rollback_version,
             "plan": plan.model_dump(),
         },
-        message="committed",
+        message="committed" if verification.passed else "verification_failed",
     )
 
 
@@ -1057,6 +1090,7 @@ def _run_summary(run: AgentRun, db: Session | None = None,
         tokens_in=run.tokens_in,
         tokens_out=run.tokens_out,
         cost_cny=cost,
+        budget_exceeded=bool((output.get("budget") or {}).get("exceeded")),
         error_code=run.error_code,
     )
 

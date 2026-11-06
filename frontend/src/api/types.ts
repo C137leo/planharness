@@ -166,6 +166,7 @@ export interface RunSummary {
   tokens_in: number
   tokens_out: number
   cost_cny: number
+  budget_exceeded?: boolean
   error_code: string | null
 }
 

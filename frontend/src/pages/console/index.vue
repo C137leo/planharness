@@ -288,7 +288,11 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    runs.value = await api.listRuns(limit.value, statusFilter.value)
+    // "超预算"不是 run 的生命周期状态，而是 output.budget 上的标记：
+    // 先按无状态取，再在前端按字段过滤（否则永远查不到）
+    const budgetFilter = statusFilter.value === 'budget_exceeded'
+    const fetched = await api.listRuns(limit.value, budgetFilter ? '' : statusFilter.value)
+    runs.value = budgetFilter ? fetched.filter((run) => run.budget_exceeded) : fetched
     if (runs.value.length > 0) {
       await select(selected.value?.id && runs.value.some((r) => r.id === selected.value?.id)
         ? selected.value.id
@@ -762,8 +766,11 @@ onShow(() => {
       <view class="card">
         <view class="row">
           <view class="eyebrow">VERIFICATION</view>
-          <view class="chip" :class="selected.verification?.passed ? 'succeeded' : 'failed'">
-            {{ selected.verification?.passed ? '通过' : '未通过' }}
+          <view
+            class="chip"
+            :class="selected.verification ? (selected.verification.passed ? 'succeeded' : 'failed') : ''"
+          >
+            {{ selected.verification ? (selected.verification.passed ? '通过' : '未通过') : '未验证' }}
           </view>
         </view>
         <view v-if="selected.verification" class="checks">
@@ -778,7 +785,13 @@ onShow(() => {
             <text class="muted small">{{ check.detail }}</text>
           </view>
         </view>
-        <view v-else class="muted">这次运行没有走到验证环节。</view>
+        <view v-else class="muted">
+          这次运行没有走到验证环节。只有「补丁审批」会做独立验证（核对补丁真的提交成新版本、
+          动作确实变了、目标没漂）；今日规划、回滚、生成计划都不验证。
+        </view>
+        <view v-if="selected.verification && selected.verification.passed" class="muted small" style="margin-top: 8px">
+          验证器不信任审批流程：它直接查库核对提交结果，失败会自动回滚。
+        </view>
         <view v-if="failedChecks.length" class="notice" style="margin-top: 12px">
           验证失败会触发自动回滚，计划已退回提交前的版本。
         </view>

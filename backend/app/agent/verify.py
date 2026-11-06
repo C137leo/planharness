@@ -129,6 +129,8 @@ def verify_commit(
     )
 
     # 6) 已提交动作里不能有膝痛禁忌动作（安全门的事后复核）
+    #    只有"确实在处理膝盖"的补丁才查这条：休息/减天数的补丁保留其它天的深蹲是合理的，
+    #    否则验证器会把正确结果判成失败（实测 E10 就是这样误报的）。
     actions = list(
         db.scalars(
             select(PlanAction)
@@ -136,14 +138,26 @@ def verify_commit(
             .order_by(PlanAction.day_index, PlanAction.slot, PlanAction.seq)
         ).all()
     )
-    forbidden = [
-        a.action_ref
-        for a in actions
-        if a.action_type == "exercise" and a.action_ref in FORBIDDEN_KNEE_REFS
-    ]
-    checks.append(
-        Check("no_forbidden_actions", not forbidden, f"命中={forbidden}")
+    intent = ((patch.validation or {}).get("intent") or {}) if patch is not None else {}
+    intent_parts = {str(item) for item in intent.get("body_parts") or []}
+    check_knee = "knee" in intent_parts or (
+        not intent_parts and str(getattr(patch, "reason_code", "")) in
+        ("injury", "injury_swap", "knee_patch")
     )
+    if check_knee:
+        forbidden = [
+            a.action_ref
+            for a in actions
+            if a.action_type == "exercise" and a.action_ref in FORBIDDEN_KNEE_REFS
+        ]
+        checks.append(
+            Check("no_forbidden_actions", not forbidden, f"命中={forbidden}")
+        )
+    else:
+        checks.append(
+            Check("no_forbidden_actions", True,
+                  f"本补丁未涉及膝盖（{'/'.join(sorted(intent_parts)) or '无部位'}），跳过")
+        )
 
     # 7) churn 必须与补丁当时记录的一致（拿父版本动作重算一遍）
     if patch is not None and patch.diff and parent is not None:
