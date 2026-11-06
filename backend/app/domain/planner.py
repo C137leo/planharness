@@ -24,6 +24,7 @@ from app.domain.safety_rules import (
     name_of as movement_name,
     regions_of,
     safe_replacement,
+    side_conflict,
     why_risky,
 )
 
@@ -267,10 +268,18 @@ def plan_operations(intent: Intent, actions: list[dict]) -> tuple[list[dict], li
             return [], ["需要知道受伤部位才能避开它"]
         for item in exercises:
             parts = set(_action_body_parts(item["action_ref"]))
-            if not (parts & injured):
+            # 除了"涉及受伤部位"，还要看整条链：上肢不适就不排上肢动作（哪怕练的是别的关节）
+            if not (parts & injured) and not side_conflict(item["action_ref"], injured):
                 continue
             replacement = _pick_safe_replacement(item, injured, used_refs)
             if replacement is None:
+                # 连反向肢体/核心/拉伸都没有 → 这个槽位直接删掉（静养）
+                operations.append({
+                    "op": "remove_action",
+                    "slot_key": item["slot_key"],
+                    "before_action_ref": item["action_ref"],
+                    "reason": f"{labels_of(intent.body_parts)}不适，且没有安全的替代动作，先删掉这一项",
+                })
                 continue
             used_refs.add(replacement)
             operations.append(
@@ -435,7 +444,7 @@ def cover_injured_slots(intent: Intent, base: list[dict],
         if item["action_type"] != "exercise" or item["slot_key"] in touched:
             continue
         parts = set(_action_body_parts(item["action_ref"]))
-        if not (parts & injured):
+        if not (parts & injured) and not side_conflict(item["action_ref"], injured):
             continue
         if intent.kind == "injury_stop":
             extra.append({
@@ -447,6 +456,12 @@ def cover_injured_slots(intent: Intent, base: list[dict],
             continue
         replacement = _pick_safe_replacement(item, injured, used_refs)
         if replacement is None:
+            extra.append({
+                "op": "remove_action",
+                "slot_key": item["slot_key"],
+                "before_action_ref": item["action_ref"],
+                "reason": f"{labels_of(intent.body_parts)}不适，且没有安全的替代动作，先删掉这一项",
+            })
             continue
         used_refs.add(replacement)
         extra.append({

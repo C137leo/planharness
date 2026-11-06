@@ -108,6 +108,24 @@ const unchangedSlots = computed(() => {
 
 const patchOps = computed(() => selected.value?.patch?.operations || [])
 
+const REGION_LABELS: Record<string, string> = {
+  knee: '膝盖', ankle: '脚踝', legs: '腿', hip: '髋', lower_back: '腰',
+  back: '背', chest: '胸', shoulder: '肩', elbow: '手肘', wrist: '手腕', arm: '手臂',
+}
+
+/** 安全门通过时的那句话要按"这次真正在防哪个部位"生成，不能写死膝痛 */
+const safetyScopeText = computed(() => {
+  const raw = (selected.value?.patch?.validation?.intent?.body_parts as string[]) || []
+  const labels = raw.map((key) => REGION_LABELS[key] || key)
+  if (!labels.length) {
+    return '没有禁忌动作、训练日不超过可用天数、忌口与链接白名单无冲突。'
+  }
+  // 只有"手臂/腿"这种整条肢体的诉求才会连整条链一起禁
+  const wholeLimb = raw.includes('arm') || raw.includes('legs')
+  const scope = wholeLimb ? `${labels.join('/')}（含整条肢体）` : labels.join('/')
+  return `没有与${scope}冲突的动作、训练日不超过可用天数、忌口与链接白名单无冲突。`
+})
+
 /** 安全门：补丁触发的规则 / 红旗阻断都在这里汇总（Console 的 SAFETY 卡） */
 const safetyInfo = computed(() => {
   const patch = selected.value?.patch
@@ -605,7 +623,7 @@ onShow(() => {
             </view>
           </view>
           <view v-else class="muted small" style="margin-top: 8px">
-            确定性规则全部通过：没有膝痛禁忌动作、训练日不超过可用天数、忌口与链接白名单无冲突。
+            确定性规则全部通过：{{ safetyScopeText }}
           </view>
           <view class="muted small" style="margin-top: 8px">
             判定全部由代码完成（动作目录元数据 + 规则表），模型不参与放行；红旗关键词只用于

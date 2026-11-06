@@ -184,3 +184,53 @@ def test_shoulder_patch_replaces_pushup() -> None:
     for op in extra:
         assert op["op"] == "replace_action"
         assert rules.is_risky_for(op["after_action"]["action_ref"], "shoulder") is False
+
+# ---------------------------------------------------------------- 整条肢体避让
+
+def test_upper_injury_replaces_with_lower_body() -> None:
+    """上肢不适 → 替代必须是下肢动作；核心/拉伸只在没有下肢可选时才用。"""
+    replacement = rules.safe_replacement("push-up", {"shoulder"}, set())
+    assert replacement is not None
+    assert rules.movement_side(replacement) == "lower"
+
+
+def test_lower_injury_replaces_with_upper_body() -> None:
+    replacement = rules.safe_replacement("goblet-squat", {"knee"}, set())
+    assert replacement is not None
+    assert rules.movement_side(replacement) == "upper"
+
+
+def test_mixed_injury_falls_back_to_core_or_stretch() -> None:
+    replacement = rules.safe_replacement("push-up", {"shoulder", "knee"}, set())
+    assert replacement is not None
+    assert rules.movement_side(replacement) is None
+
+
+def test_whole_limb_vs_joint_scope() -> None:
+    """整条肢体诉求（手臂/腿）才拦整条链；关节诉求（肩/膝）只按具体动作判断。
+
+    为什么这么切：膝痛如果把"下肢"整条拦掉，臀桥（对膝最友好）也会被禁；
+    肩痛如果把"上肢"整条拦掉，划船这种肩袖康复常用动作也会被禁。
+    """
+    assert rules.side_conflict("banded-row", {"arm"}) is True
+    assert rules.side_conflict("banded-row", {"shoulder"}) is False
+    assert rules.side_conflict("glute-bridge", {"knee"}) is False
+    # 替代动作仍按"反向肢体优先"：上肢不适先给下肢动作
+    assert rules.movement_side(rules.safe_replacement("push-up", {"shoulder"}, set())) == "lower"
+
+
+def test_knee_patch_does_not_keep_lower_body() -> None:
+    from app.domain.planner import cover_injured_slots, parse_intent
+
+    intent = parse_intent("膝盖不舒服，先避开它")
+    base = [
+        {**action("goblet-squat"), "slot_key": "1:strength:goblet-squat"},
+        {**action("leg-press"), "slot_key": "1:strength:leg-press"},
+    ]
+    extra = cover_injured_slots(intent, base, [])
+    # 腿举在目录里被算作膝盖相关；两个下肢动作都要被换掉或删掉
+    for op in extra:
+        after = (op.get("after_action") or {}).get("action_ref")
+        if after:
+            assert rules.movement_side(after) == "upper"
+        assert op["op"] in ("replace_action", "remove_action")

@@ -28,6 +28,13 @@ LOWER_MUSCLES = {"quads", "hamstrings", "glutes", "calves", "legs", "adductors",
 UPPER_MUSCLES = {"chest", "shoulders", "triceps", "biceps", "lats", "upper back",
                  "lower back", "back", "forearms", "traps", "core"}
 
+# 用户诉求很直接：上肢不适就只练下肢，下肢不适就只练上肢。
+# 这条比"某个动作是否压到某个关节"更强：肩痛时划船、卧推、俯卧撑一律不排。
+UPPER_REGIONS = {"shoulder", "chest", "back", "elbow", "wrist", "arm"}
+LOWER_REGIONS = {"knee", "ankle", "legs", "hip"}
+# 腰是躯干（屈伸/轴向负荷），不按上下肢切，仍按具体动作判断
+SPINE_REGIONS = {"lower_back"}
+
 
 @dataclass(frozen=True)
 class Region:
@@ -172,11 +179,67 @@ def regions_of(ref: str, meta: dict | None = None) -> set[str]:
     return {region for region in REGIONS if is_risky_for(ref, region, meta)}
 
 
+def movement_side(ref: str) -> str | None:
+    """动作主要练上肢还是下肢；核心/查不到返回 None。"""
+    muscle = _muscle(ref)
+    if muscle in LOWER_MUSCLES:
+        return "lower"
+    if muscle in UPPER_MUSCLES and muscle != "core":
+        return "upper"
+    return None
+
+
+# "整条肢体"级别的诉求：手臂 / 腿（关节级别不按整条链禁练，
+# 否则膝痛会把臀桥也拦掉，而臀桥恰恰是对膝最友好的替代动作）
+WHOLE_LIMB_REGIONS = {"arm": "upper", "legs": "lower"}
+
+
+def injured_side(regions: list[str] | set[str]) -> str | None:
+    """这组不适"主要在哪条肢体"：全在上肢 → upper，全在下肢 → lower，否则 None。
+
+    用于替代动作的优先级（上肢不适优先给下肢动作），不用于安全门拦截。
+    """
+    parts = set(regions or [])
+    if not parts:
+        return None
+    has_upper = bool(parts & UPPER_REGIONS)
+    has_lower = bool(parts & LOWER_REGIONS)
+    if has_upper and not has_lower:
+        return "upper"
+    if has_lower and not has_upper:
+        return "lower"
+    return None
+
+
+def side_conflict(ref: str, regions: list[str] | set[str]) -> bool:
+    """整条肢体都不适（手臂 / 腿）时，整条链的动作都不排。
+
+    关节级别（膝/肩/肘…）只按具体动作判断：膝痛不该把臀桥也拦掉。
+    """
+    parts = set(regions or [])
+    if not parts:
+        return False
+    sides = {WHOLE_LIMB_REGIONS[r] for r in parts if r in WHOLE_LIMB_REGIONS}
+    if len(sides) != 1:
+        return False
+    return movement_side(ref) == next(iter(sides))
+
+
 def why_risky(ref: str, regions: list[str] | set[str], meta: dict | None = None) -> str | None:
-    """返回第一个命中部位的中文名，用于错误文案。"""
+    """返回第一个命中部位的中文名（用于错误文案）。
+
+    先按具体部位判断；若整条链都不该练（上肢伤还排上肢），返回该部位名。
+    """
     for region in regions or []:
         if is_risky_for(ref, region, meta):
             return label_of(region)
+    if side_conflict(ref, regions):
+        side = injured_side(regions)
+        # 文案用"肩/手臂"这种具体部位，方便用户理解
+        first = next((r for r in (regions or []) if
+                      (side == "upper" and r in UPPER_REGIONS) or
+                      (side == "lower" and r in LOWER_REGIONS)), "")
+        return label_of(first) if first else ("上肢" if side == "upper" else "下肢")
     return None
 
 
@@ -232,6 +295,19 @@ UPPER_SAFE_PREFERENCE = (
 )
 
 
+# 伤病期替换顺序：反向肢体 > 核心 > 拉伸；都没有就交给调用方删掉（静养）
+FALLBACK_POOL = (
+    # 下肢（上肢受伤时用）
+    "goblet-squat", "leg-press", "hip-thrust", "glute-bridge", "walking-lunge",
+    "leg-curl", "calf-raise", "romanian-deadlift",
+    # 上肢（下肢受伤时用）
+    "banded-row", "seated-row", "chest-supported-row", "dumbbell-bench-press",
+    "incline-bench-press", "banded-face-pull", "push-up",
+    # 核心 / 拉伸（兜底）
+    "dead-bug", "banded-dead-bug", "stretch", "full-body-stretch",
+)
+
+
 def safe_replacement(current_ref: str, injured: set[str], used: set[str],
                      *, prefer: str = "") -> str | None:
     """挑一个不加重受伤部位、且没被用过的替代动作。
@@ -242,17 +318,31 @@ def safe_replacement(current_ref: str, injured: set[str], used: set[str],
        （肩痛不该直接把推类动作换成拉伸，训练刺激会掉太多）；
     3. 尽量不选计划里已经在用的动作，避免整份计划变成同一个动作。
     """
-    candidates = [ref for ref in _safe_candidates(injured) if ref != current_ref]
-    current_upper = _muscle(current_ref) not in LOWER_MUSCLES
-    if prefer in ("upper", "lower"):
-        current_upper = prefer == "upper"
-    if current_upper:
-        preferred = [ref for ref in UPPER_SAFE_PREFERENCE if ref in candidates]
-        rest = [ref for ref in candidates if ref not in preferred]
-        candidates = preferred + rest
-    fresh = [ref for ref in candidates if ref not in used]
-    pool = fresh or candidates
-    return pool[0] if pool else None
+    side = injured_side(injured)
+    opposite = {"upper": "lower", "lower": "upper"}.get(side or "", "")
+
+    def rank(ref: str) -> int:
+        """0=反向肢体（最想要） 1=核心 2=拉伸 3=其它"""
+        ref_side = movement_side(ref)
+        if opposite and ref_side == opposite:
+            return 0
+        if ref_side is None:
+            return 1
+        if _norm(ref) in ("stretch", "full-body-stretch"):
+            return 2
+        return 3
+
+    pool = [
+        ref for ref in FALLBACK_POOL
+        if ref != current_ref and not why_risky(ref, injured)
+    ]
+    # 去重 + 按"反向肢体 > 核心 > 拉伸"排序
+    seen: set[str] = set()
+    pool = [ref for ref in pool if not (ref in seen or seen.add(ref))]
+    pool.sort(key=rank)
+    fresh = [ref for ref in pool if ref not in used]
+    candidates = fresh or pool
+    return candidates[0] if candidates else None
 
 
 def region_names_for_error(ref: str, regions: list[str] | set[str]) -> str:
