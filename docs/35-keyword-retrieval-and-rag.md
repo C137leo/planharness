@@ -2,7 +2,7 @@
 
 ## 0. 直接回答
 
-- **现在这个规模（600 条外部语料 + 27 条自建知识），关键词检索够用**，
+- **现在这个规模（600 条外部语料 + 30 条自建知识），关键词检索够用**，
   而且它比向量更可解释、更便宜、结果更稳定；
 - 但"关键词检索"在我们项目里其实是**两套实现**，服务两种不同语料；
 - **算 RAG**——RAG 是"先检索、再让模型基于检索结果生成并给出处"的架构，
@@ -10,7 +10,7 @@
 
 ## 1. 两套检索，别混在一起
 
-| | 自建知识库（27 条） | 外部 RAG 语料（600 条） |
+| | 自建知识库（30 条） | 外部 RAG 语料（600 条） |
 |---|---|---|
 | 代码 | `app/knowledge/retriever.py` | `app/knowledge/rag.py` |
 | 语料 | 动作要领/安全/恢复/营养（带机构出处） | free-exercise-db 350 动作 + USDA 250 食物 |
@@ -64,7 +64,7 @@ body_part 命中 +2.0（general +0.5）
 
 ### 2.3 没有向量，怎么保证"相关"？
 
-- 语料只有 27 条，且标题就是用户会说的词（深蹲/卧推/膝痛…），**词面重合度高**；
+- 语料只有 30 条，且标题就是用户会说的词（深蹲/卧推/膝痛…），**词面重合度高**；
 - 元数据（`body_part`、`topic`）把搜索空间再收窄一层；
 - 引用必须真实存在（`validate()` 会查库核对 id），检索错了会被兜底暴露，
   而不是悄悄编一段话。
@@ -153,5 +153,5 @@ PY
 .venv/bin/python -m pytest tests/test_rag.py tests/test_knowledge.py -q
 ```
 
-代码位置：`app/knowledge/retriever.py`（27 条 KB 打分）、`app/knowledge/rag.py`（BM25/向量/RRF）、
+代码位置：`app/knowledge/retriever.py`（30 条 KB 打分）、`app/knowledge/rag.py`（BM25/向量/RRF）、
 `app/agent/today_tools.py::search_knowledge`（工具封装）、`app/agent/today_agent.py::validate`（引用校验）。

@@ -60,7 +60,7 @@ TOOLS: list[dict] = [
         "description": "检索健康知识库（动作/安全/恢复/营养）。给出训练或健康建议前必须先调用并引用来源。",
         "parameters": {"type": "object", "properties": {
             "query": {"type": "string"},
-            "body_part": {"type": "string", "description": "knee/shoulder/back/core 等，可省略"},
+            "body_part": {"type": "string", "description": "knee/ankle/wrist/elbow/shoulder/back/core 等，可省略"},
         }, "required": ["query"]},
     }},
     {"type": "function", "function": {
