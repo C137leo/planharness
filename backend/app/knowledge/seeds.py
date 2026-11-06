@@ -86,10 +86,19 @@ SEEDS: list[dict] = [
      "source_title": "WHO 身体活动与久坐行为指南", "source_url": "https://www.who.int/publications/i/item/9789240015128"},
 
     # ---- 营养基础 ----
-    {"id": "protein-basics", "title": "蛋白质吃多少", "body_part": "general", "topic": "nutrition",
-     "content": "一般成年人每天约 0.8-1.2 g/kg；有规律力量训练、减脂期建议 1.6-2.0 g/kg（按体重 88 kg 约 141-176 g），分到 3-4 餐比集中一顿更容易吃够；肾功能异常者需遵医嘱。",
-     "tags": ['蛋白质', '吃多少'],
+    # 两条分开：一般人群的推荐量和"训练人群"的推荐量出处不同，
+    # 混成一条就会出现"用 A 的文献支撑 B 的数字"这种引用错配。
+    {"id": "protein-basics", "title": "一般成年人蛋白质吃多少", "body_part": "general",
+     "topic": "nutrition",
+     "content": "一般成年人每天蛋白质大致 0.8-1.2 g/公斤体重（按 65 kg 约 52-78 g）；把蛋白质分散到 3-4 餐更容易吃够。肾功能异常者需遵医嘱调整。",
+     "tags": ['蛋白质', '吃多少', '一般人群'],
      "source_title": "中国居民膳食指南（2022）", "source_url": "https://www.cnsoc.org/"},
+    {"id": "protein-training", "title": "力量训练的人蛋白质吃多少", "body_part": "general",
+     "topic": "nutrition",
+     "content": "有规律力量训练的人，每天约 1.4-2.0 g/公斤体重（按 88 kg 约 123-176 g）；减脂期热量缺口大时，可能需要接近上限才能保住肌肉。",
+     "tags": ['蛋白质', '力量训练', '增肌', '减脂'],
+     "source_title": "ISSN Position Stand: Protein and Exercise (2017)",
+     "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5477153/"},
     {"id": "calorie-deficit", "title": "减脂的热量缺口", "body_part": "general", "topic": "nutrition",
      "content": "温和缺口（每天约 300-500 kcal）更容易长期坚持；用 2-4 周体重趋势判断，不看单日数字。缺口过大时优先保证蛋白质和力量训练。",
      "tags": ['热量', '缺口', '减脂'],
