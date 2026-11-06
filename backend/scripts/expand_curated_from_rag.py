@@ -12,7 +12,7 @@
 这些不能从动作库/食物库推导，硬生成就是编。
 
 产物：data/knowledge/expanded.json（默认不自动入库，seed_knowledge 会读取它；
-删除该文件即可回滚到 27 条）。
+删除该文件即可回滚到 30 条）。
 """
 
 from __future__ import annotations

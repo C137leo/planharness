@@ -17,7 +17,7 @@ FOOTER = "以上内容仅供运动参考，不构成医疗建议；持续或加�
 
 
 def _knowledge_items() -> list[dict]:
-    """内置 27 条 + 可选的"清单型"扩展（data/knowledge/expanded.json）。
+    """内置 30 条 + 可选的"清单型"扩展（data/knowledge/expanded.json）。
 
     扩展由 scripts/expand_curated_from_rag.py 从 600 条外部语料生成，
     删除该文件即可回滚到只有内置条目。
