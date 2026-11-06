@@ -91,9 +91,31 @@ def ok(request: Request, data, message: str = "ok"):
 
 @router.get("/health")
 def health(request: Request, db: Session = Depends(get_db)):
-    """健康检查：真正打一次库，避免"进程活着但数据库断了"的假健康。"""
+    """健康检查：真正打一次库，避免"进程活着但数据库断了"的假健康。
+
+    同时报告 skill 是否可用：线上最常见的故障是"容器里没装 node / 没挂 skill 目录"，
+    这时接口还能返回 200，但计划会全部走本地兜底——健康检查要能一眼看出来。
+    """
     db.execute(text("SELECT 1"))
-    return ok(request, {"status": "ok", "service": "planharness-api"})
+    skill_info = {"available": False, "version": "", "dir": "", "node": ""}
+    try:
+        from app.skill.bridge import get_bridge
+
+        bridge = get_bridge()
+        meta = bridge.meta() if bridge.available else {}
+        skill_info = {
+            "available": bool(bridge.available),
+            "version": str(meta.get("skill_version") or ""),
+            "dir": str(bridge.skill_dir),
+            "node": str(bridge.node),
+        }
+    except Exception as exc:  # noqa: BLE001 - 健康检查不能因为探测 skill 而 500
+        skill_info["error"] = f"{type(exc).__name__}"
+    return ok(request, {
+        "status": "ok",
+        "service": "planharness-api",
+        "skill": skill_info,
+    })
 
 
 @router.post("/auth/demo", response_model=None)

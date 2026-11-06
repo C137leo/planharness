@@ -23,6 +23,9 @@ def test_health(client: TestClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["data"]["status"] == "ok"
+    # 线上最常见的故障是"容器里没装 node / 没挂 skill"，健康检查要能一眼看出来
+    assert "skill" in body["data"]
+    assert isinstance(body["data"]["skill"]["available"], bool)
     assert body["trace_id"]
     assert response.headers["x-trace-id"] == body["trace_id"]
 
