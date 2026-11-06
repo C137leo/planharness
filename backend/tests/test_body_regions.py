@@ -152,3 +152,35 @@ def test_violates_constraints_reports_chinese_name() -> None:
     intent = parse_intent("后背拉伤")
     problems = violates_constraints([action("romanian-deadlift")], intent)
     assert problems and "背" in problems[0]
+
+@pytest.mark.parametrize("ref,region", [
+    ("push-up", "shoulder"),
+    ("pushup", "shoulder"),
+    ("plank", "shoulder"),
+    ("push-up", "elbow"),
+    ("push-up", "arm"),
+    ("mountain-climber", "shoulder"),
+])
+def test_pushing_moves_load_shoulder_too(ref: str, region: str) -> None:
+    """俯卧撑/平板主练肌肉写的是 Chest，但肩前束和肩袖一样在发力。
+
+    只按 primary_muscle 判断会把"肩痛还留着俯卧撑"这种事漏掉——这是实际踩到的 bug。
+    """
+    assert rules.is_risky_for(ref, region) is True
+
+
+def test_shoulder_patch_replaces_pushup() -> None:
+    """肩痛补丁必须把俯卧撑也换掉，而不是只换卧推。"""
+    from app.domain.planner import cover_injured_slots, parse_intent
+
+    intent = parse_intent("肩膀不舒服，先避开它")
+    base = [
+        {**action("push-up"), "slot_key": "1:strength:push-up"},
+        {**action("dumbbell-bench-press"), "slot_key": "1:strength:dumbbell-bench-press"},
+    ]
+    extra = cover_injured_slots(intent, base, [])
+    touched = {op["slot_key"] for op in extra}
+    assert "1:strength:push-up" in touched
+    for op in extra:
+        assert op["op"] == "replace_action"
+        assert rules.is_risky_for(op["after_action"]["action_ref"], "shoulder") is False

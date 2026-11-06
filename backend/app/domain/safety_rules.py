@@ -70,13 +70,18 @@ REGIONS: dict[str, Region] = {
                 ("bench", "push-up", "pushup", "fly", "dip", "chest", "pec")),
     "shoulder": _r("shoulder", "肩", ("肩", "shoulder"), ("shoulders",),
                    ("press", "raise", "fly", "dip", "pull-up", "chin-up",
-                    "handstand", "snatch", "jerk", "arnold")),
+                    "handstand", "snatch", "jerk", "arnold",
+                    # 推/撑类：主练肌肉常写 Chest，但肩前束与肩袖同样吃力
+                    "push-up", "pushup", "plank", "overhead", "scapular",
+                    "mountain-climber", "bear-crawl")),
     "elbow": _r("elbow", "手肘", ("肘", "elbow"), ("biceps", "triceps", "forearms"),
-                ("curl", "extension", "pushdown", "dip", "press", "pull-up", "chin-up")),
+                ("curl", "extension", "pushdown", "dip", "press", "pull-up", "chin-up",
+                 "push-up", "pushup", "plank")),
     "wrist": _r("wrist", "手腕", ("手腕", "腕", "wrist"), ("forearms",),
                 ("push-up", "pushup", "plank", "handstand", "wrist", "curl")),
     "arm": _r("arm", "手臂", ("手臂", "胳膊", "arm"), ("biceps", "triceps", "forearms"),
-              ("curl", "pushdown", "extension", "dip", "press", "row")),
+              ("curl", "pushdown", "extension", "dip", "press", "row",
+               "push-up", "pushup", "plank")),
 }
 
 # 兜底替换池：都不带器械、冲击小；真正用哪个还要过 is_risky_for 过滤
@@ -220,19 +225,31 @@ def _safe_candidates(injured: set[str]) -> list[str]:
     return candidates
 
 
+# 上肢受伤时的替代优先级：能用轻负荷抗阻就别直接退化成拉伸
+UPPER_SAFE_PREFERENCE = (
+    "banded-row", "seated-row", "chest-supported-row", "banded-face-pull",
+    "dead-bug", "banded-dead-bug", "stretch", "full-body-stretch", "easy-walk",
+)
+
+
 def safe_replacement(current_ref: str, injured: set[str], used: set[str],
                      *, prefer: str = "") -> str | None:
     """挑一个不加重受伤部位、且没被用过的替代动作。
 
-    `prefer` 用于"同类替换"：比如原来练上肢，就优先挑上肢动作，
-    避免一份计划被换成一堆拉伸。
+    规则：
+    1. 先按部位过滤（`is_risky_for` 说不行的一律不选）；
+    2. 上肢替换优先"轻负荷抗阻"，其次核心，最后才是拉伸
+       （肩痛不该直接把推类动作换成拉伸，训练刺激会掉太多）；
+    3. 尽量不选计划里已经在用的动作，避免整份计划变成同一个动作。
     """
     candidates = [ref for ref in _safe_candidates(injured) if ref != current_ref]
+    current_upper = _muscle(current_ref) not in LOWER_MUSCLES
     if prefer in ("upper", "lower"):
-        current_upper = _muscle(current_ref) not in LOWER_MUSCLES
-        same = [ref for ref in candidates
-                if (_muscle(ref) not in LOWER_MUSCLES) == current_upper]
-        candidates = same or candidates
+        current_upper = prefer == "upper"
+    if current_upper:
+        preferred = [ref for ref in UPPER_SAFE_PREFERENCE if ref in candidates]
+        rest = [ref for ref in candidates if ref not in preferred]
+        candidates = preferred + rest
     fresh = [ref for ref in candidates if ref not in used]
     pool = fresh or candidates
     return pool[0] if pool else None

@@ -108,6 +108,37 @@ extra = cover_injured_slots(intent, base, operations)
 - Console 的 `SAFETY · 安全门` 卡显示作用域（`injury_swap`）、是否审批时重跑，
   `DIFF · 最小补丁` 显示 churn 和逐条改动。
 
+## 4.1 一个真实漏检：肩痛却留着俯卧撑
+
+规则第一版漏了这条，用户直接指出来：
+
+- 俯卧撑在动作目录里的 `primary_muscle` 是 **Chest**，不在"肩"的肌肉集合里；
+- 肩的关键词表里只有 `press / raise / fly / dip / pull-up / chin-up / handstand…`，
+  没有 `push-up`；
+- 结果：肩痛补丁把卧推换掉了，**俯卧撑留在计划里**（`is_risky_for("push-up","shoulder") == False`）。
+
+修法：把"推/撑类"补进肩的关键词（`push-up / pushup / plank / overhead / scapular /
+mountain-climber / bear-crawl`），肘和手臂也同样补上。并加了回归测试：
+
+```python
+@pytest.mark.parametrize("ref,region", [
+    ("push-up", "shoulder"), ("plank", "shoulder"),
+    ("push-up", "elbow"), ("push-up", "arm"),
+    ("mountain-climber", "shoulder"),
+])
+def test_pushing_moves_load_shoulder_too(ref, region):
+    assert rules.is_risky_for(ref, region) is True
+```
+
+顺带改进替代选择：上肢受伤时优先**轻负荷抗阻**（弹力带划船 / 坐姿划船 / 胸支撑划船），
+其次核心，最后才是拉伸——以前会把推类动作直接换成拉伸，训练刺激掉太多。
+
+实际效果（v25 → v26）：
+
+```
+替换  俯卧撑 → 弹力带划船     （肩痛规则命中，churn 1/9）
+```
+
 ## 5. 面试怎么讲（30 秒）
 
 > 受伤之后改计划，不是让模型重写一遍，而是"定位部位 → 只改涉及这个部位的动作"。
