@@ -230,25 +230,27 @@ onShow(load)
       </view>
 
       <view v-if="pending.length" class="card">
-        <view class="section-title">还有 {{ pending.length }} 个待确认的改动</view>
+        <view class="row">
+          <view class="section-title">待确认的改动</view>
+          <text class="link" @click="openToday">再提一个 →</text>
+        </view>
         <view v-for="patch in pending" :key="patch.id" class="pending">
-          <view class="row">
+          <view class="pending-main">
             <text class="pending-text">{{ patch.reason_text || patch.reason_code }}</text>
-            <text class="pending-meta">{{ operationCount(patch) }} 处</text>
+            <text class="pending-meta">
+              {{ operationCount(patch) }} 处 · 基于 v{{ patch.base_version }}（确认后才生效）
+            </text>
+            <view v-for="(op, index) in (patch.operations || []).slice(0, 4)" :key="index" class="pending-op">
+              <text class="list-meta">· {{ describeOperation(op) }}</text>
+            </view>
+            <view v-if="operationCount(patch) > 4" class="pending-op">
+              <text class="list-meta">· 还有 {{ operationCount(patch) - 4 }} 处…</text>
+            </view>
           </view>
-          <view v-for="(op, index) in (patch.operations || []).slice(0, 4)" :key="index" class="pending-op">
-            <text class="list-meta">· {{ describeOperation(op) }}</text>
-          </view>
-          <view v-if="operationCount(patch) > 4" class="pending-op">
-            <text class="list-meta">· 还有 {{ operationCount(patch) - 4 }} 处…</text>
-          </view>
-          <view class="btn-row">
+          <view class="pending-actions">
             <view class="btn-sm primary" @click="approvePending(patch)">确认应用</view>
             <view class="btn-sm" @click="rejectPending(patch)">不要了</view>
           </view>
-        </view>
-        <view class="btn-row">
-          <view class="btn-sm" @click="openToday">去今天页再提一个改动</view>
         </view>
       </view>
 
@@ -424,10 +426,26 @@ onShow(load)
 .pending {
   border-top: 1px solid var(--line-soft);
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: 12px;
+  justify-content: space-between;
   margin-top: 10px;
   padding-top: 10px;
+}
+
+.pending-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* 按钮放右侧一列：卡片之间更容易对齐，点的时候手指也不会盖住文字 */
+.pending-actions {
+  align-items: stretch;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 8px;
 }
 .pending-text {
   font-size: 14px;

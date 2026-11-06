@@ -24,6 +24,15 @@ const auditEvents = ref<AuditEvent[]>([])
 const auditPlanId = ref('')
 const auditVerify = ref<AuditVerify | null>(null)
 const auditBusy = ref(false)
+const auditOpen = ref(false)
+
+/** 审计默认只露 12 条：一屏 120 行没人看得完，展开才看全部 */
+const auditShown = computed(() =>
+  auditOpen.value ? auditEvents.value : auditEvents.value.slice(0, 12),
+)
+const auditHidden = computed(() =>
+  Math.max(0, auditEvents.value.length - auditShown.value.length),
+)
 const compare = ref<CompareResult | null>(null)
 const comparing = ref(false)
 const scenarios = ref<EvalScenario[]>([])
@@ -38,6 +47,32 @@ const FILTERS = [
   { value: 'running', label: '运行中' },
   { value: 'budget_exceeded', label: '超预算' },
 ]
+
+const KIND_LABEL: Record<string, string> = {
+  today_plan: '今日规划',
+  patch_approval: '补丁审批',
+  patch_rejection: '补丁驳回',
+  rollback: '回滚',
+  generate_plan: '生成计划',
+  patch: '补丁',
+  compare: 'A/B/C 对比',
+}
+
+const ACTION_LABEL: Record<string, string> = {
+  patch_created: '生成改动草案',
+  approval_granted: '审批通过',
+  approval_rejected: '审批拒绝',
+  patch_committed: '改动已提交（新版本）',
+  rollback_committed: '回滚（新版本）',
+  plan_draft_created: '计划草案生成',
+  plan_draft_revised: '计划草案修订',
+  plan_draft_rejected: '计划草案驳回',
+  plan_confirmed: '计划确认',
+  profile_updated: '资料更新',
+  verification_failed: '验证失败',
+  mcd_order_created: '麦当劳下单（待支付）',
+  mcd_order_cancelled: '取消麦当劳订单',
+}
 
 const STATUS_LABEL: Record<string, string> = {
   running: '运行中',
@@ -407,9 +442,13 @@ onShow(() => {
 
     <view class="card">
       <view class="row">
-        <view class="eyebrow">RUNS</view>
+        <view class="eyebrow">RUNS · 执行记录</view>
         <view class="chip">{{ loading ? '加载中' : `${runs.length} 条` }}</view>
       </view>
+      <text class="audit-intro">
+        每次执行一条（今日规划 / 补丁审批 / 回滚），点开看 trace、diff、成本。
+        计划本身的变更证据在下面的 AUDIT CHAIN，两者不是一回事。
+      </text>
 
       <view class="filters">
         <view
@@ -434,10 +473,13 @@ onShow(() => {
         :class="{ active: selected?.id === run.id }"
         @click="select(run.id)"
       >
-        <view class="run-id">{{ shortId(run.id) }}</view>
+        <view class="run-main">
+          <text class="run-kind">{{ label(KIND_LABEL, run.kind) }}</text>
+          <text class="run-id">{{ shortId(run.id) }}</text>
+        </view>
         <view class="run-meta">
           <text class="status" :class="run.status">{{ label(STATUS_LABEL, run.status) }}</text>
-          <text class="muted small">{{ label(STOP_LABEL, run.stop_reason) }}</text>
+          <text v-if="run.stop_reason" class="muted small">{{ label(STOP_LABEL, run.stop_reason) }}</text>
         </view>
         <view class="muted small">{{ clock(run.created_at) }}</view>
       </view>
@@ -646,19 +688,31 @@ onShow(() => {
           <view v-else class="chip">{{ auditEvents.length }} 条事件</view>
         </view>
 
+        <text class="audit-intro">
+          这是「计划」上的变更证据链（谁在什么时候改了/批了/回滚了什么），
+          跟上面的 RUNS 不是一回事：RUNS 是每次 Agent 执行，这里是落在计划上的动作。
+        </text>
+
         <view v-if="auditEvents.length === 0" class="muted">这次运行没有关联的审计流。</view>
 
-        <view v-for="ev in auditEvents" :key="ev.seq" class="audit-row">
+        <view v-for="ev in auditShown" :key="ev.seq" class="audit-row">
           <text class="audit-seq">#{{ ev.seq }}</text>
           <view class="audit-main">
             <view class="audit-head">
-              <text class="audit-action">{{ ev.action }}</text>
+              <text class="audit-action">{{ label(ACTION_LABEL, ev.action) }}</text>
               <text class="muted small">{{ ev.actor_type }}/{{ shortId(ev.actor_id) }}</text>
             </view>
             <text class="muted small audit-hash">
               {{ ev.prev_hash.slice(0, 8) }} → {{ ev.hash.slice(0, 8) }}
             </text>
           </view>
+        </view>
+
+        <view v-if="auditHidden > 0" class="btn-row">
+          <view class="btn-sm" @click="auditOpen = true">展开全部 {{ auditEvents.length }} 条</view>
+        </view>
+        <view v-else-if="auditOpen && auditEvents.length > 12" class="btn-row">
+          <view class="btn-sm" @click="auditOpen = false">收起</view>
         </view>
 
         <button
@@ -728,6 +782,14 @@ onShow(() => {
 </template>
 
 <style>
+.audit-intro {
+  color: var(--muted);
+  display: block;
+  font-size: 11px;
+  line-height: 1.55;
+  margin: 8px 0 4px;
+}
+
 .checkpoint {
   border-top: 1px dashed var(--line-soft);
   display: flex;
@@ -748,6 +810,19 @@ onShow(() => {
   color: var(--ink-soft);
   font-family: ui-monospace, Menlo, monospace;
   font-size: 11px;
+}
+
+.run-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.run-kind {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .version-list {

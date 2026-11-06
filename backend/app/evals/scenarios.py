@@ -640,6 +640,16 @@ def e10_free_text_change() -> ScenarioResult:
                 bool((rest_data.get("draft") or {}).get("operations")),
                 str(len((rest_data.get("draft") or {}).get("operations") or [])))
 
+        # 同一份计划只允许一个待确认草案：先确认休息，再提第二个
+        approve = client.post(
+            f"/api/v1/patch-requests/{rest_data['request_id']}/approve",
+            headers=headers, json={"comment": "确认休息"},
+        )
+        _expect(checks, "确认应用 200", approve.status_code == 200, approve.text[:120])
+        after = approve.json()["data"]
+        _expect(checks, "版本 +1", after["committed_version"] == plan["version"] + 1,
+                str(after["committed_version"]))
+
         limited = client.post(f"/api/v1/plans/{plan['plan_id']}/patch-requests",
                               headers=headers, json={"text": "这周只能练两天，每次 30 分钟"})
         limited_data = limited.json()["data"]
@@ -649,17 +659,8 @@ def e10_free_text_change() -> ScenarioResult:
         _expect(checks, "减天数会删掉多余训练日", bool(removes), f"删除 {len(removes)} 个槽位")
 
         unchanged = _plan(client, headers)
-        _expect(checks, "草案不改版本", unchanged["version"] == plan["version"],
-                f"{plan['version']} → {unchanged['version']}")
-
-        approve = client.post(
-            f"/api/v1/patch-requests/{rest_data['request_id']}/approve",
-            headers=headers, json={"comment": "确认休息"},
-        )
-        _expect(checks, "确认应用 200", approve.status_code == 200, approve.text[:120])
-        after = approve.json()["data"]
-        _expect(checks, "版本 +1", after["committed_version"] == plan["version"] + 1,
-                str(after["committed_version"]))
+        _expect(checks, "草案不改版本", unchanged["version"] == plan["version"] + 1,
+                f"{plan['version'] + 1} → {unchanged['version']}")
         sample.patches_created += 1
         sample.approval_decisions += 1
         sample.commits += 1

@@ -270,6 +270,11 @@ def create_request(
     db.add(patch)
     db.flush()
 
+    # 同一份计划同时只留一个待确认草案：
+    # 用户连点「看看会怎么改」会堆出好几条一模一样的待确认卡片，
+    # 既没法分辨该点哪个，也会让审批页变成列表墙。
+    _supersede_other_pending(db, plan.id, keep_id=patch.id)
+
     # 上一轮的草案作废：它基于旧说法，留着只会让「待确认」列表越来越脏
     if parent_request_id:
         parent = db.get(PatchRequest, parent_request_id)
@@ -299,6 +304,22 @@ def create_request(
     db.commit()
     db.refresh(request)
     return request
+
+
+def _supersede_other_pending(db: Session, plan_id: str, *, keep_id: str) -> int:
+    """把同一计划下其它待确认草案标成 superseded，只留最新一条。"""
+    from sqlalchemy import select
+
+    rows = db.scalars(
+        select(PlanPatch).where(
+            PlanPatch.plan_id == plan_id,
+            PlanPatch.id != keep_id,
+            PlanPatch.status == "pending_approval",
+        )
+    ).all()
+    for row in rows:
+        row.status = "superseded"
+    return len(rows)
 
 
 def _constraints(db: Session, user: User, plan: Plan, intent: Intent) -> dict:

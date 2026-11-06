@@ -88,6 +88,23 @@ event_hash = H(stream_id, seq, action, actor, payload_digest, prev_hash)
 把 `(seq, hash, signature)` 抄到库外。详见 `docs/29-audit-chain.md`。
 两者通过 `patch_id` / `version` 串起来。
 
+### 3.1 同一份计划只留一个待确认草案
+
+以前连着点几次"看看会怎么改"，会堆出好几张一模一样的待确认卡片（本次修复）：
+`create_request` 落新草案时会把同一计划下其它 `pending_approval` 标成 `superseded`。
+理由是审批的对象必须唯一——否则用户不知道自己批的是哪一版。
+
+### 3.2 RUNS 和 AUDIT CHAIN 不是一回事
+
+| | RUNS | AUDIT CHAIN |
+|---|---|---|
+| 单位 | **一次执行**（今日规划 / 补丁审批 / 回滚） | **计划上的一个动作**（生成草案/审批/提交/回滚/下单） |
+| 回答 | 这次跑了什么、trace、花了多少 token | 谁在什么时候改了计划、链是否完整 |
+| 数量 | 每次调用一条 | 每个变更一条，天然比 run 多 |
+
+Console 里两个卡都加了一句话说明，审计默认只露 12 条（`展开全部 122 条`），
+事件名也翻成中文（`patch_created` → 生成改动草案）。
+
 ## 4. Console 里怎么体现（本次新增）
 
 - `VERSIONS · 版本链`：`共 23 版 · 当前 v23`，逐条显示
