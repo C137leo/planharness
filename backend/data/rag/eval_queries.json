@@ -1,0 +1,920 @@
+[
+ {
+  "category": "literal",
+  "query": "深蹲动作要领",
+  "expected_ids": [
+   "ex:barbell-squat"
+  ],
+  "targets": [
+   "杠铃深蹲（Barbell Squat）"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "高脚杯深蹲怎么做",
+  "expected_ids": [
+   "ex:goblet-squat"
+  ],
+  "targets": [
+   "高脚杯深蹲（Goblet Squat）"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "杠铃卧推",
+  "expected_ids": [
+   "ex:barbell-bench-press-medium-grip"
+  ],
+  "targets": [
+   "杠铃卧推（Barbell Bench Press"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "哑铃卧推",
+  "expected_ids": [
+   "ex:dumbbell-bench-press"
+  ],
+  "targets": [
+   "哑铃卧推（Dumbbell Bench Press）"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "上斜卧推",
+  "expected_ids": [
+   "ex:barbell-incline-bench-press-medium-grip",
+   "ex:hammer-grip-incline-db-bench-press",
+   "ex:incline-dumbbell-press"
+  ],
+  "targets": [
+   "上斜杠铃卧推",
+   "上斜哑铃卧推"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "硬拉动作要领",
+  "expected_ids": [
+   "ex:barbell-deadlift"
+  ],
+  "targets": [
+   "杠铃硬拉（Barbell Deadlift）"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "罗马尼亚硬拉",
+  "expected_ids": [
+   "ex:romanian-deadlift"
+  ],
+  "targets": [
+   "罗马尼亚硬拉"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "杠铃俯身划船",
+  "expected_ids": [
+   "ex:bent-over-barbell-row"
+  ],
+  "targets": [
+   "杠铃俯身划船"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "坐姿绳索划船",
+  "expected_ids": [
+   "ex:seated-cable-rows"
+  ],
+  "targets": [
+   "坐姿绳索划船"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "高位下拉",
+  "expected_ids": [
+   "ex:wide-grip-lat-pulldown"
+  ],
+  "targets": [
+   "宽握高位下拉"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "引体向上",
+  "expected_ids": [
+   "ex:chin-up",
+   "ex:pullups"
+  ],
+  "targets": [
+   "引体向上（Pullups）",
+   "反手引体向上"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "杠铃肩推",
+  "expected_ids": [
+   "ex:barbell-shoulder-press"
+  ],
+  "targets": [
+   "杠铃肩推"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "哑铃肩推",
+  "expected_ids": [
+   "ex:dumbbell-shoulder-press"
+  ],
+  "targets": [
+   "哑铃肩推"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "哑铃侧平举",
+  "expected_ids": [
+   "ex:side-lateral-raise"
+  ],
+  "targets": [
+   "哑铃侧平举"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "面拉",
+  "expected_ids": [
+   "ex:face-pull"
+  ],
+  "targets": [
+   "面拉"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "杠铃弯举",
+  "expected_ids": [
+   "ex:barbell-curl",
+   "ex:barbell-curls-lying-against-an-incline",
+   "ex:close-grip-standing-barbell-curl",
+   "ex:lying-high-bench-barbell-curl"
+  ],
+  "targets": [
+   "杠铃弯举"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "锤式弯举",
+  "expected_ids": [
+   "ex:alternate-hammer-curl",
+   "ex:cable-hammer-curls-rope-attachment",
+   "ex:cross-body-hammer-curl",
+   "ex:hammer-curls",
+   "ex:incline-hammer-curls"
+  ],
+  "targets": [
+   "锤式弯举"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "三头下压",
+  "expected_ids": [
+   "ex:triceps-pushdown"
+  ],
+  "targets": [
+   "三头下压"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "凳上臂屈伸",
+  "expected_ids": [
+   "ex:bench-dips"
+  ],
+  "targets": [
+   "凳上臂屈伸"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "腿举",
+  "expected_ids": [
+   "ex:calf-press-on-the-leg-press-machine",
+   "ex:leg-press",
+   "ex:narrow-stance-leg-press"
+  ],
+  "targets": [
+   "腿举"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "腿屈伸",
+  "expected_ids": [
+   "ex:leg-extensions"
+  ],
+  "targets": [
+   "腿屈伸"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "俯卧腿弯举",
+  "expected_ids": [
+   "ex:lying-leg-curls"
+  ],
+  "targets": [
+   "俯卧腿弯举"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "站姿提踵",
+  "expected_ids": [
+   "ex:rocking-standing-calf-raise",
+   "ex:standing-calf-raises"
+  ],
+  "targets": [
+   "站姿提踵"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "杠铃臀桥",
+  "expected_ids": [
+   "ex:barbell-glute-bridge"
+  ],
+  "targets": [
+   "杠铃臀桥"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "杠铃臀推",
+  "expected_ids": [
+   "ex:barbell-hip-thrust"
+  ],
+  "targets": [
+   "杠铃臀推"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "杠铃弓步",
+  "expected_ids": [
+   "ex:barbell-lunge"
+  ],
+  "targets": [
+   "杠铃弓步"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "平板支撑",
+  "expected_ids": [
+   "ex:plank"
+  ],
+  "targets": [
+   "平板支撑"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "卷腹",
+  "expected_ids": [
+   "ex:ab-crunch-machine",
+   "ex:bosu-ball-cable-crunch-with-side-bends",
+   "ex:cable-crunch",
+   "ex:cable-reverse-crunch",
+   "ex:cable-seated-crunch",
+   "ex:cross-body-crunch",
+   "ex:crunch-hands-overhead",
+   "ex:crunch-legs-on-exercise-ball",
+   "ex:crunches",
+   "ex:decline-crunch",
+   "ex:decline-oblique-crunch",
+   "ex:decline-reverse-crunch",
+   "ex:gorilla-chin-crunch",
+   "ex:kneeling-cable-crunch-with-alternating-oblique-twists",
+   "ex:oblique-crunches",
+   "ex:oblique-crunches-on-the-floor"
+  ],
+  "targets": [
+   "卷腹"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "侧支撑",
+  "expected_ids": [
+   "ex:side-bridge"
+  ],
+  "targets": [
+   "侧支撑"
+  ]
+ },
+ {
+  "category": "literal",
+  "query": "悬垂举腿",
+  "expected_ids": [
+   "ex:hanging-leg-raise"
+  ],
+  "targets": [
+   "悬垂举腿"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "想练胸",
+  "expected_ids": [
+   "ex:barbell-bench-press-medium-grip",
+   "ex:barbell-incline-bench-press-medium-grip",
+   "ex:clock-push-up",
+   "ex:close-grip-barbell-bench-press",
+   "ex:close-grip-dumbbell-press",
+   "ex:close-grip-push-up-off-of-a-dumbbell",
+   "ex:decline-dumbbell-flyes",
+   "ex:dumbbell-bench-press",
+   "ex:dumbbell-flyes",
+   "ex:hammer-grip-incline-db-bench-press",
+   "ex:incline-dumbbell-flyes",
+   "ex:incline-dumbbell-press",
+   "ex:incline-push-up",
+   "ex:incline-push-up-close-grip",
+   "ex:incline-push-up-medium",
+   "ex:incline-push-up-reverse-grip",
+   "ex:incline-push-up-wide",
+   "ex:one-arm-dumbbell-bench-press",
+   "ex:one-arm-flat-bench-dumbbell-flye",
+   "ex:plyo-kettlebell-pushups",
+   "ex:plyo-push-up",
+   "ex:push-up-to-side-plank",
+   "ex:push-up-wide",
+   "ex:push-ups-close-triceps-position",
+   "ex:push-ups-with-feet-elevated",
+   "ex:pushups",
+   "ex:pushups-close-and-wide-hand-positions",
+   "ex:wide-grip-barbell-bench-press",
+   "ex:wide-grip-decline-barbell-bench-press"
+  ],
+  "targets": [
+   "杠铃卧推",
+   "哑铃卧推",
+   "俯卧撑",
+   "哑铃飞鸟"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "练背的动作",
+  "expected_ids": [
+   "ex:bent-over-barbell-row",
+   "ex:chin-up",
+   "ex:close-grip-front-lat-pulldown",
+   "ex:full-range-of-motion-lat-pulldown",
+   "ex:gorilla-chin-crunch",
+   "ex:one-arm-lat-pulldown",
+   "ex:pullups",
+   "ex:wide-grip-lat-pulldown",
+   "ex:wide-grip-rear-pull-up"
+  ],
+  "targets": [
+   "杠铃俯身划船",
+   "引体",
+   "高位下拉"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "下肢力量练什么",
+  "expected_ids": [
+   "ex:barbell-lunge",
+   "ex:barbell-squat",
+   "ex:calf-press-on-the-leg-press-machine",
+   "ex:dumbbell-lunges",
+   "ex:leg-extensions",
+   "ex:leg-press",
+   "ex:lying-leg-curls",
+   "ex:narrow-stance-leg-press",
+   "ex:one-leg-barbell-squat"
+  ],
+  "targets": [
+   "杠铃深蹲",
+   "腿举",
+   "杠铃弓步",
+   "哑铃弓步",
+   "俯卧腿弯举",
+   "腿屈伸"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "臀部塑形",
+  "expected_ids": [
+   "ex:barbell-glute-bridge",
+   "ex:barbell-hip-thrust"
+  ],
+  "targets": [
+   "杠铃臀推",
+   "杠铃臀桥"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "肩膀怎么练",
+  "expected_ids": [
+   "ex:barbell-shoulder-press",
+   "ex:dumbbell-shoulder-press",
+   "ex:side-lateral-raise"
+  ],
+  "targets": [
+   "杠铃肩推",
+   "哑铃肩推",
+   "哑铃侧平举"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "手臂线条怎么练",
+  "expected_ids": [
+   "ex:alternate-incline-dumbbell-curl",
+   "ex:barbell-curl",
+   "ex:barbell-curls-lying-against-an-incline",
+   "ex:close-grip-standing-barbell-curl",
+   "ex:dumbbell-bicep-curl",
+   "ex:flexor-incline-dumbbell-curls",
+   "ex:incline-dumbbell-curl",
+   "ex:lying-high-bench-barbell-curl",
+   "ex:lying-supine-dumbbell-curl",
+   "ex:preacher-hammer-dumbbell-curl",
+   "ex:triceps-pushdown"
+  ],
+  "targets": [
+   "杠铃弯举",
+   "三头下压",
+   "哑铃弯举"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "核心怎么练",
+  "expected_ids": [
+   "ex:ab-crunch-machine",
+   "ex:bosu-ball-cable-crunch-with-side-bends",
+   "ex:cable-crunch",
+   "ex:cable-reverse-crunch",
+   "ex:cable-seated-crunch",
+   "ex:cross-body-crunch",
+   "ex:crunch-hands-overhead",
+   "ex:crunch-legs-on-exercise-ball",
+   "ex:crunches",
+   "ex:decline-crunch",
+   "ex:decline-oblique-crunch",
+   "ex:decline-reverse-crunch",
+   "ex:gorilla-chin-crunch",
+   "ex:kneeling-cable-crunch-with-alternating-oblique-twists",
+   "ex:oblique-crunches",
+   "ex:oblique-crunches-on-the-floor",
+   "ex:plank",
+   "ex:side-bridge"
+  ],
+  "targets": [
+   "平板支撑",
+   "卷腹",
+   "侧支撑"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "大腿前侧练什么",
+  "expected_ids": [
+   "ex:barbell-squat",
+   "ex:calf-press-on-the-leg-press-machine",
+   "ex:leg-extensions",
+   "ex:leg-press",
+   "ex:narrow-stance-leg-press",
+   "ex:one-leg-barbell-squat"
+  ],
+  "targets": [
+   "腿屈伸",
+   "杠铃深蹲",
+   "腿举"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "大腿后侧练什么",
+  "expected_ids": [
+   "ex:barbell-deadlift",
+   "ex:cable-deadlifts",
+   "ex:clean-deadlift",
+   "ex:deadlift-with-bands",
+   "ex:deadlift-with-chains",
+   "ex:deficit-deadlift",
+   "ex:kettlebell-one-legged-deadlift",
+   "ex:leverage-deadlift",
+   "ex:lying-leg-curls",
+   "ex:one-arm-side-deadlift",
+   "ex:reverse-band-deadlift",
+   "ex:reverse-band-sumo-deadlift",
+   "ex:romanian-deadlift"
+  ],
+  "targets": [
+   "俯卧腿弯举",
+   "罗马尼亚硬拉",
+   "硬拉"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "小腿怎么练",
+  "expected_ids": [
+   "ex:barbell-seated-calf-raise",
+   "ex:calf-machine-shoulder-shrug",
+   "ex:calf-press",
+   "ex:calf-press-on-the-leg-press-machine",
+   "ex:calf-raise-on-a-dumbbell",
+   "ex:calf-raises-with-bands",
+   "ex:dumbbell-seated-one-leg-calf-raise",
+   "ex:rocking-standing-calf-raise",
+   "ex:seated-calf-raise",
+   "ex:smith-machine-calf-raise",
+   "ex:smith-machine-reverse-calf-raises",
+   "ex:standing-barbell-calf-raise",
+   "ex:standing-calf-raises",
+   "ex:standing-dumbbell-calf-raise"
+  ],
+  "targets": [
+   "提踵"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "推胸的动作",
+  "expected_ids": [
+   "ex:alternate-incline-dumbbell-curl",
+   "ex:barbell-bench-press-medium-grip",
+   "ex:barbell-incline-bench-press-medium-grip",
+   "ex:barbell-incline-shoulder-raise",
+   "ex:cable-incline-pushdown",
+   "ex:cable-incline-triceps-extension",
+   "ex:close-grip-barbell-bench-press",
+   "ex:close-grip-dumbbell-press",
+   "ex:dumbbell-bench-press",
+   "ex:dumbbell-incline-row",
+   "ex:dumbbell-incline-shoulder-raise",
+   "ex:hammer-grip-incline-db-bench-press",
+   "ex:incline-barbell-triceps-extension",
+   "ex:incline-bench-pull",
+   "ex:incline-cable-chest-press",
+   "ex:incline-cable-flye",
+   "ex:incline-dumbbell-curl",
+   "ex:incline-dumbbell-flyes",
+   "ex:incline-dumbbell-flyes-with-a-twist",
+   "ex:incline-dumbbell-press",
+   "ex:incline-hammer-curls",
+   "ex:incline-inner-biceps-curl",
+   "ex:incline-push-up",
+   "ex:incline-push-up-close-grip",
+   "ex:incline-push-up-medium",
+   "ex:incline-push-up-reverse-grip",
+   "ex:incline-push-up-wide",
+   "ex:leverage-incline-chest-press",
+   "ex:one-arm-dumbbell-bench-press",
+   "ex:one-arm-incline-lateral-raise",
+   "ex:smith-machine-incline-bench-press",
+   "ex:wide-grip-barbell-bench-press",
+   "ex:wide-grip-decline-barbell-bench-press"
+  ],
+  "targets": [
+   "杠铃卧推",
+   "哑铃卧推",
+   "上斜"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "拉背的动作",
+  "expected_ids": [
+   "ex:alternating-kettlebell-row",
+   "ex:alternating-renegade-row",
+   "ex:barbell-rear-delt-row",
+   "ex:bent-over-barbell-row",
+   "ex:bent-over-one-arm-long-bar-row",
+   "ex:bent-over-two-arm-long-bar-row",
+   "ex:bent-over-two-dumbbell-row",
+   "ex:bent-over-two-dumbbell-row-with-palms-in",
+   "ex:cable-rope-rear-delt-rows",
+   "ex:chin-up",
+   "ex:close-grip-front-lat-pulldown",
+   "ex:dumbbell-incline-row",
+   "ex:dumbbell-one-arm-upright-row",
+   "ex:elevated-cable-rows",
+   "ex:full-range-of-motion-lat-pulldown",
+   "ex:gorilla-chin-crunch",
+   "ex:incline-bench-pull",
+   "ex:kneeling-high-pulley-row",
+   "ex:kneeling-single-arm-high-pulley-row",
+   "ex:leverage-high-row",
+   "ex:leverage-iso-row",
+   "ex:lying-cambered-barbell-row",
+   "ex:lying-t-bar-row",
+   "ex:one-arm-dumbbell-row",
+   "ex:one-arm-kettlebell-row",
+   "ex:one-arm-lat-pulldown",
+   "ex:one-arm-long-bar-row",
+   "ex:pullups",
+   "ex:seated-cable-rows",
+   "ex:seated-one-arm-cable-pulley-rows",
+   "ex:wide-grip-lat-pulldown",
+   "ex:wide-grip-rear-pull-up"
+  ],
+  "targets": [
+   "高位下拉",
+   "划船",
+   "引体"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "减脂期做什么力量动作",
+  "expected_ids": [
+   "ex:barbell-bench-press-medium-grip",
+   "ex:barbell-deadlift",
+   "ex:barbell-incline-bench-press-medium-grip",
+   "ex:barbell-shoulder-press",
+   "ex:barbell-squat",
+   "ex:bent-over-barbell-row",
+   "ex:close-grip-barbell-bench-press",
+   "ex:one-leg-barbell-squat",
+   "ex:romanian-deadlift",
+   "ex:wide-grip-barbell-bench-press",
+   "ex:wide-grip-decline-barbell-bench-press"
+  ],
+  "targets": [
+   "杠铃深蹲",
+   "杠铃硬拉",
+   "杠铃卧推",
+   "杠铃俯身划船",
+   "杠铃肩推",
+   "罗马尼亚硬拉"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "新手先练什么动作",
+  "expected_ids": [
+   "ex:barbell-bench-press-medium-grip",
+   "ex:barbell-deadlift",
+   "ex:barbell-incline-bench-press-medium-grip",
+   "ex:barbell-squat",
+   "ex:bent-over-barbell-row",
+   "ex:clock-push-up",
+   "ex:close-grip-barbell-bench-press",
+   "ex:close-grip-push-up-off-of-a-dumbbell",
+   "ex:incline-push-up",
+   "ex:incline-push-up-close-grip",
+   "ex:incline-push-up-medium",
+   "ex:incline-push-up-reverse-grip",
+   "ex:incline-push-up-wide",
+   "ex:one-leg-barbell-squat",
+   "ex:plank",
+   "ex:plyo-kettlebell-pushups",
+   "ex:plyo-push-up",
+   "ex:push-up-to-side-plank",
+   "ex:push-up-wide",
+   "ex:push-ups-close-triceps-position",
+   "ex:push-ups-with-feet-elevated",
+   "ex:pushups",
+   "ex:pushups-close-and-wide-hand-positions",
+   "ex:wide-grip-barbell-bench-press",
+   "ex:wide-grip-decline-barbell-bench-press"
+  ],
+  "targets": [
+   "杠铃深蹲",
+   "杠铃卧推",
+   "杠铃硬拉",
+   "俯卧撑",
+   "杠铃俯身划船",
+   "平板支撑"
+  ]
+ },
+ {
+  "category": "paraphrase",
+  "query": "居家无器械练胸",
+  "expected_ids": [
+   "ex:clock-push-up",
+   "ex:close-grip-push-up-off-of-a-dumbbell",
+   "ex:incline-push-up",
+   "ex:incline-push-up-close-grip",
+   "ex:incline-push-up-medium",
+   "ex:incline-push-up-reverse-grip",
+   "ex:incline-push-up-wide",
+   "ex:plyo-kettlebell-pushups",
+   "ex:plyo-push-up",
+   "ex:push-up-to-side-plank",
+   "ex:push-up-wide",
+   "ex:push-ups-close-triceps-position",
+   "ex:push-ups-with-feet-elevated",
+   "ex:pushups",
+   "ex:pushups-close-and-wide-hand-positions"
+  ],
+  "targets": [
+   "俯卧撑"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "鸡胸肉蛋白质",
+  "expected_ids": [
+   "food:2646170",
+   "food:2727569",
+   "food:2759004",
+   "food:331960"
+  ],
+  "targets": [
+   "鸡胸肉"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "鸡蛋蛋白质",
+  "expected_ids": [
+   "food:323604",
+   "food:329490",
+   "food:748967"
+  ],
+  "targets": [
+   "鸡蛋",
+   "全蛋"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "牛奶蛋白质",
+  "expected_ids": [
+   "food:746772",
+   "food:746776",
+   "food:746778",
+   "food:746782"
+  ],
+  "targets": [
+   "牛奶"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "三文鱼脂肪",
+  "expected_ids": [
+   "food:2684441"
+  ],
+  "targets": [
+   "三文鱼"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "牛肉热量",
+  "expected_ids": [
+   "food:2514743",
+   "food:2514744",
+   "food:2646173",
+   "food:2758991",
+   "food:2759003",
+   "food:323121",
+   "food:746758",
+   "food:746779"
+  ],
+  "targets": [
+   "牛里脊",
+   "牛肉"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "燕麦碳水",
+  "expected_ids": [
+   "food:2257046",
+   "food:2261421",
+   "food:2346396",
+   "food:2346397",
+   "food:2779253"
+  ],
+  "targets": [
+   "燕麦"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "糙米热量",
+  "expected_ids": [
+   "food:1104812",
+   "food:2512380",
+   "food:2779248",
+   "food:2779256",
+   "food:2779261"
+  ],
+  "targets": [
+   "糙米"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "红薯碳水",
+  "expected_ids": [
+   "food:2346404"
+  ],
+  "targets": [
+   "红薯"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "西兰花营养",
+  "expected_ids": [
+   "food:747447"
+  ],
+  "targets": [
+   "西兰花"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "牛油果脂肪",
+  "expected_ids": [
+   "food:2710824"
+  ],
+  "targets": [
+   "牛油果"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "香蕉热量",
+  "expected_ids": [
+   "food:1105073",
+   "food:1105314",
+   "food:2747660"
+  ],
+  "targets": [
+   "香蕉"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "苹果碳水",
+  "expected_ids": [
+   "food:1750340",
+   "food:1750341",
+   "food:1750342",
+   "food:1750343",
+   "food:2003590",
+   "food:2346414"
+  ],
+  "targets": [
+   "苹果"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "杏仁脂肪",
+  "expected_ids": [
+   "food:1999631",
+   "food:2257045",
+   "food:2261420",
+   "food:2262074",
+   "food:2346393",
+   "food:323294"
+  ],
+  "targets": [
+   "杏仁"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "花生酱蛋白质",
+  "expected_ids": [
+   "food:2262072",
+   "food:2758989"
+  ],
+  "targets": [
+   "花生酱"
+  ]
+ },
+ {
+  "category": "food",
+  "query": "橄榄油脂肪",
+  "expected_ids": [
+   "food:2747652"
+  ],
+  "targets": [
+   "橄榄油"
+  ]
+ }
+]

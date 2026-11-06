@@ -89,6 +89,31 @@ _FOOD_CATEGORY = {
 }
 
 
+# 口语同义词扩展：词面检索唯一的"语义"手段，显式、可审计、可回滚
+_ALIASES: dict[tuple[str, ...], tuple[str, ...]] = {
+    ("前侧", "股四"): ("股四头肌",),
+    ("后侧", "腘绳"): ("腘绳肌",),
+    ("无器械", "徒手", "居家"): ("自重",),
+    ("练胸", "胸肌", "推胸"): ("胸大肌", "卧推", "俯卧撑"),
+    ("练背", "背肌", "拉背"): ("背部", "划船", "下拉"),
+    ("臀部", "臀肌", "塑形"): ("臀大肌", "臀桥", "臀推"),
+    ("肩膀", "肩部"): ("三角肌", "肩推", "侧平举"),
+    ("手臂", "二头", "三头"): ("肱二头肌", "肱三头肌", "弯举", "下压"),
+    ("核心", "腹肌"): ("腹部", "平板支撑", "卷腹"),
+    ("小腿", "提踵"): ("小腿", "提踵"),
+    ("大腿", "腿部"): ("股四头肌", "腘绳肌", "下肢"),
+}
+
+
+def _expand_query(query: str) -> str:
+    """把口语词展开成语料里真正出现的词，避免"前侧→股四头肌"这种跨词鸿沟。"""
+    text = query
+    for words, expansions in _ALIASES.items():
+        if any(word in text for word in words):
+            text += " " + " ".join(expansions)
+    return text
+
+
 def _intent_boost(chunk: dict, query: str) -> float:
     text = query.lower()
     boost = 0.0
@@ -129,7 +154,9 @@ def _bm25(query: str, limit: int) -> list[RagHit]:
     if not chunks:
         return []
     lex = _CACHE["lex"]
-    q_tokens = tokenize(query)
+    expanded = _expand_query(query)
+    q_tokens = tokenize(expanded)
+    query = expanded
     if not q_tokens:
         return []
     k1, b = 1.5, 0.75
@@ -196,10 +223,11 @@ def _vector_search(query: str, limit: int) -> list[RagHit]:
     chunks = load_chunks()
     if not chunks:
         return []
-    query_tokens = set(tokenize(query))
+    expanded = _expand_query(query)
+    query_tokens = set(tokenize(expanded))
     if not query_tokens:
         return []
-    query_vec = _embed(query)
+    query_vec = _embed(expanded)
     scored: list[RagHit] = []
     for index, doc_vec in enumerate(_CACHE["vec"]):
         if not (query_tokens & _CACHE["token_sets"][index]):

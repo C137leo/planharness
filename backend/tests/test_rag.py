@@ -54,3 +54,18 @@ def test_rag_endpoint_returns_hits(client: TestClient, auth_headers) -> None:
     assert body["engine"] == "hybrid"
     assert body["hits"]
     assert body["stats"]["chunks"] >= 60
+
+def test_eval_set_ids_exist_in_corpus() -> None:
+    """评测集是人工判定：里面的期望 id 必须真实存在，否则评测结果没有意义。"""
+    import json
+    from pathlib import Path
+
+    eval_path = Path(__file__).resolve().parents[1] / "data" / "rag" / "eval_queries.json"
+    cases = json.loads(eval_path.read_text(encoding="utf-8"))
+    assert len(cases) == 60
+    ids = {chunk["id"] for chunk in rag.load_chunks()}
+    for case in cases:
+        assert case["expected_ids"], case["query"]
+        assert set(case["expected_ids"]) <= ids, case["query"]
+    categories = {case["category"] for case in cases}
+    assert categories == {"literal", "paraphrase", "food"}

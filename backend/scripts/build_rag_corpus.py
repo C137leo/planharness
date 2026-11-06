@@ -545,11 +545,13 @@ def build_food_chunks() -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-translate", action="store_true", help="跳过模型翻译，用英文要点")
-    parser.add_argument("--full", action="store_true", help="全量模式：约 600 chunks")
+    parser.add_argument("--full", action="store_true", help="全量模式（默认 350 动作 + 250 食物）")
+    parser.add_argument("--exercises", type=int, default=350, help="全量模式下的动作数")
+    parser.add_argument("--foods", type=int, default=250, help="全量模式下的食物数")
     args = parser.parse_args()
 
     if args.full:
-        chunks = build_all_chunks()
+        chunks = build_all_chunks(exercise_limit=args.exercises, food_limit=args.foods)
     else:
         data = json.loads(EXERCISES.read_text(encoding="utf-8"))
         by_name = {item["name"]: item for item in data}
