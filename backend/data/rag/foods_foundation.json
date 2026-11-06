@@ -1,0 +1,322 @@
+[
+ {
+  "query": "Chicken, broiler or fryers, breast, skinless, boneless, meat only, cooked, braised",
+  "zh": "鸡胸肉（熟）",
+  "fdc_id": 331960,
+  "description": "Chicken, broiler or fryers, breast, skinless, boneless, meat only, cooked, braised",
+  "kcal": 166.0,
+  "protein_g": 32.1,
+  "fat_g": 3.24,
+  "carb_g": 0.0
+ },
+ {
+  "query": "Chicken, broilers or fryers, drumstick, meat only, cooked, braised",
+  "zh": "鸡腿肉（熟）",
+  "fdc_id": 331897,
+  "description": "Chicken, broilers or fryers, drumstick, meat only, cooked, braised",
+  "kcal": 156.0,
+  "protein_g": 23.9,
+  "fat_g": 5.95,
+  "carb_g": 0.0
+ },
+ {
+  "query": "Chicken, thigh, boneless, skinless, raw",
+  "zh": "鸡腿肉（生）",
+  "fdc_id": 2646171,
+  "description": "Chicken, thigh, boneless, skinless, raw",
+  "kcal": 145.7,
+  "protein_g": 18.6,
+  "fat_g": 7.92,
+  "carb_g": 0.0
+ },
+ {
+  "query": "Beef, loin, tenderloin roast, separable lean only, boneless, trimmed to 0\" fat, select, cooked, roasted",
+  "zh": "牛里脊（熟）",
+  "fdc_id": 746758,
+  "description": "Beef, loin, tenderloin roast, separable lean only, boneless, trimmed to 0\" fat, select, cooked, roasted",
+  "kcal": 176.0,
+  "protein_g": 27.7,
+  "fat_g": 6.36,
+  "carb_g": 0.0
+ },
+ {
+  "query": "Beef, ground, 90% lean meat / 10% fat, raw",
+  "zh": "牛肉末 90% 瘦",
+  "fdc_id": 2514743,
+  "description": "Beef, ground, 90% lean meat / 10% fat, raw",
+  "kcal": 188.0,
+  "protein_g": 18.2,
+  "fat_g": 12.8,
+  "carb_g": 0.0
+ },
+ {
+  "query": "Pork, loin, boneless, raw",
+  "zh": "猪里脊（生）",
+  "fdc_id": 2646168,
+  "description": "Pork, loin, boneless, raw",
+  "kcal": 169.6,
+  "protein_g": 21.1,
+  "fat_g": 9.47,
+  "carb_g": 0.0
+ },
+ {
+  "query": "Fish, salmon, Atlantic, farm raised, raw",
+  "zh": "三文鱼（生）",
+  "fdc_id": 2684441,
+  "description": "Fish, salmon, Atlantic, farm raised, raw",
+  "kcal": 199.1,
+  "protein_g": 20.3,
+  "fat_g": 13.1,
+  "carb_g": 0.0
+ },
+ {
+  "query": "Crustaceans, shrimp, farm raised, raw",
+  "zh": "虾（生）",
+  "fdc_id": 2684443,
+  "description": "Crustaceans, shrimp, farm raised, raw",
+  "kcal": 71.5,
+  "protein_g": 15.6,
+  "fat_g": 0.801,
+  "carb_g": 0.485
+ },
+ {
+  "query": "Fish, tuna, light, canned in water, drained solids",
+  "zh": "金枪鱼罐头（水浸）",
+  "fdc_id": 334194,
+  "description": "Fish, tuna, light, canned in water, drained solids",
+  "kcal": 90.0,
+  "protein_g": 19.0,
+  "fat_g": 0.94,
+  "carb_g": 0.08
+ },
+ {
+  "query": "Eggs, Grade A, Large, egg whole",
+  "zh": "鸡蛋（全蛋）",
+  "fdc_id": 748967,
+  "description": "Eggs, Grade A, Large, egg whole",
+  "kcal": 148.0,
+  "protein_g": 12.4,
+  "fat_g": 9.96,
+  "carb_g": 0.96
+ },
+ {
+  "query": "Milk, whole, 3.25% milkfat, with added vitamin D",
+  "zh": "全脂牛奶",
+  "fdc_id": 746782,
+  "description": "Milk, whole, 3.25% milkfat, with added vitamin D",
+  "kcal": 60.0,
+  "protein_g": 3.27,
+  "fat_g": 3.2,
+  "carb_g": 4.63
+ },
+ {
+  "query": "Yogurt, Greek, plain, nonfat",
+  "zh": "希腊酸奶（脱脂）",
+  "fdc_id": 330137,
+  "description": "Yogurt, Greek, plain, nonfat",
+  "kcal": 61.0,
+  "protein_g": 10.3,
+  "fat_g": 0.37,
+  "carb_g": 3.64
+ },
+ {
+  "query": "Cottage cheese, full fat, large or small curd",
+  "zh": "低脂奶酪",
+  "fdc_id": 2346384,
+  "description": "Cottage cheese, full fat, large or small curd",
+  "kcal": 102.8,
+  "protein_g": 11.6,
+  "fat_g": 4.22,
+  "carb_g": 4.6
+ },
+ {
+  "query": "Cheese, cheddar",
+  "zh": "切达奶酪",
+  "fdc_id": 328637,
+  "description": "Cheese, cheddar",
+  "kcal": 408.0,
+  "protein_g": 23.3,
+  "fat_g": 34.0,
+  "carb_g": 2.44
+ },
+ {
+  "query": "Oats, whole grain, rolled, old fashioned",
+  "zh": "燕麦片（生）",
+  "fdc_id": 2346396,
+  "description": "Oats, whole grain, rolled, old fashioned",
+  "kcal": 381.8,
+  "protein_g": 13.5,
+  "fat_g": 5.89,
+  "carb_g": 68.7
+ },
+ {
+  "query": "Rice, brown, long grain, unenriched, raw",
+  "zh": "糙米（生）",
+  "fdc_id": 2512380,
+  "description": "Rice, brown, long grain, unenriched, raw",
+  "kcal": 365.6,
+  "protein_g": 7.25,
+  "fat_g": 3.31,
+  "carb_g": 76.7
+ },
+ {
+  "query": "Rice, white, long grain, unenriched, raw",
+  "zh": "白米（生）",
+  "fdc_id": 2512381,
+  "description": "Rice, white, long grain, unenriched, raw",
+  "kcal": 358.6,
+  "protein_g": 7.04,
+  "fat_g": 1.03,
+  "carb_g": 80.3
+ },
+ {
+  "query": "Sweet potatoes, orange flesh, without skin, raw",
+  "zh": "红薯（生）",
+  "fdc_id": 2346404,
+  "description": "Sweet potatoes, orange flesh, without skin, raw",
+  "kcal": 78.9,
+  "protein_g": 1.58,
+  "fat_g": 0.375,
+  "carb_g": 17.3
+ },
+ {
+  "query": "Potatoes, russet, without skin, raw",
+  "zh": "土豆（生）",
+  "fdc_id": 2346401,
+  "description": "Potatoes, russet, without skin, raw",
+  "kcal": 83.5,
+  "protein_g": 2.27,
+  "fat_g": 0.36,
+  "carb_g": 17.8
+ },
+ {
+  "query": "Broccoli, raw",
+  "zh": "西兰花（生）",
+  "fdc_id": 747447,
+  "description": "Broccoli, raw",
+  "kcal": 31.0,
+  "protein_g": 2.57,
+  "fat_g": 0.34,
+  "carb_g": 6.27
+ },
+ {
+  "query": "Spinach, mature",
+  "zh": "菠菜（生）",
+  "fdc_id": 1999633,
+  "description": "Spinach, mature",
+  "kcal": 27.6,
+  "protein_g": 2.91,
+  "fat_g": 0.604,
+  "carb_g": 2.64
+ },
+ {
+  "query": "Kale, raw",
+  "zh": "羽衣甘蓝（生）",
+  "fdc_id": 323505,
+  "description": "Kale, raw",
+  "kcal": 35.0,
+  "protein_g": 2.92,
+  "fat_g": 1.49,
+  "carb_g": 4.42
+ },
+ {
+  "query": "Cucumber, with peel, raw",
+  "zh": "黄瓜（带皮）",
+  "fdc_id": 2346406,
+  "description": "Cucumber, with peel, raw",
+  "kcal": 15.9,
+  "protein_g": 0.625,
+  "fat_g": 0.178,
+  "carb_g": 2.95
+ },
+ {
+  "query": "Avocado, Hass, peeled, raw",
+  "zh": "牛油果",
+  "fdc_id": 2710824,
+  "description": "Avocado, Hass, peeled, raw",
+  "kcal": 223.2,
+  "protein_g": 1.81,
+  "fat_g": 20.3,
+  "carb_g": 8.32
+ },
+ {
+  "query": "Bananas, ripe and slightly ripe, raw",
+  "zh": "香蕉",
+  "fdc_id": 1105314,
+  "description": "Bananas, ripe and slightly ripe, raw",
+  "kcal": 97.0,
+  "protein_g": 0.74,
+  "fat_g": 0.29,
+  "carb_g": 23.0
+ },
+ {
+  "query": "Apples, fuji, with skin, raw",
+  "zh": "苹果",
+  "fdc_id": 1750340,
+  "description": "Apples, fuji, with skin, raw",
+  "kcal": 64.8,
+  "protein_g": 0.148,
+  "fat_g": 0.162,
+  "carb_g": 15.7
+ },
+ {
+  "query": "Blueberries, raw",
+  "zh": "蓝莓",
+  "fdc_id": 2346411,
+  "description": "Blueberries, raw",
+  "kcal": 64.0,
+  "protein_g": 0.703,
+  "fat_g": 0.306,
+  "carb_g": 14.6
+ },
+ {
+  "query": "Nuts, almonds, whole, raw",
+  "zh": "杏仁（生）",
+  "fdc_id": 2346393,
+  "description": "Nuts, almonds, whole, raw",
+  "kcal": 625.9,
+  "protein_g": 21.5,
+  "fat_g": 51.1,
+  "carb_g": 20.0
+ },
+ {
+  "query": "Peanut butter, creamy",
+  "zh": "花生酱",
+  "fdc_id": 2262072,
+  "description": "Peanut butter, creamy",
+  "kcal": 631.4,
+  "protein_g": 24.0,
+  "fat_g": 49.4,
+  "carb_g": 22.7
+ },
+ {
+  "query": "Oil, olive, extra virgin",
+  "zh": "橄榄油",
+  "fdc_id": 748608,
+  "description": "Oil, olive, extra virgin",
+  "kcal": null,
+  "protein_g": null,
+  "fat_g": null,
+  "carb_g": null
+ },
+ {
+  "query": "Chickpeas, (garbanzo beans, bengal gram), dry",
+  "zh": "鹰嘴豆（干）",
+  "fdc_id": 2644282,
+  "description": "Chickpeas, (garbanzo beans, bengal gram), dry",
+  "kcal": 383.2,
+  "protein_g": 21.3,
+  "fat_g": 6.27,
+  "carb_g": 60.4
+ },
+ {
+  "query": "Lentils, dry",
+  "zh": "扁豆（干）",
+  "fdc_id": 2644283,
+  "description": "Lentils, dry",
+  "kcal": 360.5,
+  "protein_g": 23.6,
+  "fat_g": 1.92,
+  "carb_g": 62.2
+ }
+]

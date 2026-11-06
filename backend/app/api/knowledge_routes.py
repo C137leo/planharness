@@ -52,3 +52,17 @@ def knowledge_ask(
     db: Session = Depends(get_db),
 ):
     return ok(request, ask(db, payload.question, body_part=payload.body_part))
+
+@router.get("/knowledge/rag")
+def knowledge_rag(
+    request: Request,
+    q: str,
+    engine: str = "hybrid",
+    limit: int = 5,
+    user: User = Depends(get_current_user),
+):
+    """外部语料 RAG 演示：keyword / vector / hybrid 三种检索对比。"""
+    from app.knowledge import rag
+
+    hits = rag.search(q, engine=engine, limit=max(1, min(limit, 20)))
+    return ok(request, {"query": q, "engine": engine, "hits": hits, "stats": rag.stats()})

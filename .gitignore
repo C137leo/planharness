@@ -12,3 +12,9 @@ backend/dist/
 frontend/node_modules/
 frontend/dist/assets/
 .DS_Store
+# 外部语料原始文件（可用 scripts/fetch_rag_data.py 重新拉取）
+backend/data/rag/free_exercise_db.json
+backend/data/rag/sr_legacy.json
+backend/data/rag/foods_raw.json
+backend/data/rag/foundation_food.zip
+backend/data/rag/foundation_food_raw.json
