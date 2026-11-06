@@ -160,6 +160,22 @@ def fetch_foods() -> list[dict]:
             "carb_g": _nutrient(food, "Carbohydrate, by difference"),
         })
     FOUNDATION_JSON.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+
+    # 全量可用食物（406 条）：给"扩到 600 chunks"用，中文名在 build 阶段翻译
+    all_foods: list[dict] = []
+    for food in foods:
+        kcal = _kcal(food)
+        protein = _nutrient(food, "Protein")
+        if kcal is None or protein is None:
+            continue
+        all_foods.append({
+            "fdc_id": food.get("fdcId"), "description": food.get("description"),
+            "kcal": kcal, "protein_g": protein,
+            "fat_g": _nutrient(food, "Total lipid (fat)"),
+            "carb_g": _nutrient(food, "Carbohydrate, by difference"),
+        })
+    (DATA_DIR / "foods_all.json").write_text(
+        json.dumps(all_foods, ensure_ascii=False, indent=1), encoding="utf-8")
     return out
 
 

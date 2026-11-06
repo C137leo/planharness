@@ -22,7 +22,10 @@ from pathlib import Path
 DATA = Path(__file__).resolve().parents[1] / "data" / "rag"
 EXERCISES = DATA / "free_exercise_db.json"
 FOODS = DATA / "foods_foundation.json"
+FOUNDATION_JSON = FOODS
 ZH_CACHE = DATA / "exercise_zh.json"
+NAMES_CACHE = DATA / "names_zh.json"
+FOODS_ALL = DATA / "foods_all.json"
 OUT = DATA / "chunks.jsonl"
 
 EXERCISE_PICKS: list[tuple[str, str, str, list[str]]] = [
@@ -87,6 +90,81 @@ LEVEL_ZH = {"beginner": "入门", "intermediate": "中级", "expert": "高级"}
 
 def _slug(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+EXERCISE_HINTS = (
+    "squat", "deadlift", "bench press", "press", "row", "pull-up", "chin-up", "pulldown",
+    "curl", "raise", "lunge", "dip", "fly", "plank", "crunch", "bridge", "thrust",
+    "calf", "extension", "shrug", "pull", "push", "twist", "sit-up", "good morning",
+)
+FOOD_HINTS = (
+    "chicken", "beef", "pork", "fish", "salmon", "tuna", "shrimp", "egg", "milk",
+    "yogurt", "cheese", "rice", "oats", "bread", "pasta", "potato", "broccoli",
+    "spinach", "kale", "tomato", "onion", "pepper", "mushroom", "lettuce", "carrot",
+    "cabbage", "banana", "apple", "orange", "blueberr", "avocado", "almond", "peanut",
+    "walnut", "oil", "beans", "lentil", "chickpea", "quinoa", "flour",
+)
+
+
+def _score_exercise(item: dict) -> int:
+    name = str(item.get("name") or "").lower()
+    return sum(3 for hint in EXERCISE_HINTS if hint in name)
+
+
+def _score_food(item: dict) -> int:
+    desc = str(item.get("description") or "").lower()
+    return sum(2 for hint in FOOD_HINTS if hint in desc)
+
+
+def _load_names() -> dict[str, str]:
+    if NAMES_CACHE.exists():
+        return json.loads(NAMES_CACHE.read_text(encoding="utf-8"))
+    return {}
+
+
+def _translate_names(pairs: list[tuple[str, str]], cache: dict[str, str]) -> dict[str, str]:
+    """把英文动作名/食物名翻成简短中文名；按英文原文缓存，失败保留英文。"""
+    import os
+
+    import httpx
+
+    from app.config import get_settings
+
+    settings = get_settings()
+    key = settings.deepseek_api_key or os.environ.get("DEEPSEEK_API_KEY", "")
+    if not key:
+        return cache
+    pending = [(src, en) for src, en in pairs if src not in cache]
+    for start in range(0, len(pending), 30):
+        batch = pending[start:start + 30]
+        prompt = (
+            "把下面每一项翻成简体中文名称：动作名保持简短（深蹲/卧推/划船这类），"
+            "食物名用常见中文食材名（如 Chicken, breast, meat only, cooked, braised → 鸡胸肉）。"
+            "只输出 JSON 数组，元素是简短中文名（不超过 12 个字），顺序与输入一致。\n"
+            + json.dumps([en for _src, en in batch], ensure_ascii=False)
+        )
+        try:
+            response = httpx.post(
+                f"{settings.deepseek_base_url.rstrip('/')}/chat/completions",
+                headers={"Authorization": f"Bearer {key}",
+                         "Content-Type": "application/json"},
+                json={"model": settings.deepseek_model,
+                      "messages": [{"role": "user", "content": prompt}],
+                      "temperature": 0.1, "max_tokens": 2000,
+                      "reasoning_effort": "low",
+                      "response_format": {"type": "json_object"}},
+                timeout=120,
+            )
+            response.raise_for_status()
+            content = response.json()["choices"][0]["message"]["content"]
+            names = _parse_cues(content)
+            for index, (src, _en) in enumerate(batch):
+                if index < len(names) and names[index].strip():
+                    cache[src] = names[index].strip()[:16]
+        except Exception as exc:  # noqa: BLE001
+            print(f"  名称翻译第 {start // 30 + 1} 批失败（{type(exc).__name__}）")
+    NAMES_CACHE.write_text(json.dumps(cache, ensure_ascii=False, indent=1), encoding="utf-8")
+    return cache
 
 
 def _parse_cues(content: str) -> list[str]:
@@ -176,6 +254,186 @@ def _muscle_text(muscles: list[str]) -> str:
     return "、".join(MUSCLE_ZH.get(m, m) for m in muscles) or "—"
 
 
+def _select_all_exercises(limit: int = 350) -> list[dict]:
+    """先保底 43 个常用动作，再按"常见动作模式"打分补满。
+
+    只按分数排序会把 Goblet Squat（高脚杯深蹲）这种字母靠后的挤掉，
+    评测里"高脚杯深蹲"就查不到了——所以常用动作必须保底。
+    """
+    data = json.loads(EXERCISES.read_text(encoding="utf-8"))
+    allowed = {"body only", "dumbbell", "barbell", "machine", "cable", "bands", "kettlebells"}
+    by_name = {item["name"]: item for item in data}
+    picked: list[dict] = []
+    seen: set[str] = set()
+    for name, *_rest in EXERCISE_PICKS:
+        item = by_name.get(name)
+        if item is not None and name not in seen:
+            picked.append(item)
+            seen.add(name)
+    pool = [item for item in data if item.get("equipment") in allowed]
+    pool.sort(key=lambda item: (-_score_exercise(item), item["name"]))
+    for item in pool:
+        if len(picked) >= limit:
+            break
+        if item["name"] in seen:
+            continue
+        picked.append(item)
+        seen.add(item["name"])
+    return picked[:limit]
+
+
+def _select_all_foods(limit: int = 250) -> list[dict]:
+    """先保底 32 种常见食物，再按分数补满；否则"鸡蛋/牛奶"会被字母序挤掉。"""
+    foods = json.loads(FOODS_ALL.read_text(encoding="utf-8")) if FOODS_ALL.exists() else []
+    by_id = {str(item.get("fdc_id")): item for item in foods}
+    picked: list[dict] = []
+    seen: set[str] = set()
+    if FOUNDATION_JSON.exists():
+        for item in json.loads(FOUNDATION_JSON.read_text(encoding="utf-8")):
+            key = str(item.get("fdc_id"))
+            source = by_id.get(key)
+            if source is not None and key not in seen:
+                picked.append(source)
+                seen.add(key)
+    foods.sort(key=lambda item: (-_score_food(item), str(item.get("description") or "")))
+    for item in foods:
+        if len(picked) >= limit:
+            break
+        key = str(item.get("fdc_id"))
+        if key in seen:
+            continue
+        picked.append(item)
+        seen.add(key)
+    return picked[:limit]
+
+
+def build_all_chunks(*, exercise_limit: int = 350, food_limit: int = 250) -> list[dict]:
+    """全量模式：约 600 chunks，中文名由模型翻译并缓存。"""
+    exercises = _select_all_exercises(exercise_limit)
+    foods = _select_all_foods(food_limit)
+    cues = json.loads(ZH_CACHE.read_text(encoding="utf-8")) if ZH_CACHE.exists() else {}
+    cache = _load_names()
+
+    pairs = [("ex:" + item["name"], item["name"]) for item in exercises]
+    pairs += [("food:" + str(item.get("description")), str(item.get("description")))
+              for item in foods]
+    cache = _translate_names(pairs, cache)
+
+    curated_ex = {name: zh for name, zh, *_ in EXERCISE_PICKS}
+    curated_food: dict[str, str] = {}
+    if FOUNDATION_JSON.exists():
+        for row in json.loads(FOUNDATION_JSON.read_text(encoding="utf-8")):
+            curated_food[str(row.get("fdc_id"))] = row["zh"]
+    body_tags = {
+        "legs": ["下肢", "腿部"], "hip": ["下肢", "臀部"], "chest": ["上肢", "胸部"],
+        "back": ["上肢", "背部"], "shoulder": ["上肢", "肩部"], "arm": ["上肢", "手臂"],
+        "core": ["核心"], "general": [],
+    }
+
+    chunks: list[dict] = []
+    for item in exercises:
+        name = item["name"]
+        # 策展动作/食物用人工确认过的中文名，其余用模型翻译（避免"long grain→生长粒"这类错译）
+        zh = curated_ex.get(name) or cache.get("ex:" + name) or name
+        muscles = item.get("primaryMuscles") or []
+        equipment = EQUIP_ZH.get(item.get("equipment") or "", item.get("equipment") or "")
+        level = LEVEL_ZH.get(item.get("level") or "", item.get("level") or "")
+        mechanic = {"compound": "复合动作", "isolation": "孤立动作"}.get(
+            str(item.get("mechanic") or ""), item.get("mechanic") or "—")
+        cue = cues.get(name) or " ".join((item.get("instructions") or [])[:1])[:160]
+        content = (
+            f"主要肌群：{_muscle_text(muscles)}；器械：{equipment}；难度：{level}；"
+            f"动作类型：{mechanic}。动作要领：{cue}"
+        )
+        chunks.append({
+            "id": f"ex:{_slug(name)}",
+            "title": f"{zh}（{name}）",
+            "content": content,
+            "tags": [zh, equipment, level, "力量训练", "动作"]
+                    + [MUSCLE_ZH.get(m, m) for m in muscles]
+                    + body_tags.get(_body_part_of(muscles), []),
+            "body_part": _body_part_of(muscles),
+            "topic": "technique",
+            "kind": "exercise",
+            "lang": "zh",
+            "source_title": "free-exercise-db（The Unlicense）",
+            "source_url": "https://github.com/yuhonas/free-exercise-db",
+            "license": "Unlicense",
+            "meta": {"equipment": item.get("equipment"), "level": item.get("level"),
+                     "muscles": muscles, "translated": name in cues,
+                     "priority": name in curated_ex},
+        })
+
+    for item in foods:
+        desc = str(item.get("description") or "")
+        zh = curated_food.get(str(item.get("fdc_id"))) or cache.get("food:" + desc) or desc
+        category = _food_category(desc.lower())
+        content = (
+            f"每 100 g：能量 {item.get('kcal'):.0f} kcal，蛋白质 {(item.get('protein_g') or 0):.1f} g，"
+            f"脂肪 {(item.get('fat_g') or 0):.1f} g，碳水 {(item.get('carb_g') or 0):.1f} g。"
+            f"英文原名：{desc}"
+        )
+        chunks.append({
+            "id": f"food:{item.get('fdc_id')}",
+            "title": f"{zh}（{desc}）",
+            "content": content,
+            "tags": [zh, "食物", "营养", "每100克"] + ([category] if category else [])
+                    + (["常见食物"] if str(item.get("fdc_id")) in curated_food else []),
+            "body_part": "general",
+            "topic": "nutrition",
+            "kind": "food",
+            "lang": "zh",
+            "source_title": "USDA FoodData Central（Foundation Foods，公共领域）",
+            "source_url": f"https://fdc.nal.usda.gov/food-details/{item.get('fdc_id')}/nutrients",
+            "license": "CC0-1.0",
+            "meta": {"per": "100g", "kcal": item.get("kcal"),
+                     "protein_g": item.get("protein_g"),
+                     "priority": str(item.get("fdc_id")) in curated_food},
+        })
+    return chunks
+
+
+FOOD_CATEGORIES: list[tuple[str, tuple[str, ...]]] = [
+    ("主食", ("rice", "oat", "potato", "bread", "pasta", "quinoa", "flour", "grain",
+             "bulgur", "millet", "sorghum", "corn", "tortilla", "barley", "buckwheat")),
+    ("蛋白质来源", ("chicken", "beef", "pork", "fish", "salmon", "tuna", "shrimp",
+                    "egg", "turkey", "lamb", "bison", "sausage", "ham", "bacon",
+                    "lunchmeat", "pepperoni", "bologna", "salami", "cod", "tilapia",
+                    "scallop", "crab", "lobster", "anchov", "sardine")),
+    ("奶制品", ("milk", "yogurt", "cheese", "cream", "butter", "kefir")),
+    ("蔬菜", ("broccoli", "spinach", "kale", "tomato", "onion", "pepper", "mushroom",
+             "lettuce", "carrot", "cabbage", "cucumber", "celery", "asparagus",
+             "beet", "radish", "squash", "zucchini", "cauliflower", "brussels",
+             "collard", "arugula", "leek", "scallion", "shallot", "fennel", "turnip",
+             "parsnip", "rutabaga", "pumpkin")),
+    ("水果", ("apple", "banana", "orange", "berr", "grape", "melon", "peach", "pear",
+             "plum", "cherry", "kiwi", "mango", "pineapple", "avocado", "fig",
+             "watermelon", "nectarine", "apricot", "mandarin", "plantain")),
+    ("坚果", ("almond", "walnut", "pecan", "cashew", "pistachio", "hazelnut",
+             "peanut", "seed", "chia", "flax")),
+    ("油脂", ("oil", "mayonnaise", "dressing")),
+    ("豆类", ("bean", "lentil", "chickpea", "pea", "soy", "tofu", "edamame")),
+]
+
+
+def _food_category(desc: str) -> str:
+    for name, keywords in FOOD_CATEGORIES:
+        if any(keyword in desc for keyword in keywords):
+            return name
+    return ""
+
+
+def _body_part_of(muscles: list[str]) -> str:
+    mapping = {
+        "chest": "chest", "shoulders": "shoulder", "biceps": "arm", "triceps": "arm",
+        "forearms": "arm", "lats": "back", "middle back": "back", "lower back": "back",
+        "traps": "back", "abdominals": "core", "quadriceps": "legs",
+        "hamstrings": "legs", "glutes": "hip", "calves": "legs", "adductors": "legs",
+        "abductors": "hip",
+    }
+    return mapping.get((muscles or [""])[0], "general")
+
+
 def build_exercise_chunks(cues: dict[str, str]) -> list[dict]:
     data = json.loads(EXERCISES.read_text(encoding="utf-8"))
     by_name = {item["name"]: item for item in data}
@@ -207,7 +465,8 @@ def build_exercise_chunks(cues: dict[str, str]) -> list[dict]:
             "source_url": "https://github.com/yuhonas/free-exercise-db",
             "license": "Unlicense",
             "meta": {"equipment": item.get("equipment"), "level": item.get("level"),
-                     "muscles": muscles, "translated": name in cues},
+                     "muscles": muscles, "translated": name in cues,
+                     "priority": name in curated_ex},
         })
     return chunks
 
@@ -268,7 +527,8 @@ def build_food_chunks() -> list[dict]:
             "id": f"food:{item.get('fdc_id')}",
             "title": f"{zh}（{item.get('description')}）",
             "content": content,
-            "tags": [zh, "食物", "营养", "每100克"],
+            "tags": [zh, "食物", "营养", "每100克"] + ([category] if category else [])
+                    + (["常见食物"] if str(item.get("fdc_id")) in curated_food else []),
             "body_part": "general",
             "topic": "nutrition",
             "kind": "food",
@@ -285,17 +545,20 @@ def build_food_chunks() -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-translate", action="store_true", help="跳过模型翻译，用英文要点")
+    parser.add_argument("--full", action="store_true", help="全量模式：约 600 chunks")
     args = parser.parse_args()
 
-    data = json.loads(EXERCISES.read_text(encoding="utf-8"))
-    by_name = {item["name"]: item for item in data}
-    picked = [by_name[name] for name, *_ in EXERCISE_PICKS if name in by_name]
-    cues = translate_cues(picked, use_model=not args.no_translate)
-    chunks = build_exercise_chunks(cues) + build_food_chunks()
+    if args.full:
+        chunks = build_all_chunks()
+    else:
+        data = json.loads(EXERCISES.read_text(encoding="utf-8"))
+        by_name = {item["name"]: item for item in data}
+        picked = [by_name[name] for name, *_ in EXERCISE_PICKS if name in by_name]
+        cues = translate_cues(picked, use_model=not args.no_translate)
+        chunks = build_exercise_chunks(cues) + build_food_chunks()
     OUT.write_text("\n".join(json.dumps(item, ensure_ascii=False) for item in chunks) + "\n",
                    encoding="utf-8")
-    print(f"动作 {len(build_exercise_chunks(cues))} 条 / 食物 {len(build_food_chunks())} 条 "
-          f"-> {OUT}")
+    print(f"共 {len(chunks)} 条 -> {OUT}")
     for item in chunks[:2]:
         print("-", item["title"], "|", item["content"][:120])
 

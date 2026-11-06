@@ -42,6 +42,18 @@ CASES: list[tuple[str, list[str]]] = [
     ("臀部塑形动作", ["臀桥", "臀推"]),
     ("蛋白质高的肉类", ["鸡胸肉", "牛肉", "三文鱼", "虾", "金枪鱼"]),
     ("减脂期主食选什么", ["糙米", "燕麦", "红薯", "土豆"]),
+    ("鸡蛋蛋白质", ["鸡蛋", "蛋"]),
+    ("米饭热量", ["米饭", "米"]),
+    ("西兰花营养", ["西兰花"]),
+    ("牛奶蛋白质", ["牛奶"]),
+    ("红薯碳水", ["红薯"]),
+    ("香蕉热量", ["香蕉"]),
+    ("三文鱼蛋白质", ["三文鱼"]),
+    ("卷腹怎么练", ["卷腹", "Crunch"]),
+    ("平板支撑练核心", ["平板支撑", "Plank"]),
+    ("哑铃卧推", ["哑铃卧推"]),
+    ("引体向上", ["引体"]),
+    ("臀推动作", ["臀推"]),
 ]
 
 
@@ -61,7 +73,12 @@ def evaluate(engine: str, k: int = 3) -> tuple[float, float]:
 
 
 def main() -> None:
+    import time
+
     print("语料：", rag.stats())
+    start = time.perf_counter()
+    rag.search("深蹲动作要领", engine="hybrid", limit=5)
+    print(f"首次检索（含建索引）：{int((time.perf_counter() - start) * 1000)} ms")
     print(f"{'引擎':<10}{'hit@1':>8}{'hit@3':>8}")
     for engine in ("keyword", "vector", "hybrid"):
         one, three = evaluate(engine)

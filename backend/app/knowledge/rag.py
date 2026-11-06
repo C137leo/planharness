@@ -68,6 +68,46 @@ def _text_of(item: dict) -> str:
                      " ".join(str(tag) for tag in item.get("tags") or [])])
 
 
+# 查询里的"部位/品类"意图：词面之外再加一档，否则"下肢力量"会被上肢动作抢走
+_BODY_INTENT = {
+    "legs": ("下肢", "腿", "深蹲", "弓步", "腿举", "小腿"),
+    "hip": ("臀", "髋"),
+    "chest": ("胸", "卧推", "飞鸟", "俯卧撑"),
+    "back": ("背", "划船", "下拉", "引体", "硬拉"),
+    "shoulder": ("肩", "推举", "侧平举", "面拉"),
+    "arm": ("手臂", "弯举", "臂屈伸", "三头", "二头"),
+    "core": ("核心", "腹", "平板", "卷腹"),
+}
+_FOOD_CATEGORY = {
+    "主食": ("主食", "碳水", "米饭", "燕麦", "红薯", "土豆", "面包"),
+    "蛋白质来源": ("蛋白质", "蛋白", "肉", "鸡胸", "牛肉", "鱼", "虾", "鸡蛋"),
+    "蔬菜": ("蔬菜", "西兰花", "菠菜", "菜"),
+    "水果": ("水果", "香蕉", "苹果", "莓"),
+    "坚果": ("坚果", "杏仁", "花生", "核桃"),
+    "奶制品": ("牛奶", "酸奶", "奶酪", "奶"),
+    "油脂": ("油", "脂肪"),
+}
+
+
+def _intent_boost(chunk: dict, query: str) -> float:
+    text = query.lower()
+    boost = 0.0
+    body_part = str(chunk.get("body_part") or "")
+    for part, words in _BODY_INTENT.items():
+        if any(word in text for word in words):
+            if body_part == part:
+                boost += 4.0
+            elif body_part in ("legs", "hip") and part in ("legs", "hip"):
+                boost += 2.0
+            break
+    tags = " ".join(str(tag) for tag in chunk.get("tags") or [])
+    for category, words in _FOOD_CATEGORY.items():
+        if any(word in text for word in words) and category in tags:
+            boost += 3.0
+            break
+    return boost
+
+
 # ---------------------------------------------------------------- 词面向量（BM25）
 
 def _build_lexical(chunks: list[dict]) -> dict:
@@ -80,7 +120,8 @@ def _build_lexical(chunks: list[dict]) -> dict:
     total = len(docs)
     idf = {token: math.log(1 + (total - count + 0.5) / (count + 0.5))
            for token, count in df.items()}
-    return {"docs": docs, "idf": idf, "avg_len": avg_len}
+    title_sets = [set(tokenize(str(item.get("title") or ""))) for item in chunks]
+    return {"docs": docs, "idf": idf, "avg_len": avg_len, "title_sets": title_sets}
 
 
 def _bm25(query: str, limit: int) -> list[RagHit]:
@@ -104,6 +145,22 @@ def _bm25(query: str, limit: int) -> list[RagHit]:
             freq = counts[token]
             denom = freq + k1 * (1 - b + b * len(tokens) / max(lex["avg_len"], 1))
             score += lex["idf"].get(token, 0.0) * freq * (k1 + 1) / denom
+        # 一个词都没命中就不参与（否则下面的加权会让每个查询都返回"策展条目"）
+        if score <= 0:
+            continue
+        # 标题命中加权：语料变大后，"高脚杯深蹲"会被一堆"XX深蹲"压到后面，
+        # 标题里直接出现查询词应当明显更相关
+        title_hits = {token for token in q_tokens if token in lex["title_sets"][index]}
+        if title_hits:
+            score += 1.2 * len(title_hits)
+        if query.strip() and query.strip().lower() in chunks[index]["title"].lower():
+            score += 3.0
+        # 策展条目（人工确认过的 43 动作 + 32 食物）加权：
+        # 语料一大，"杰斐逊深蹲"这种冷门变体会和"杠铃深蹲"抢位置。
+        # 权重给得比较重（+6），因为这是一次明确的"质量优先于覆盖率"的取舍。
+        if (chunks[index].get("meta") or {}).get("priority"):
+            score += 6.0
+        score += _intent_boost(chunks[index], query)
         if score > 0:
             scored.append(RagHit(chunks[index], score))
     scored.sort(key=lambda hit: -hit.score)
@@ -162,7 +219,8 @@ def _rrf(rankings: list[list[RagHit]], limit: int, k: int = 60) -> list[RagHit]:
         for rank, hit in enumerate(ranking, start=1):
             chunk_id = hit.chunk["id"]
             chunk, score = merged.get(chunk_id, (hit.chunk, 0.0))
-            merged[chunk_id] = (chunk, score + 1.0 / (k + rank))
+            bonus = 0.03 if (hit.chunk.get("meta") or {}).get("priority") else 0.0
+            merged[chunk_id] = (chunk, score + 1.0 / (k + rank) + bonus)
     hits = [RagHit(chunk, score) for chunk, score in merged.values()]
     hits.sort(key=lambda hit: -hit.score)
     return hits[:limit]
