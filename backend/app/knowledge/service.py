@@ -16,12 +16,33 @@ MEDICAL = ("吃什么药", "用药", "布洛芬", "止痛药", "消炎药", "剂
 FOOTER = "以上内容仅供运动参考，不构成医疗建议；持续或加重的不适请就医。"
 
 
+def _knowledge_items() -> list[dict]:
+    """内置 27 条 + 可选的"清单型"扩展（data/knowledge/expanded.json）。
+
+    扩展由 scripts/expand_curated_from_rag.py 从 600 条外部语料生成，
+    删除该文件即可回滚到只有内置条目。
+    """
+    import json
+    from pathlib import Path
+
+    items = list(SEEDS)
+    path = Path(__file__).resolve().parents[2] / "data" / "knowledge" / "expanded.json"
+    if path.exists():
+        try:
+            expanded = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(expanded, list):
+                items.extend(item for item in expanded if isinstance(item, dict))
+        except Exception:  # noqa: BLE001 - 扩展文件坏了不影响内置知识
+            pass
+    return items
+
+
 def seed_knowledge(db) -> int:
     """把内置知识写进库（幂等：已存在就更新内容，不重复插入）。"""
     from app.models import KnowledgeChunk
 
     count = 0
-    for item in SEEDS:
+    for item in _knowledge_items():
         row = db.get(KnowledgeChunk, item["id"])
         if row is None:
             row = KnowledgeChunk(id=item["id"])

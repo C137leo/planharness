@@ -88,3 +88,11 @@ def test_medical_question_does_not_give_medication_advice(client, auth_headers) 
     assert "不提供诊断或用药建议" in data["answer"]
     for drug in ("布洛芬", "mg", "片"):
         assert drug not in data["answer"]
+
+def test_expanded_entries_are_seeded_and_retrievable(client) -> None:
+    """清单型扩展由 seed_knowledge 一起入库，并且能被检索命中。"""
+    from app.knowledge.retriever import search
+
+    with client.app.state.session_factory() as db:
+        hits = search(db, "练胸有哪些动作", limit=3)
+    assert any(hit.chunk.id == "kb-ex-chest" for hit in hits), [h.chunk.id for h in hits]

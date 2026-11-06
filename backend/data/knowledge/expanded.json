@@ -1,0 +1,210 @@
+[
+ {
+  "id": "kb-ex-chest",
+  "title": "练胸的常见动作清单",
+  "body_part": "chest",
+  "topic": "technique",
+  "content": "练胸的常见动作（按器械/难度）：俯卧撑（自重/入门）、哑铃卧推（哑铃/入门）、哑铃飞鸟（哑铃/入门）、杠铃卧推（杠铃/入门）、绳索夹胸（绳索/入门）、上斜哑铃卧推（哑铃/入门）、上斜杠铃卧推（杠铃/入门）、颈推（杠铃/中级）。具体要领见对应条目；有疼痛或伤病时先咨询医生。",
+  "tags": [
+   "胸",
+   "动作清单",
+   "自动生成"
+  ],
+  "source_title": "free-exercise-db（The Unlicense）",
+  "source_url": "https://github.com/yuhonas/free-exercise-db",
+  "license": "Unlicense",
+  "generated": true
+ },
+ {
+  "id": "kb-ex-back",
+  "title": "练背的常见动作清单",
+  "body_part": "back",
+  "topic": "technique",
+  "content": "练背的常见动作（按器械/难度）：引体向上（自重/入门）、杠铃硬拉（杠铃/中级）、杠铃耸肩（杠铃/入门）、反手引体向上（自重/入门）、哑铃俯身划船（哑铃/入门）、坐姿绳索划船（绳索/入门）、宽握高位下拉（绳索/入门）、杠铃俯身划船（杠铃/入门）。具体要领见对应条目；有疼痛或伤病时先咨询医生。",
+  "tags": [
+   "背",
+   "动作清单",
+   "自动生成"
+  ],
+  "source_title": "free-exercise-db（The Unlicense）",
+  "source_url": "https://github.com/yuhonas/free-exercise-db",
+  "license": "Unlicense",
+  "generated": true
+ },
+ {
+  "id": "kb-ex-shoulder",
+  "title": "练肩的常见动作清单",
+  "body_part": "shoulder",
+  "topic": "technique",
+  "content": "练肩的常见动作（按器械/难度）：面拉（绳索/中级）、哑铃肩推（哑铃/中级）、杠铃肩推（杠铃/中级）、哑铃侧平举（哑铃/入门）、弹力带侧平举（弹力带/入门）、倒立撑（自重/高级）、借力推举（杠铃/高级）、古巴推举（哑铃/中级）。具体要领见对应条目；有疼痛或伤病时先咨询医生。",
+  "tags": [
+   "肩",
+   "动作清单",
+   "自动生成"
+  ],
+  "source_title": "free-exercise-db（The Unlicense）",
+  "source_url": "https://github.com/yuhonas/free-exercise-db",
+  "license": "Unlicense",
+  "generated": true
+ },
+ {
+  "id": "kb-ex-arm",
+  "title": "练手臂的常见动作清单",
+  "body_part": "arm",
+  "topic": "technique",
+  "content": "练手臂的常见动作（按器械/难度）：三头下压（绳索/入门）、哑铃弯举（哑铃/入门）、杠铃弯举（杠铃/入门）、锤式弯举（哑铃/入门）、凳上臂屈伸（自重/入门）、JM卧推（杠铃/入门）、地板卧推（杠铃/中级）、手指弯举（杠铃/入门）。具体要领见对应条目；有疼痛或伤病时先咨询医生。",
+  "tags": [
+   "手臂",
+   "动作清单",
+   "自动生成"
+  ],
+  "source_title": "free-exercise-db（The Unlicense）",
+  "source_url": "https://github.com/yuhonas/free-exercise-db",
+  "license": "Unlicense",
+  "generated": true
+ },
+ {
+  "id": "kb-ex-legs",
+  "title": "练腿的常见动作清单",
+  "body_part": "legs",
+  "topic": "technique",
+  "content": "练腿的常见动作（按器械/难度）：腿举（器械/入门）、腿屈伸（器械/入门）、哑铃弓步（哑铃/入门）、哑铃深蹲（哑铃/入门）、杠铃弓步（杠铃/中级）、杠铃深蹲（杠铃/入门）、站姿提踵（器械/入门）、俯卧腿弯举（器械/入门）。具体要领见对应条目；有疼痛或伤病时先咨询医生。",
+  "tags": [
+   "腿",
+   "动作清单",
+   "自动生成"
+  ],
+  "source_title": "free-exercise-db（The Unlicense）",
+  "source_url": "https://github.com/yuhonas/free-exercise-db",
+  "license": "Unlicense",
+  "generated": true
+ },
+ {
+  "id": "kb-ex-hip",
+  "title": "练臀的常见动作清单",
+  "body_part": "hip",
+  "topic": "technique",
+  "content": "练臀的常见动作（按器械/难度）：单腿臀桥（自重/入门）、杠铃臀推（杠铃/中级）、杠铃臀桥（杠铃/中级）、臀桥（自重/入门）、绳索前拉（绳索/入门）、跪姿深蹲（杠铃/中级）、弹力带髋伸展（弹力带/入门）、跪姿跳跃深蹲（杠铃/高级）。具体要领见对应条目；有疼痛或伤病时先咨询医生。",
+  "tags": [
+   "臀",
+   "动作清单",
+   "自动生成"
+  ],
+  "source_title": "free-exercise-db（The Unlicense）",
+  "source_url": "https://github.com/yuhonas/free-exercise-db",
+  "license": "Unlicense",
+  "generated": true
+ },
+ {
+  "id": "kb-ex-core",
+  "title": "练核心的常见动作清单",
+  "body_part": "core",
+  "topic": "technique",
+  "content": "练核心的常见动作（按器械/难度）：卷腹（自重/入门）、侧支撑（自重/入门）、平板支撑（自重/入门）、悬垂举腿（自重/高级）、下斜卷腹（自重/中级）、下背卷曲（自重/入门）、交叉卷腹（自重/入门）、仰卧收腿（自重/入门）。具体要领见对应条目；有疼痛或伤病时先咨询医生。",
+  "tags": [
+   "核心",
+   "动作清单",
+   "自动生成"
+  ],
+  "source_title": "free-exercise-db（The Unlicense）",
+  "source_url": "https://github.com/yuhonas/free-exercise-db",
+  "license": "Unlicense",
+  "generated": true
+ },
+ {
+  "id": "kb-food-protein",
+  "title": "蛋白质来源清单（每 100g）",
+  "body_part": "general",
+  "topic": "nutrition",
+  "content": "蛋白质来源常见选项（每 100g，USDA 数据）：虾（72 kcal / 蛋白 15.6 g）、鸡蛋（148 kcal / 蛋白 12.4 g）、三文鱼（199 kcal / 蛋白 20.3 g）、牛里脊（176 kcal / 蛋白 27.7 g）、猪里脊（170 kcal / 蛋白 21.1 g）、鸡胸肉（166 kcal / 蛋白 32.1 g）、鸡腿肉（156 kcal / 蛋白 23.9 g）、鸡腿肉（146 kcal / 蛋白 18.6 g）。份量按你的热量目标调整。",
+  "tags": [
+   "蛋白质来源",
+   "食物清单",
+   "自动生成"
+  ],
+  "source_title": "USDA FoodData Central（Foundation Foods，CC0）",
+  "source_url": "https://fdc.nal.usda.gov/",
+  "license": "CC0-1.0",
+  "generated": true
+ },
+ {
+  "id": "kb-food-carb",
+  "title": "主食清单（每 100g）",
+  "body_part": "general",
+  "topic": "nutrition",
+  "content": "主食常见选项（每 100g，USDA 数据）：土豆（84 kcal / 蛋白 2.3 g）、白米（359 kcal / 蛋白 7.0 g）、糙米（366 kcal / 蛋白 7.2 g）、红薯（79 kcal / 蛋白 1.6 g）、燕麦片（382 kcal / 蛋白 13.5 g）、土豆粉（361 kcal / 蛋白 8.1 g）、大米粉（359 kcal / 蛋白 6.9 g）、大麦粉（366 kcal / 蛋白 8.7 g）。份量按你的热量目标调整。",
+  "tags": [
+   "主食",
+   "食物清单",
+   "自动生成"
+  ],
+  "source_title": "USDA FoodData Central（Foundation Foods，CC0）",
+  "source_url": "https://fdc.nal.usda.gov/",
+  "license": "CC0-1.0",
+  "generated": true
+ },
+ {
+  "id": "kb-food-veg",
+  "title": "蔬菜清单（每 100g）",
+  "body_part": "general",
+  "topic": "nutrition",
+  "content": "蔬菜常见选项（每 100g，USDA 数据）：菠菜（28 kcal / 蛋白 2.9 g）、黄瓜（16 kcal / 蛋白 0.6 g）、西兰花（31 kcal / 蛋白 2.6 g）、羽衣甘蓝（35 kcal / 蛋白 2.9 g）、平菇（41 kcal / 蛋白 2.9 g）、舞茸（38 kcal / 蛋白 2.2 g）、香菇（44 kcal / 蛋白 2.4 g）、大褐菇（32 kcal / 蛋白 2.8 g）。份量按你的热量目标调整。",
+  "tags": [
+   "蔬菜",
+   "食物清单",
+   "自动生成"
+  ],
+  "source_title": "USDA FoodData Central（Foundation Foods，CC0）",
+  "source_url": "https://fdc.nal.usda.gov/",
+  "license": "CC0-1.0",
+  "generated": true
+ },
+ {
+  "id": "kb-food-fruit",
+  "title": "水果清单（每 100g）",
+  "body_part": "general",
+  "topic": "nutrition",
+  "content": "水果常见选项（每 100g，USDA 数据）：苹果（65 kcal / 蛋白 0.1 g）、蓝莓（64 kcal / 蛋白 0.7 g）、香蕉（97 kcal / 蛋白 0.7 g）、牛油果（223 kcal / 蛋白 1.8 g）、脐橙（47 kcal / 蛋白 0.9 g）、菠萝（60 kcal / 蛋白 0.5 g）、红蛇果（62 kcal / 蛋白 0.2 g）、生青苹果（59 kcal / 蛋白 0.3 g）。份量按你的热量目标调整。",
+  "tags": [
+   "水果",
+   "食物清单",
+   "自动生成"
+  ],
+  "source_title": "USDA FoodData Central（Foundation Foods，CC0）",
+  "source_url": "https://fdc.nal.usda.gov/",
+  "license": "CC0-1.0",
+  "generated": true
+ },
+ {
+  "id": "kb-food-nut",
+  "title": "坚果清单（每 100g）",
+  "body_part": "general",
+  "topic": "nutrition",
+  "content": "坚果常见选项（每 100g，USDA 数据）：杏仁（626 kcal / 蛋白 21.5 g）、生花生（588 kcal / 蛋白 23.2 g）、生核桃仁（729 kcal / 蛋白 14.6 g）、盐烤杏仁（620 kcal / 蛋白 20.4 g）。份量按你的热量目标调整。",
+  "tags": [
+   "坚果",
+   "食物清单",
+   "自动生成"
+  ],
+  "source_title": "USDA FoodData Central（Foundation Foods，CC0）",
+  "source_url": "https://fdc.nal.usda.gov/",
+  "license": "CC0-1.0",
+  "generated": true
+ },
+ {
+  "id": "kb-food-dairy",
+  "title": "奶制品清单（每 100g）",
+  "body_part": "general",
+  "topic": "nutrition",
+  "content": "奶制品常见选项（每 100g，USDA 数据）：花生酱（631 kcal / 蛋白 24.0 g）、低脂奶酪（103 kcal / 蛋白 11.6 g）、全脂牛奶（60 kcal / 蛋白 3.3 g）、切达奶酪（408 kcal / 蛋白 23.3 g）、希腊酸奶（61 kcal / 蛋白 10.3 g）、低脂酪乳（43 kcal / 蛋白 3.5 g）、干白奶酪（326 kcal / 蛋白 24.5 g）、瑞士奶酪（393 kcal / 蛋白 27.0 g）。份量按你的热量目标调整。",
+  "tags": [
+   "奶制品",
+   "食物清单",
+   "自动生成"
+  ],
+  "source_title": "USDA FoodData Central（Foundation Foods，CC0）",
+  "source_url": "https://fdc.nal.usda.gov/",
+  "license": "CC0-1.0",
+  "generated": true
+ }
+]

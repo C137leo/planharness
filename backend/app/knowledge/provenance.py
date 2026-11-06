@@ -17,6 +17,8 @@ ALLOWED_HOSTS = {
     "www.who.int", "who.int",
     "pmc.ncbi.nlm.nih.gov", "pubmed.ncbi.nlm.nih.gov", "www.ncbi.nlm.nih.gov",
     "www.issn.net", "jissn.biomedcentral.com",
+    # 外部语料（自由许可）：free-exercise-db（Unlicense）/ USDA（CC0）
+    "github.com", "www.github.com", "fdc.nal.usda.gov",
 }
 
 REQUIRED_FIELDS = ("id", "title", "content", "topic", "source_title", "source_url")

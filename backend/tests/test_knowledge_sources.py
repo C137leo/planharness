@@ -71,3 +71,17 @@ def test_root_urls_are_warned_not_failed(url: str) -> None:
 
 def test_specific_page_is_not_flagged(url: str = "https://pmc.ncbi.nlm.nih.gov/articles/PMC5477153/") -> None:
     assert is_root_url(url) is False
+
+def test_expanded_generated_entries_are_valid() -> None:
+    """从 600 条外部语料生成的"清单型"条目也要过同一套出处校验。"""
+    import json
+    from pathlib import Path
+
+    path = Path(__file__).resolve().parents[1] / "data" / "knowledge" / "expanded.json"
+    if not path.exists():
+        pytest.skip("expanded.json 未生成")
+    entries = json.loads(path.read_text(encoding="utf-8"))
+    problems, _warnings = check_offline(entries)
+    assert problems == []
+    assert all(item.get("generated") is True for item in entries)
+    assert all(item["id"].startswith("kb-") for item in entries)
