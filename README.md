@@ -169,6 +169,7 @@ Console 里还有「场景回放」：点 E01–E08 任一个，服务端跑一�
 - [18 剩余工作清单](docs/18-remaining-work.md)：Evals、Console Trace、token/cost、audit、生产收口与优先级
 - [19 当前阶段与最终优先级](docs/19-final-priorities.md)：90 tests/8 Evals/6 变异已完成，剩余前端账号、CI、部署、演示
 - [20 订餐与知识 RAG](docs/20-food-ordering-and-rag.md)：3 个推荐 + 平台深链、知识库检索/引用、分阶段落地
+- [37 知识库检索评测](docs/37-knowledge-search-eval.md)：84 条评测、旧加权 vs BM25（82%/96% → 92%/100%）、剩余缺口与面试讲法
 - [21 今日规划 Agent](docs/21-agentic-today-planner.md)：工具清单、agent loop、输出契约、UI 与 Evals
 - [22 面试总结与架构](docs/22-interview-and-architecture.md)：架构图、代码地图、Agent/Workflow 定位、30 秒/2 分钟/15 分钟讲法、高频追问
 - [23 工业级差距与面试策略](docs/23-industrial-gap-and-interview-strategy.md)：差距矩阵、一周补强、定位话术、目标岗位

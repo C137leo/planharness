@@ -14,7 +14,7 @@
 |---|---|---|
 | 代码 | `app/knowledge/retriever.py` | `app/knowledge/rag.py` |
 | 语料 | 动作要领/安全/恢复/营养（带机构出处） | free-exercise-db 350 动作 + USDA 250 食物 |
-| 算法 | 自定义加权打分（bigram + 单字） | **BM25**（+ 标题/策展/意图加权）+ 哈希向量（对照） |
+| 算法 | **BM25**（bigram + 单字，+ 标题重复/body_part 加分） | **BM25**（+ 标题/策展/意图加权）+ 哈希向量（对照） |
 | 谁在用 | 今日 Agent 的 `search_knowledge` 工具、`/knowledge/ask` | `/knowledge/rag` 对比接口、评测脚本 |
 | 目的 | 回答"该怎么做/要不要就医"，必须给机构出处 | 回答"这个动作/食物是什么、多少营养" |
 
@@ -36,35 +36,50 @@ tokenize("深蹲时膝盖疼怎么办")
   （"膝""睡"这种核心单字比 bigram 更稳）；
 - 去掉一小张停用词表（的/了/吗/怎么/为什么…）。
 
-### 2.2 打分：位置加权 + 元数据过滤
+### 2.2 打分：BM25 + 标题重复 + 元数据
+
+第一版是手写加权（标题 3 / 标签 2 / 正文 1），84 条评测后输给 BM25，
+现在 `search()` 用的是：
 
 ```python
-# app/knowledge/retriever.py: score
-for token in tokens:
-    标题命中  +3.0
-    tags/topic 命中 +2.0
-    正文命中  +1.0
-body_part 命中 +2.0（general +0.5）
+# app/knowledge/retriever.py
+BM25_K1 = 1.5
+BM25_B = 0.75
+BM25_MIN_SCORE = 6.0
+
+# 文档文本 = 标题（重复一次）+ 正文 + tags
+# 标准 BM25 + body_part 加分（同部位 +2，general +0.5）
 ```
 
-- **阈值** `min_score=2.0`，低于阈值直接丢弃（宁缺毋滥）；
-- 取 top-k（k=3）；
-- 有 `body_part` 参数时优先同部位条目（调用方知道用户问的是膝/肩/背）。
+- **标题重复一次**：43 条语料里标题是最强意图信号，BM25 本身不区分字段；
+- **body_part 加分**：调用方知道用户问的是膝/肩/背时，同部位条目优先；
+- **阈值 6.0**：在 84 条评测上不损失 hit@1/hit@3，同时挡掉"今天天气"这类完全无关问题；
+- 取 top-k（k=3）。
 
 实测（`深蹲时膝盖疼怎么办`，body_part=knee）：
 
 ```
-26.0  knee-pain-swap   膝痛时的动作替代
-23.0  squat-cue        深蹲的动作要领
- 8.0  knee-redflag     膝部需要就医的信号
+30.7  knee-pain-swap   膝痛时的动作替代
+27.3  squat-cue        深蹲的动作要领
+ 9.9  kb-ex-legs       练腿的常见动作清单
 ```
 
 为什么这条链能答对：查询里的"深蹲/膝盖/疼"分别命中了标题、tags 和正文，
-而"膝痛时的动作替代"这一条三处都命中，所以分数最高。
+IDF 会压低"动作"这类高频词，标题重复又强化了"膝盖"这个意图。
+
+改前/改后（同一套 84 条）：
+
+| 方法 | hit@1 | hit@3 | MRR |
+|---|---|---|---|
+| 旧手写加权 | 82% | 96% | 0.903 |
+| BM25 + 标题 + body_part | **92%** | **100%** | **0.971** |
+
+详见 `docs/37-knowledge-search-eval.md`。
 
 ### 2.3 没有向量，怎么保证"相关"？
 
-- 语料只有 30 条，且标题就是用户会说的词（深蹲/卧推/膝痛…），**词面重合度高**；
+- 语料只有 43 条，且标题就是用户会说的词（深蹲/卧推/膝痛…），**词面重合度高**；
+- BM25 的 IDF/长度归一化把"训练"这类高频词压下去，标题重复补上字段信号；
 - 元数据（`body_part`、`topic`）把搜索空间再收窄一层；
 - 引用必须真实存在（`validate()` 会查库核对 id），检索错了会被兜底暴露，
   而不是悄悄编一段话。
@@ -153,5 +168,5 @@ PY
 .venv/bin/python -m pytest tests/test_rag.py tests/test_knowledge.py -q
 ```
 
-代码位置：`app/knowledge/retriever.py`（30 条 KB 打分）、`app/knowledge/rag.py`（BM25/向量/RRF）、
+代码位置：`app/knowledge/retriever.py`（43 条 KB 的 BM25）、`app/knowledge/rag.py`（BM25/向量/RRF）、
 `app/agent/today_tools.py::search_knowledge`（工具封装）、`app/agent/today_agent.py::validate`（引用校验）。

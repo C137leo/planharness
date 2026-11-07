@@ -1,0 +1,978 @@
+[
+  {
+    "query": "深蹲的动作要领",
+    "category": "literal",
+    "body_part": null,
+    "expected_ids": [
+      "squat-cue"
+    ],
+    "primary_ids": [
+      "squat-cue"
+    ],
+    "note": ""
+  },
+  {
+    "query": "硬拉的动作要领",
+    "category": "literal",
+    "body_part": null,
+    "expected_ids": [
+      "deadlift-cue"
+    ],
+    "primary_ids": [
+      "deadlift-cue"
+    ],
+    "note": ""
+  },
+  {
+    "query": "卧推的动作要领",
+    "category": "literal",
+    "body_part": null,
+    "expected_ids": [
+      "bench-cue"
+    ],
+    "primary_ids": [
+      "bench-cue"
+    ],
+    "note": ""
+  },
+  {
+    "query": "划船的动作要领",
+    "category": "literal",
+    "body_part": null,
+    "expected_ids": [
+      "row-cue"
+    ],
+    "primary_ids": [
+      "row-cue"
+    ],
+    "note": ""
+  },
+  {
+    "query": "平板支撑的动作要领",
+    "category": "literal",
+    "body_part": null,
+    "expected_ids": [
+      "plank-cue"
+    ],
+    "primary_ids": [
+      "plank-cue"
+    ],
+    "note": ""
+  },
+  {
+    "query": "RPE 和 RIR 怎么用",
+    "category": "literal",
+    "body_part": null,
+    "expected_ids": [
+      "rpe-rir"
+    ],
+    "primary_ids": [
+      "rpe-rir"
+    ],
+    "note": ""
+  },
+  {
+    "query": "渐进超负荷是什么",
+    "category": "literal",
+    "body_part": null,
+    "expected_ids": [
+      "progressive-overload"
+    ],
+    "primary_ids": [
+      "progressive-overload"
+    ],
+    "note": ""
+  },
+  {
+    "query": "膝痛时的动作替代",
+    "category": "literal",
+    "body_part": "knee",
+    "expected_ids": [
+      "knee-pain-swap"
+    ],
+    "primary_ids": [
+      "knee-pain-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "肩痛时的动作替代",
+    "category": "literal",
+    "body_part": "shoulder",
+    "expected_ids": [
+      "shoulder-swap"
+    ],
+    "primary_ids": [
+      "shoulder-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "手腕疼时的动作替代",
+    "category": "literal",
+    "body_part": "wrist",
+    "expected_ids": [
+      "wrist-pain-swap"
+    ],
+    "primary_ids": [
+      "wrist-pain-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "手肘疼时的动作替代",
+    "category": "literal",
+    "body_part": "elbow",
+    "expected_ids": [
+      "elbow-pain-swap"
+    ],
+    "primary_ids": [
+      "elbow-pain-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "脚踝疼时的动作替代",
+    "category": "literal",
+    "body_part": "ankle",
+    "expected_ids": [
+      "ankle-pain-swap"
+    ],
+    "primary_ids": [
+      "ankle-pain-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "腰痛时的动作替代",
+    "category": "literal",
+    "body_part": "back",
+    "expected_ids": [
+      "back-swap"
+    ],
+    "primary_ids": [
+      "back-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "运动中的红旗症状",
+    "category": "literal",
+    "body_part": null,
+    "expected_ids": [
+      "red-flags"
+    ],
+    "primary_ids": [
+      "red-flags"
+    ],
+    "note": ""
+  },
+  {
+    "query": "热身怎么做",
+    "category": "literal",
+    "body_part": null,
+    "expected_ids": [
+      "warmup"
+    ],
+    "primary_ids": [
+      "warmup"
+    ],
+    "note": ""
+  },
+  {
+    "query": "冷身与拉伸",
+    "category": "literal",
+    "body_part": null,
+    "expected_ids": [
+      "cooldown"
+    ],
+    "primary_ids": [
+      "cooldown"
+    ],
+    "note": ""
+  },
+  {
+    "query": "睡眠与恢复",
+    "category": "literal",
+    "body_part": null,
+    "expected_ids": [
+      "sleep-recovery"
+    ],
+    "primary_ids": [
+      "sleep-recovery"
+    ],
+    "note": ""
+  },
+  {
+    "query": "训练补水",
+    "category": "literal",
+    "body_part": null,
+    "expected_ids": [
+      "hydration"
+    ],
+    "primary_ids": [
+      "hydration"
+    ],
+    "note": ""
+  },
+  {
+    "query": "膝盖一蹲就疼，有什么动作能换",
+    "category": "paraphrase",
+    "body_part": "knee",
+    "expected_ids": [
+      "knee-pain-swap"
+    ],
+    "primary_ids": [
+      "knee-pain-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "深蹲的时候膝盖不舒服怎么办",
+    "category": "paraphrase",
+    "body_part": "knee",
+    "expected_ids": [
+      "knee-pain-swap"
+    ],
+    "primary_ids": [
+      "knee-pain-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "推举时肩膀疼，换什么动作",
+    "category": "paraphrase",
+    "body_part": "shoulder",
+    "expected_ids": [
+      "shoulder-swap"
+    ],
+    "primary_ids": [
+      "shoulder-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "手腕撑地就疼，俯卧撑还能做吗",
+    "category": "paraphrase",
+    "body_part": "wrist",
+    "expected_ids": [
+      "wrist-pain-swap"
+    ],
+    "primary_ids": [
+      "wrist-pain-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "手肘弯举疼怎么办",
+    "category": "paraphrase",
+    "body_part": "elbow",
+    "expected_ids": [
+      "elbow-pain-swap"
+    ],
+    "primary_ids": [
+      "elbow-pain-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "脚踝扭了，还能跑步吗",
+    "category": "paraphrase",
+    "body_part": "ankle",
+    "expected_ids": [
+      "ankle-pain-swap"
+    ],
+    "primary_ids": [
+      "ankle-pain-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "腰不舒服还能练硬拉吗",
+    "category": "paraphrase",
+    "body_part": "back",
+    "expected_ids": [
+      "back-swap"
+    ],
+    "primary_ids": [
+      "back-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "练完第二天肌肉酸，正常吗",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "soreness-vs-pain"
+    ],
+    "primary_ids": [
+      "soreness-vs-pain"
+    ],
+    "note": ""
+  },
+  {
+    "query": "怎么区分酸痛和受伤",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "soreness-vs-pain"
+    ],
+    "primary_ids": [
+      "soreness-vs-pain"
+    ],
+    "note": ""
+  },
+  {
+    "query": "运动前要做什么准备",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "warmup"
+    ],
+    "primary_ids": [
+      "warmup"
+    ],
+    "note": ""
+  },
+  {
+    "query": "练完怎么放松",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "cooldown",
+      "rest-day"
+    ],
+    "primary_ids": [
+      "cooldown"
+    ],
+    "note": "冷身是理想答案；休息日条目也讲拉伸/放松，算可接受"
+  },
+  {
+    "query": "睡不好会影响增肌吗",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "sleep-recovery"
+    ],
+    "primary_ids": [
+      "sleep-recovery"
+    ],
+    "note": ""
+  },
+  {
+    "query": "一周练几次比较合适",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "training-frequency"
+    ],
+    "primary_ids": [
+      "training-frequency"
+    ],
+    "note": ""
+  },
+  {
+    "query": "休息日要不要完全不动",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "rest-day"
+    ],
+    "primary_ids": [
+      "rest-day"
+    ],
+    "note": ""
+  },
+  {
+    "query": "重量什么时候可以加",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "progressive-overload"
+    ],
+    "primary_ids": [
+      "progressive-overload"
+    ],
+    "note": ""
+  },
+  {
+    "query": "怎么判断一组还剩几次力",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "rpe-rir"
+    ],
+    "primary_ids": [
+      "rpe-rir"
+    ],
+    "note": ""
+  },
+  {
+    "query": "减脂期蛋白质要不要多吃",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "protein-training",
+      "protein-basics"
+    ],
+    "primary_ids": [
+      "protein-training"
+    ],
+    "note": ""
+  },
+  {
+    "query": "外卖怎么选不容易超标",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "takeout-tips"
+    ],
+    "primary_ids": [
+      "takeout-tips"
+    ],
+    "note": ""
+  },
+  {
+    "query": "体重卡住不动了怎么办",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "plateau"
+    ],
+    "primary_ids": [
+      "plateau"
+    ],
+    "note": ""
+  },
+  {
+    "query": "食物过敏怎么做替换",
+    "category": "paraphrase",
+    "body_part": null,
+    "expected_ids": [
+      "allergen-swap"
+    ],
+    "primary_ids": [
+      "allergen-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "膝盖肿了还能练吗",
+    "category": "safety",
+    "body_part": "knee",
+    "expected_ids": [
+      "knee-redflag",
+      "knee-pain-swap"
+    ],
+    "primary_ids": [
+      "knee-redflag"
+    ],
+    "note": ""
+  },
+  {
+    "query": "膝盖打软腿是怎么回事",
+    "category": "safety",
+    "body_part": "knee",
+    "expected_ids": [
+      "knee-redflag"
+    ],
+    "primary_ids": [
+      "knee-redflag"
+    ],
+    "note": ""
+  },
+  {
+    "query": "胸痛还能继续训练吗",
+    "category": "safety",
+    "body_part": null,
+    "expected_ids": [
+      "red-flags"
+    ],
+    "primary_ids": [
+      "red-flags"
+    ],
+    "note": ""
+  },
+  {
+    "query": "运动时头晕差点晕倒",
+    "category": "safety",
+    "body_part": null,
+    "expected_ids": [
+      "red-flags"
+    ],
+    "primary_ids": [
+      "red-flags"
+    ],
+    "note": ""
+  },
+  {
+    "query": "手指发麻无力要不要停",
+    "category": "safety",
+    "body_part": null,
+    "expected_ids": [
+      "red-flags"
+    ],
+    "primary_ids": [
+      "red-flags"
+    ],
+    "note": ""
+  },
+  {
+    "query": "肩膀疼到抬不起来",
+    "category": "safety",
+    "body_part": "shoulder",
+    "expected_ids": [
+      "shoulder-swap"
+    ],
+    "primary_ids": [
+      "shoulder-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "脚踝肿得厉害还能走路吗",
+    "category": "safety",
+    "body_part": "ankle",
+    "expected_ids": [
+      "ankle-pain-swap"
+    ],
+    "primary_ids": [
+      "ankle-pain-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "手腕受伤时听到响声",
+    "category": "safety",
+    "body_part": "wrist",
+    "expected_ids": [
+      "wrist-pain-swap"
+    ],
+    "primary_ids": [
+      "wrist-pain-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "腰痛伴腿麻",
+    "category": "safety",
+    "body_part": "back",
+    "expected_ids": [
+      "back-swap",
+      "red-flags"
+    ],
+    "primary_ids": [
+      "back-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "肌肉酸痛和关节刺痛怎么分",
+    "category": "safety",
+    "body_part": null,
+    "expected_ids": [
+      "soreness-vs-pain"
+    ],
+    "primary_ids": [
+      "soreness-vs-pain"
+    ],
+    "note": ""
+  },
+  {
+    "query": "肩痛还能做卧推吗",
+    "category": "safety",
+    "body_part": "shoulder",
+    "expected_ids": [
+      "shoulder-swap"
+    ],
+    "primary_ids": [
+      "shoulder-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "脚踝扭伤后能深蹲吗",
+    "category": "safety",
+    "body_part": "ankle",
+    "expected_ids": [
+      "ankle-pain-swap"
+    ],
+    "primary_ids": [
+      "ankle-pain-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "一般成年人每天蛋白质吃多少",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "protein-basics"
+    ],
+    "primary_ids": [
+      "protein-basics"
+    ],
+    "note": ""
+  },
+  {
+    "query": "健身的人蛋白质吃多少",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "protein-training"
+    ],
+    "primary_ids": [
+      "protein-training"
+    ],
+    "note": ""
+  },
+  {
+    "query": "减脂热量缺口多大",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "calorie-deficit"
+    ],
+    "primary_ids": [
+      "calorie-deficit"
+    ],
+    "note": ""
+  },
+  {
+    "query": "碳水对训练有什么用",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "carb-training"
+    ],
+    "primary_ids": [
+      "carb-training"
+    ],
+    "note": ""
+  },
+  {
+    "query": "脂肪吃太少会怎样",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "fat-hormone"
+    ],
+    "primary_ids": [
+      "fat-hormone"
+    ],
+    "note": ""
+  },
+  {
+    "query": "训练时怎么补水",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "hydration"
+    ],
+    "primary_ids": [
+      "hydration"
+    ],
+    "note": ""
+  },
+  {
+    "query": "点外卖有什么技巧",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "takeout-tips"
+    ],
+    "primary_ids": [
+      "takeout-tips"
+    ],
+    "note": ""
+  },
+  {
+    "query": "对牛奶过敏，蛋白质怎么补",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "allergen-swap"
+    ],
+    "primary_ids": [
+      "allergen-swap"
+    ],
+    "note": ""
+  },
+  {
+    "query": "减脂平台期怎么破",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "plateau"
+    ],
+    "primary_ids": [
+      "plateau"
+    ],
+    "note": ""
+  },
+  {
+    "query": "减脂期蛋白质吃多少",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "protein-training",
+      "protein-basics"
+    ],
+    "primary_ids": [
+      "protein-training"
+    ],
+    "note": ""
+  },
+  {
+    "query": "主食吃什么比较好",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "kb-food-carb",
+      "carb-training"
+    ],
+    "primary_ids": [
+      "kb-food-carb"
+    ],
+    "note": ""
+  },
+  {
+    "query": "哪些食物蛋白质高",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "kb-food-protein"
+    ],
+    "primary_ids": [
+      "kb-food-protein"
+    ],
+    "note": ""
+  },
+  {
+    "query": "蔬菜水果怎么选",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "kb-food-veg",
+      "kb-food-fruit"
+    ],
+    "primary_ids": [
+      "kb-food-veg",
+      "kb-food-fruit"
+    ],
+    "note": ""
+  },
+  {
+    "query": "坚果热量高吗",
+    "category": "nutrition",
+    "body_part": null,
+    "expected_ids": [
+      "kb-food-nut"
+    ],
+    "primary_ids": [
+      "kb-food-nut"
+    ],
+    "note": ""
+  },
+  {
+    "query": "练胸有哪些动作",
+    "category": "list",
+    "body_part": "chest",
+    "expected_ids": [
+      "kb-ex-chest"
+    ],
+    "primary_ids": [
+      "kb-ex-chest"
+    ],
+    "note": ""
+  },
+  {
+    "query": "练背的动作有什么",
+    "category": "list",
+    "body_part": "back",
+    "expected_ids": [
+      "kb-ex-back"
+    ],
+    "primary_ids": [
+      "kb-ex-back"
+    ],
+    "note": ""
+  },
+  {
+    "query": "肩膀怎么练",
+    "category": "list",
+    "body_part": "shoulder",
+    "expected_ids": [
+      "kb-ex-shoulder"
+    ],
+    "primary_ids": [
+      "kb-ex-shoulder"
+    ],
+    "note": ""
+  },
+  {
+    "query": "手臂怎么练",
+    "category": "list",
+    "body_part": "arm",
+    "expected_ids": [
+      "kb-ex-arm"
+    ],
+    "primary_ids": [
+      "kb-ex-arm"
+    ],
+    "note": ""
+  },
+  {
+    "query": "腿怎么练",
+    "category": "list",
+    "body_part": "legs",
+    "expected_ids": [
+      "kb-ex-legs"
+    ],
+    "primary_ids": [
+      "kb-ex-legs"
+    ],
+    "note": ""
+  },
+  {
+    "query": "臀怎么练",
+    "category": "list",
+    "body_part": "hip",
+    "expected_ids": [
+      "kb-ex-hip"
+    ],
+    "primary_ids": [
+      "kb-ex-hip"
+    ],
+    "note": ""
+  },
+  {
+    "query": "核心怎么练",
+    "category": "list",
+    "body_part": "core",
+    "expected_ids": [
+      "kb-ex-core"
+    ],
+    "primary_ids": [
+      "kb-ex-core"
+    ],
+    "note": ""
+  },
+  {
+    "query": "蛋白质食物有哪些",
+    "category": "list",
+    "body_part": null,
+    "expected_ids": [
+      "kb-food-protein"
+    ],
+    "primary_ids": [
+      "kb-food-protein"
+    ],
+    "note": ""
+  },
+  {
+    "query": "主食有哪些",
+    "category": "list",
+    "body_part": null,
+    "expected_ids": [
+      "kb-food-carb"
+    ],
+    "primary_ids": [
+      "kb-food-carb"
+    ],
+    "note": ""
+  },
+  {
+    "query": "奶制品有哪些",
+    "category": "list",
+    "body_part": null,
+    "expected_ids": [
+      "kb-food-dairy"
+    ],
+    "primary_ids": [
+      "kb-food-dairy"
+    ],
+    "note": ""
+  },
+  {
+    "query": "膝盖疼吃什么药",
+    "category": "out_of_scope",
+    "body_part": null,
+    "expected_ids": [],
+    "primary_ids": [],
+    "note": "用药问题，知识库不应给药物建议"
+  },
+  {
+    "query": "我是不是得了关节炎",
+    "category": "out_of_scope",
+    "body_part": null,
+    "expected_ids": [],
+    "primary_ids": [],
+    "note": "诊断问题，知识库不能诊断"
+  },
+  {
+    "query": "怀孕可以练深蹲吗",
+    "category": "out_of_scope",
+    "body_part": null,
+    "expected_ids": [],
+    "primary_ids": [],
+    "note": "特殊人群，知识库没有对应条目"
+  },
+  {
+    "query": "高血压能吃蛋白粉吗",
+    "category": "out_of_scope",
+    "body_part": null,
+    "expected_ids": [],
+    "primary_ids": [],
+    "note": "特殊人群，知识库没有对应条目"
+  },
+  {
+    "query": "肌酸怎么吃",
+    "category": "out_of_scope",
+    "body_part": null,
+    "expected_ids": [],
+    "primary_ids": [],
+    "note": "补剂问题，知识库没有对应条目"
+  },
+  {
+    "query": "今天天气怎么样",
+    "category": "out_of_scope",
+    "body_part": null,
+    "expected_ids": [],
+    "primary_ids": [],
+    "note": "完全无关"
+  },
+  {
+    "query": "帮我写一段 Python",
+    "category": "out_of_scope",
+    "body_part": null,
+    "expected_ids": [],
+    "primary_ids": [],
+    "note": "完全无关"
+  },
+  {
+    "query": "银行卡密码忘了怎么办",
+    "category": "out_of_scope",
+    "body_part": null,
+    "expected_ids": [],
+    "primary_ids": [],
+    "note": "完全无关"
+  },
+  {
+    "query": "膝盖手术后又疼怎么办",
+    "category": "out_of_scope",
+    "body_part": null,
+    "expected_ids": [],
+    "primary_ids": [],
+    "note": "术后康复，知识库没有对应条目"
+  },
+  {
+    "query": "感冒了还能训练吗",
+    "category": "out_of_scope",
+    "body_part": null,
+    "expected_ids": [],
+    "primary_ids": [],
+    "note": "生病状态，知识库没有对应条目"
+  }
+]
