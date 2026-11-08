@@ -318,19 +318,20 @@ def _latest_instruction(text: str) -> str:
     return raw
 
 
-def _parse_times(raw: str) -> list[str]:
+def _parse_times_with_spans(raw: str) -> list[tuple[str, int, int]]:
     import re
 
     raw = raw or ""
-    ranges = re.findall(
+    ranges = list(re.finditer(
         r"([01]?\d|2[0-3])[:：]([0-5]\d)\s*[-~至到]\s*([01]?\d|2[0-3])[:：]([0-5]\d)",
         raw,
-    )
+    ))
     if ranges:
         return [
-            f"{_normalize_clock(int(start_h), int(start_m))}-"
-            f"{_normalize_clock(int(end_h), int(end_m))}"
-            for start_h, start_m, end_h, end_m in ranges
+            (f"{_normalize_clock(int(m.group(1)), int(m.group(2)))}-"
+             f"{_normalize_clock(int(m.group(3)), int(m.group(4)))}",
+             m.start(), m.end())
+            for m in ranges
         ]
 
     def apply_period(hour: int, period: str) -> int:
@@ -342,21 +343,30 @@ def _parse_times(raw: str) -> list[str]:
             return 0
         return hour
 
-    clocks = re.findall(
-        r"(早上|上午|中午|下午|晚上|傍晚)?\s*([01]?\d|2[0-3])[:：]([0-5]\d)", raw)
+    clocks = list(re.finditer(
+        r"(早上|上午|中午|下午|晚上|傍晚)?\s*([01]?\d|2[0-3])[:：]([0-5]\d)", raw))
     if clocks:
-        return [_normalize_clock(apply_period(int(h), p), int(m)) for p, h, m in clocks]
+        return [
+            (_normalize_clock(apply_period(int(m.group(2)), m.group(1)), int(m.group(3))),
+             m.start(), m.end())
+            for m in clocks
+        ]
 
     # "晚上 8 点 / 7点半 / 7点30分"
     out = []
-    for period, hour, suffix in re.findall(
+    for m in re.finditer(
             r"(早上|上午|中午|下午|晚上|傍晚)?\s*(\d{1,2})\s*点\s*(半|\d{1,2}\s*分)?", raw):
-        h = apply_period(int(hour), period)
-        suffix = (suffix or "").strip()
-        m = 30 if suffix == "半" else (int(suffix.replace("分", "").strip()) if suffix else 0)
-        if 0 <= h <= 23 and 0 <= m <= 59:
-            out.append(_normalize_clock(h, m))
+        h = apply_period(int(m.group(2)), m.group(1))
+        suffix = (m.group(3) or "").strip()
+        minute = 30 if suffix == "半" else (
+            int(suffix.replace("分", "").strip()) if suffix else 0)
+        if 0 <= h <= 23 and 0 <= minute <= 59:
+            out.append((_normalize_clock(h, minute), m.start(), m.end()))
     return out
+
+
+def _parse_times(raw: str) -> list[str]:
+    return [value for value, _, _ in _parse_times_with_spans(raw)]
 
 
 TRAINING_WORDS = ("训练", "运动", "健身", "跑步", "力量", "有氧", "练")
@@ -377,14 +387,10 @@ def _nearest_kind(raw: str, start: int, end: int) -> str | None:
     return best_kind if best_distance <= 10 else None
 
 
-def _filter_meal_times(times: list[str], raw: str) -> list[str]:
-    if not any(word in raw for word in TRAINING_WORDS):
-        return []
+def _filter_meal_times(raw: str) -> list[str]:
     kept = []
-    for value in times:
-        index = raw.find(value)
-        kind = _nearest_kind(raw, index, index + len(value)) if index >= 0 else None
-        if kind != "meal":
+    for value, start, end in _parse_times_with_spans(raw):
+        if _nearest_kind(raw, start, end) != "meal":
             kept.append(value)
     return kept
 
@@ -396,10 +402,9 @@ def _preferred_times(text: str) -> list[str]:
     早餐/午餐/晚餐的时间不算训练时间。
     """
     latest = _latest_instruction(text)
-    times = _parse_times(latest)
-    if times:
-        return _filter_meal_times(times, latest)
-    return _filter_meal_times(_parse_times(text), text)
+    if _parse_times(latest):
+        return _filter_meal_times(latest)
+    return _filter_meal_times(text)
 
 
 def _explicit_split_count(raw: str) -> int:
@@ -503,7 +508,7 @@ def _enforce_schedule(final: dict, text: str, ctx: dict) -> None:
     避免"用户说了分两次，模型还是只给一个时段"。
     """
     times = _preferred_times(text)
-    if not times and _split_count(text, times) <= 1:
+    if not times and _split_count(text, times) <= 1 and not _session_cap_minutes(text):
         return
     actions = [
         {"name": (getattr(item, "meta", None) or {}).get("name_zh") or item.action_ref,

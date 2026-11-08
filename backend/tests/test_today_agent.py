@@ -208,6 +208,14 @@ def test_feedback_time_replaces_instead_of_accumulating(ready) -> None:
     assert schedule[0]["time"] == "20:00"
 
 
+def test_feedback_time_without_training_word_still_works(ready) -> None:
+    """人在"再调一下"里常只写"改到晚上20:00"，上下文已经是在说训练。"""
+    db, user, day = ready
+    text = "帮我规划今天\n修改意见：改到晚上20:00"
+    result = run(db, user, day, text, client=None)
+    assert [item["time"] for item in result.final["schedule"]] == ["20:00"]
+
+
 def test_feedback_split_keeps_requested_count(ready) -> None:
     """最后一条只说"分三次"时，用次数拆，而不是沿用旧的两个时间。"""
     db, user, day = ready
@@ -275,6 +283,22 @@ def test_model_schedule_is_overridden_by_explicit_split(ready) -> None:
     assert len(result.final["schedule"]) == 2
     assert result.final["schedule"][0]["time"] == "07:30-08:10"
     assert result.final["schedule"][1]["time"] == "18:30-19:10"
+
+
+def test_model_duration_is_capped_by_feedback(ready) -> None:
+    """模型仍写 35 分钟，用户要求每次 30 分钟：覆盖后必须不超过 30。"""
+    db, user, day = ready
+    client = FakeClient([
+        ("get_today_plan", {}),
+        ("search_knowledge", {"query": "训练前热身"}),
+        ("search_food_options", {"meal_slot": "lunch"}),
+        ("search_food_options", {"meal_slot": "dinner"}),
+        ("search_food_options", {"meal_slot": "breakfast"}),
+    ])
+    result = run(db, user, day, "每次训练控制在30分钟", client=client)
+    schedule = result.final["schedule"]
+    minutes = [int(item["activity"].split("约 ")[1].split(" 分钟")[0]) for item in schedule]
+    assert all(value <= 30 for value in minutes)
 
 
 def test_no_model_uses_deterministic_tools(ready) -> None:
