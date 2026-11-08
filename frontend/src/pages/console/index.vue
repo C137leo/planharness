@@ -657,6 +657,12 @@ onShow(() => {
 
       <view class="card">
         <view class="eyebrow">COST</view>
+        <view v-if="selected.output?.fallback" class="notice" style="margin-top: 8px">
+          这次走的是确定性兜底：没有调用模型，所以 tokens 和成本都是 0。
+        </view>
+        <view v-if="selected.error_code" class="notice" style="margin-top: 8px">
+          错误码：{{ selected.error_code }}
+        </view>
         <view class="kv">
           <view class="kv-item">
             <text class="k">tokens in</text>

@@ -6,6 +6,8 @@ create_app 负责：建 Engine/Session 工厂 → 建表 → 灌 demo 种子数�
 
 from __future__ import annotations
 
+import logging
+import time
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
@@ -28,6 +30,14 @@ from app.llm.types import LlmBudget
 from app.openapi_docs import mount_api_docs
 from app.seed import seed_demo
 from app.knowledge.service import seed_knowledge
+
+http_logger = logging.getLogger("planharness.http")
+if not http_logger.handlers:
+    _http_handler = logging.StreamHandler()
+    _http_handler.setFormatter(logging.Formatter("%(levelname)s:     %(message)s"))
+    http_logger.addHandler(_http_handler)
+    http_logger.setLevel(logging.INFO)
+    http_logger.propagate = False
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -94,10 +104,30 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.middleware("http")
     async def add_trace_id(request: Request, call_next):
-        """为每个请求分配 trace_id，并原样回写响应头，便于串联日志与前端排查。"""
+        """为每个请求分配 trace_id、写日志并回写响应头。
+
+        日志只记 method/path/status/耗时，不记 header 和 body，避免把 token 打进 journal。
+        线上排障时用 trace_id 把前端报错、Nginx 和 journal 串起来。
+        """
         trace_id = request.headers.get("X-Trace-Id") or uuid4().hex
         request.state.trace_id = trace_id
-        response = await call_next(request)
+        started = time.perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            elapsed_ms = (time.perf_counter() - started) * 1000
+            http_logger.exception(
+                "trace_id=%s %s %s failed after %.0fms",
+                trace_id, request.method, request.url.path, elapsed_ms,
+            )
+            raise
+        elapsed_ms = (time.perf_counter() - started) * 1000
+        if request.url.path.startswith("/api/"):
+            http_logger.info(
+                "trace_id=%s %s %s -> %s %.0fms",
+                trace_id, request.method, request.url.path,
+                response.status_code, elapsed_ms,
+            )
         response.headers["X-Trace-Id"] = trace_id
         return response
 

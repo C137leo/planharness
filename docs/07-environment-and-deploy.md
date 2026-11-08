@@ -87,6 +87,45 @@ DEEPSEEK_TIMEOUT_S=30
 - 日志不打印 Key、Authorization header。
 - 演示数据使用合成数据；不把真实用户健康数据发给第三方模型。
 
+### 生产日志与排障
+
+应用日志走 systemd journal，不另写日志文件；Nginx 请求日志在 `/var/log/nginx/`。
+
+```bash
+# 最近 200 行 / 实时跟随
+journalctl -u planharness-api -n 200 --no-pager
+journalctl -u planharness-api -f
+
+# 只看报错和堆栈
+journalctl -u planharness-api --since '30 min ago' | grep -Ei 'error|traceback|exception|failed'
+
+# Nginx
+tail -n 100 /var/log/nginx/error.log
+tail -f /var/log/nginx/access.log
+```
+
+现在每个 `/api/` 请求都会在 journal 里留一条：
+
+```text
+INFO: trace_id=261537... GET /api/v1/agent/today-plan -> 200 23ms
+```
+
+响应信封和 `X-Trace-Id` 响应头也带同一个 `trace_id`；5xx 时前端错误文案会附上它。
+拿 `trace_id` 直接搜：
+
+```bash
+journalctl -u planharness-api --since '30 min ago' | grep 261537
+```
+
+Console 的 run 详情还能看 `trace`、`error_code` 和成本。若 `output.fallback=true`：
+这次没有调用模型，走的是确定性兜底，所以 `tokens_in/out=0`、成本 `0` 是正确的，
+不是计费丢失。检查 `DEEPSEEK_API_KEY` 是否为空：
+
+```bash
+sudo grep '^DEEPSEEK_API_KEY=' /etc/planharness/planharness.env | awk -F= '{print length($2)}'
+# 输出 0 表示没配 Key；改完 env 后 systemctl restart planharness-api
+```
+
 ## 4. 服务器与 Docker
 
 ### 建议

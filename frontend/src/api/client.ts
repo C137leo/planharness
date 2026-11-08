@@ -45,6 +45,7 @@ export class ApiError extends Error {
     message: string,
     public statusCode = 0,
     public detail: unknown = null,
+    public traceId = '',
   ) {
     super(message)
     this.name = 'ApiError'
@@ -98,12 +99,15 @@ function mcdHeaders(token = ''): Record<string, string> {
 }
 
 function parseError(data: unknown, statusCode: number): ApiError {
-  const body = data as { detail?: unknown; message?: string } | null
+  const body = data as { detail?: unknown; message?: string; trace_id?: string } | null
   const detail = body?.detail
+  const traceId = body?.trace_id || ''
   let message = body?.message || `请求失败（${statusCode}）`
   if (typeof detail === 'string') message = detail
   if (Array.isArray(detail)) message = detail.join('；')
-  return new ApiError(message, statusCode, detail)
+  // 5xx 把 trace_id 带到界面上，用户报错时能直接在 journal 里定位这一次请求
+  if (statusCode >= 500 && traceId) message = `${message}（trace: ${traceId}）`
+  return new ApiError(message, statusCode, detail, traceId)
 }
 
 async function rawRequest<T>(
