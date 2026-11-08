@@ -322,19 +322,13 @@ def _parse_times_with_spans(raw: str) -> list[tuple[str, int, int]]:
     import re
 
     raw = raw or ""
-    ranges = list(re.finditer(
-        r"([01]?\d|2[0-3])[:：]([0-5]\d)\s*[-~至到]\s*([01]?\d|2[0-3])[:：]([0-5]\d)",
-        raw,
-    ))
-    if ranges:
-        return [
-            (f"{_normalize_clock(int(m.group(1)), int(m.group(2)))}-"
-             f"{_normalize_clock(int(m.group(3)), int(m.group(4)))}",
-             m.start(), m.end())
-            for m in ranges
-        ]
+    out: list[tuple[str, int, int]] = []
 
-    def apply_period(hour: int, period: str) -> int:
+    def overlaps(start: int, end: int) -> bool:
+        return any(start < other_end and other_start < end
+                   for _, other_start, other_end in out)
+
+    def period_hour(hour: int, period: str | None) -> int:
         if period in ("下午", "晚上", "傍晚") and hour < 12:
             return hour + 12
         if period == "中午" and hour < 11:
@@ -343,26 +337,58 @@ def _parse_times_with_spans(raw: str) -> list[tuple[str, int, int]]:
             return 0
         return hour
 
-    clocks = list(re.finditer(
-        r"(早上|上午|中午|下午|晚上|傍晚)?\s*([01]?\d|2[0-3])[:：]([0-5]\d)", raw))
-    if clocks:
-        return [
-            (_normalize_clock(apply_period(int(m.group(2)), m.group(1)), int(m.group(3))),
-             m.start(), m.end())
-            for m in clocks
-        ]
-
-    # "晚上 8 点 / 7点半 / 7点30分"
-    out = []
-    for m in re.finditer(
-            r"(早上|上午|中午|下午|晚上|傍晚)?\s*(\d{1,2})\s*点\s*(半|\d{1,2}\s*分)?", raw):
-        h = apply_period(int(m.group(2)), m.group(1))
-        suffix = (m.group(3) or "").strip()
-        minute = 30 if suffix == "半" else (
+    def minute_of(suffix: str | None) -> int:
+        suffix = (suffix or "").strip()
+        return 30 if suffix == "半" else (
             int(suffix.replace("分", "").strip()) if suffix else 0)
-        if 0 <= h <= 23 and 0 <= minute <= 59:
-            out.append((_normalize_clock(h, minute), m.start(), m.end()))
-    return out
+
+    period = r"(早上|上午|中午|下午|晚上|傍晚)?"
+    suffix = r"(半|\d{1,2}\s*分?)?"
+    clock = r"([01]?\d|2[0-3])[:：]([0-5]\d)"
+    # 7:30-8:10 / 晚上7:30到8:10
+    for m in re.finditer(
+            rf"{period}\s*{clock}\s*[-~至到]\s*{period}\s*{clock}", raw):
+        start_h, start_m, end_h, end_m = (
+            int(m.group(2)), int(m.group(3)), int(m.group(5)), int(m.group(6)))
+        start_period, end_period = m.group(1), m.group(4) or m.group(1)
+        out.append((
+            f"{_normalize_clock(period_hour(start_h, start_period), start_m)}-"
+            f"{_normalize_clock(period_hour(end_h, end_period), end_m)}",
+            m.start(), m.end(),
+        ))
+    # 7点到8点 / 晚上7点半到8点10
+    for m in re.finditer(
+            rf"{period}\s*(\d{{1,2}})\s*点\s*{suffix}\s*[-~至到]\s*"
+            rf"{period}\s*(\d{{1,2}})\s*点\s*{suffix}", raw):
+        if overlaps(m.start(), m.end()):
+            continue
+        start_h, start_minute = int(m.group(2)), minute_of(m.group(3))
+        end_h, end_minute = int(m.group(5)), minute_of(m.group(6))
+        start_period, end_period = m.group(1), m.group(4) or m.group(1)
+        start_h = period_hour(start_h, start_period)
+        end_h = period_hour(end_h, end_period)
+        if 0 <= start_h <= 23 and 0 <= end_h <= 23:
+            out.append((
+                f"{_normalize_clock(start_h, start_minute)}-"
+                f"{_normalize_clock(end_h, end_minute)}",
+                m.start(), m.end(),
+            ))
+    # 晚上8:30
+    for m in re.finditer(rf"{period}\s*{clock}", raw):
+        if overlaps(m.start(), m.end()):
+            continue
+        hour = period_hour(int(m.group(2)), m.group(1))
+        out.append((_normalize_clock(hour, int(m.group(3))), m.start(), m.end()))
+    # 晚上 8 点 / 7点半 / 7点30分
+    for m in re.finditer(rf"{period}\s*(\d{{1,2}})\s*点\s*{suffix}", raw):
+        if overlaps(m.start(), m.end()):
+            continue
+        hour = period_hour(int(m.group(2)), m.group(1))
+        minute = minute_of(m.group(3))
+        if 0 <= hour <= 23 and 0 <= minute <= 59:
+            out.append((_normalize_clock(hour, minute), m.start(), m.end()))
+
+    return sorted(out, key=lambda item: item[1])
 
 
 def _parse_times(raw: str) -> list[str]:

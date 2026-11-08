@@ -228,6 +228,24 @@ def test_feedback_split_keeps_requested_count(ready) -> None:
     assert [item["time"] for item in schedule] == ["07:30-08:10", "12:30", "18:30-19:10"]
 
 
+def test_chinese_point_range_is_one_slot(ready) -> None:
+    """「7点到8点」是一个时段，不是 7 点、8 点两次训练。"""
+    db, user, day = ready
+    result = run(db, user, day, "早上7点到8点训练", client=None)
+    schedule = result.final["schedule"]
+    assert [item["time"] for item in schedule] == ["07:00-08:00"]
+
+
+def test_mixed_range_and_point_keeps_both(ready) -> None:
+    db, user, day = ready
+    result = run(
+        db, user, day,
+        "分成两次训练：早上7:30-8:10 和 晚上20:00",
+        client=None,
+    )
+    assert [item["time"] for item in result.final["schedule"]] == ["07:30-08:10", "20:00"]
+
+
 def test_meal_times_are_not_training_slots(ready) -> None:
     """早餐 7 点、午餐 12 点只是吃饭时间，不能把训练也拆到 7 点和 12 点。"""
     db, user, day = ready
@@ -374,3 +392,26 @@ def test_meals_come_from_tool_results_not_model(ready) -> None:
     result = run(db, user, day, "规划今天", client=client)
     assert len(result.final["meals"]) == 3
     assert all(len(meal["options"]) == 3 for meal in result.final["meals"])
+
+
+def test_feedback_endpoint_replans_from_previous_run(ready, app_fixture) -> None:
+    """前端"按这个再规划"走的就是这条接口：带上一轮原话 + 新意见。"""
+    client, _ = app_fixture
+    token = client.post("/api/v1/auth/demo", json={}).json()["data"]["access_token"]
+    auth = {"Authorization": f"Bearer {token}"}
+    created = client.post(
+        "/api/v1/agent/today-plan", headers=auth,
+        json={"text": "帮我规划今天；分成两次训练：早上7:30-8:10、晚上18:30-19:10"},
+    ).json()["data"]
+    first = client.get(f"/api/v1/runs/{created['run_id']}", headers=auth).json()["data"]
+    assert first["status"] == "succeeded"
+    assert len(first["output"]["schedule"]) == 2
+
+    feedback = client.post(
+        f"/api/v1/agent/today-plan/{created['run_id']}/feedback", headers=auth,
+        json={"text": "改到晚上20:00"},
+    ).json()["data"]
+    second = client.get(f"/api/v1/runs/{feedback['run_id']}", headers=auth).json()["data"]
+    assert second["status"] == "succeeded"
+    assert [item["time"] for item in second["output"]["schedule"]] == ["20:00"]
+    assert "修改意见：改到晚上20:00" in second["input"]["text"]
