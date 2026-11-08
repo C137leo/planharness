@@ -7,7 +7,9 @@ pydantic-settings 会按字段类型自动转换，所以这里只需要声明�
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,9 +35,26 @@ class Settings(BaseSettings):
     # DeepSeek：P0 阶段 Key 只存服务器 .env，不写进代码、不经过聊天记录
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     deepseek_api_key: str = ""
+    # 生产建议只配这个路径，把 Key 放在 640 root:planharness 的文件里，
+    # 不进入进程环境、不继承给 skill 子进程。
+    deepseek_api_key_file: str = ""
     deepseek_model: str = "deepseek-flash"
     # 只允许这个手机号在 Console 操作「暂停大模型」开关
     llm_admin_phone: str = "13772692821"
+
+    @model_validator(mode="after")
+    def _load_deepseek_key_file(self):
+        """DEEPSEEK_API_KEY 优先；否则从 DEEPSEEK_API_KEY_FILE 读入内存。"""
+        if self.deepseek_api_key or not self.deepseek_api_key_file:
+            return self
+        path = Path(self.deepseek_api_key_file)
+        try:
+            key = path.read_text(encoding="utf-8").strip()
+        except OSError:
+            return self
+        if key:
+            self.deepseek_api_key = key
+        return self
     deepseek_timeout_s: float = 30.0
     # deepseek-flash 的思考档位：low / high / max；留空 = 用服务端默认（high）
     deepseek_reasoning_effort: str = ""

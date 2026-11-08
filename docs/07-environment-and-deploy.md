@@ -63,14 +63,28 @@ www.agentworkout.online {
 
 ### 环境变量
 
-写入服务器 `.env`，不要提交 Git，也不要发在聊天里：
+**不要把 Key 发在聊天里，也不要提交 Git。** 生产推荐把 Key 放在单独文件里，
+只把文件路径写进环境变量：
+
+```bash
+# 文件权限：root 可写，服务用户只读
+install -m 640 -o root -g planharness /dev/null /etc/planharness/deepseek.key
+# 用编辑器写入 Key（不要用会进 shell history 的 echo 命令）
+nano /etc/planharness/deepseek.key
+```
 
 ```text
-DEEPSEEK_API_KEY=sk-...
+# /etc/planharness/planharness.env
+DEEPSEEK_API_KEY_FILE=/etc/planharness/deepseek.key
 DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
 DEEPSEEK_MODEL=deepseek-chat
 DEEPSEEK_TIMEOUT_S=30
 ```
+
+应用启动时把文件内容读入内存，不再把 Key 放进进程环境；skill 子进程也只拿到
+白名单环境（PATH/HOME/locale/SKILL_*），不会继承 DeepSeek Key。
+
+开发/临时仍兼容直接写 `DEEPSEEK_API_KEY=sk-...`；两者同时存在时直接写的优先。
 
 ### 调用约定
 
@@ -119,11 +133,16 @@ journalctl -u planharness-api --since '30 min ago' | grep 261537
 
 Console 的 run 详情还能看 `trace`、`error_code` 和成本。若 `output.fallback=true`：
 这次没有调用模型，走的是确定性兜底，所以 `tokens_in/out=0`、成本 `0` 是正确的，
-不是计费丢失。检查 `DEEPSEEK_API_KEY` 是否为空：
+不是计费丢失。检查模型 Key 是否已配置：
 
 ```bash
+# 推荐方式：文件是否非空（不会打印 Key 本身）
+sudo test -s /etc/planharness/deepseek.key && echo "key file: set" || echo "key file: empty"
+# 旧方式：环境变量是否非空
 sudo grep '^DEEPSEEK_API_KEY=' /etc/planharness/planharness.env | awk -F= '{print length($2)}'
-# 输出 0 表示没配 Key；改完 env 后 systemctl restart planharness-api
+
+# 改完 Key 或 env 后
+sudo systemctl restart planharness-api
 ```
 
 ### 大模型总闸（运营开关）

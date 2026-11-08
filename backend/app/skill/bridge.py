@@ -28,6 +28,21 @@ from typing import Any
 DEFAULT_SKILL_DIR = "/Users/leo/PycharmProjects/healthy-fitness-coach-skill"
 RUNNER = Path(__file__).with_name("runner.js")
 
+# skill 是本地 Node 子进程，只需要运行环境；不能继承 DEEPSEEK_API_KEY 等密钥。
+# 白名单同时保留 nvm/自定义 Node 常用的 NODE_* 和 locale 变量。
+SKILL_ENV_KEYS = frozenset({
+    "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LANGUAGE", "LC_ALL",
+    "TZ", "NODE_PATH", "NODE_OPTIONS", "NODE_EXTRA_CA_CERTS", "NODE_ENV",
+    "SKILL_NODE", "SKILL_TIMEOUT",
+})
+
+
+def _skill_env(skill_dir: str) -> dict[str, str]:
+    env = {key: os.environ[key] for key in SKILL_ENV_KEYS if key in os.environ}
+    env["SKILL_DIR"] = skill_dir
+    env.setdefault("PATH", os.defpath)
+    return env
+
 # 这些命令的结果在一个进程内可复用（纯函数，不含时间/随机）
 CACHEABLE = {"meta", "skill_md", "tools", "safety_gate", "screen_profile", "plan_program",
              "nutrition_targets", "nutrition_plan", "today_session", "review_week"}
@@ -81,7 +96,8 @@ class SkillBridge:
         if command in CACHEABLE and cache_key in self._cache:
             return self._cache[cache_key]
 
-        env = {**os.environ, "SKILL_DIR": self.skill_dir}
+        # 只传白名单环境，避免 Key 被 vendored skill / 其依赖读取
+        env = _skill_env(self.skill_dir)
         try:
             proc = subprocess.run(
                 [self.node, str(RUNNER), command],

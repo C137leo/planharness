@@ -68,3 +68,28 @@ def test_llm_switch_blocks_plan_draft(client, auth_headers, app_fixture) -> None
     )
     assert resp.status_code == 503
     assert resp.json()["detail"] == PAUSED_MESSAGE
+
+
+def test_skill_env_does_not_inherit_secrets(monkeypatch) -> None:
+    from app.skill.bridge import _skill_env
+
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "should-not-leak")
+    monkeypatch.setenv("SECRET_KEY", "should-not-leak")
+    env = _skill_env("/tmp/skill")
+    assert "DEEPSEEK_API_KEY" not in env
+    assert "SECRET_KEY" not in env
+    assert env["SKILL_DIR"] == "/tmp/skill"
+    assert env["PATH"]
+
+
+def test_settings_can_load_key_from_file(tmp_path) -> None:
+    from app.config import Settings
+
+    key_file = tmp_path / "deepseek.key"
+    key_file.write_text("sk-from-file\n", encoding="utf-8")
+    settings = Settings(
+        deepseek_api_key="",
+        deepseek_api_key_file=str(key_file),
+        secret_key="test-secret-0123456789abcdef",
+    )
+    assert settings.deepseek_api_key == "sk-from-file"
