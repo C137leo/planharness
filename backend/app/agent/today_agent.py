@@ -41,6 +41,8 @@ SYSTEM_PROMPT = """你是今日活动规划 Agent。你可以按任意顺序调�
    不要省略、不要改写标题和链接；citations 里放上所有被引用条目的 id/title/source_url。
 10. 用户提到麦当劳、或问"能不能点外卖"时，调用 mcd_nutrition，用官方营养表的热量/蛋白质
     数字回答；那是营养数据，不是价格，不要编价格。
+11. 用户要求"分几次训练 / 早上几点 / 晚上几点 / 几点到几点"时，schedule 必须按用户给的
+    时间拆成多个时段，不要在没被要求时固定写 18:30；用户没指定时间才用默认安排。
 
 输出结构（**不要输出 meals**，餐食由程序用工具结果拼好）：
 {
@@ -297,6 +299,222 @@ def _parse_args(raw) -> dict:
         return {}
 
 
+# ---------------------------------------------------------------- 时间偏好
+
+
+
+def _normalize_clock(hour: int, minute: int) -> str:
+    return f"{hour:02d}:{minute:02d}"
+
+
+FEEDBACK_MARK = "修改意见："
+
+
+def _latest_instruction(text: str) -> str:
+    """只取最后一条修改意见；否则历次时间会越积越多，改一次反而多出一个时段。"""
+    raw = text or ""
+    if FEEDBACK_MARK in raw:
+        return raw.rsplit(FEEDBACK_MARK, 1)[1]
+    return raw
+
+
+def _parse_times(raw: str) -> list[str]:
+    import re
+
+    raw = raw or ""
+    ranges = re.findall(
+        r"([01]?\d|2[0-3])[:：]([0-5]\d)\s*[-~至到]\s*([01]?\d|2[0-3])[:：]([0-5]\d)",
+        raw,
+    )
+    if ranges:
+        return [
+            f"{_normalize_clock(int(start_h), int(start_m))}-"
+            f"{_normalize_clock(int(end_h), int(end_m))}"
+            for start_h, start_m, end_h, end_m in ranges
+        ]
+
+    def apply_period(hour: int, period: str) -> int:
+        if period in ("下午", "晚上", "傍晚") and hour < 12:
+            return hour + 12
+        if period == "中午" and hour < 11:
+            return 12
+        if period in ("早上", "上午") and hour == 12:
+            return 0
+        return hour
+
+    clocks = re.findall(
+        r"(早上|上午|中午|下午|晚上|傍晚)?\s*([01]?\d|2[0-3])[:：]([0-5]\d)", raw)
+    if clocks:
+        return [_normalize_clock(apply_period(int(h), p), int(m)) for p, h, m in clocks]
+
+    # "晚上 8 点 / 7点半 / 7点30分"
+    out = []
+    for period, hour, suffix in re.findall(
+            r"(早上|上午|中午|下午|晚上|傍晚)?\s*(\d{1,2})\s*点\s*(半|\d{1,2}\s*分)?", raw):
+        h = apply_period(int(hour), period)
+        suffix = (suffix or "").strip()
+        m = 30 if suffix == "半" else (int(suffix.replace("分", "").strip()) if suffix else 0)
+        if 0 <= h <= 23 and 0 <= m <= 59:
+            out.append(_normalize_clock(h, m))
+    return out
+
+
+TRAINING_WORDS = ("训练", "运动", "健身", "跑步", "力量", "有氧", "练")
+MEAL_WORDS = ("早餐", "早饭", "午餐", "午饭", "晚餐", "晚饭", "加餐", "吃饭", "用餐")
+
+
+def _nearest_kind(raw: str, start: int, end: int) -> str | None:
+    """时间点最近的关键词是"餐"还是"训练"；用来避免把早餐时间当成训练时间。"""
+    best_distance, best_kind = 10 ** 9, None
+    for kind, words in (("meal", MEAL_WORDS), ("training", TRAINING_WORDS)):
+        for word in words:
+            cursor = raw.find(word)
+            while cursor != -1:
+                distance = min(abs(cursor - end), abs(start - (cursor + len(word))))
+                if distance < best_distance:
+                    best_distance, best_kind = distance, kind
+                cursor = raw.find(word, cursor + 1)
+    return best_kind if best_distance <= 10 else None
+
+
+def _filter_meal_times(times: list[str], raw: str) -> list[str]:
+    if not any(word in raw for word in TRAINING_WORDS):
+        return []
+    kept = []
+    for value in times:
+        index = raw.find(value)
+        kind = _nearest_kind(raw, index, index + len(value)) if index >= 0 else None
+        if kind != "meal":
+            kept.append(value)
+    return kept
+
+
+def _preferred_times(text: str) -> list[str]:
+    """从用户原话里抓训练时间；支持 7:30 / 7点 / 7点半 / 7:30-8:10。
+
+    有"修改意见"时，后一次给的时间覆盖前一次，而不是把两次时间拼起来。
+    早餐/午餐/晚餐的时间不算训练时间。
+    """
+    latest = _latest_instruction(text)
+    times = _parse_times(latest)
+    if times:
+        return _filter_meal_times(times, latest)
+    return _filter_meal_times(_parse_times(text), text)
+
+
+def _explicit_split_count(raw: str) -> int:
+    if any(word in raw for word in ("三次", "3次", "3 次", "分三段", "分三次")):
+        return 3
+    if any(word in raw for word in ("两次", "2次", "2 次", "分两段", "分两次", "几次")):
+        return 2
+    if any(word in raw for word in (
+            "合并成一次", "合成一次", "只练一次", "一次训练", "不用分", "不要分",
+            "就练一次", "改成一次", "1次", "1 次")):
+        return 1
+    return 0
+
+
+def _split_count(text: str, times: list[str]) -> int:
+    latest = _latest_instruction(text)
+    latest_count = _explicit_split_count(latest)
+    if latest_count:
+        return latest_count
+    if latest != text and _parse_times(latest):
+        return min(3, max(1, len(times)))
+    base_count = _explicit_split_count(text)
+    if base_count:
+        return base_count
+    if len(times) >= 2:
+        return min(3, len(times))
+    return 1
+
+
+def _session_cap_minutes(text: str) -> int | None:
+    """识别"每次训练控制在30分钟"；只缩短，不把一次训练拉长。"""
+    import re
+
+    match = re.search(
+        r"(?:每次|单次|每个时段)[^。；;\n]{0,8}?(\d{1,3})\s*分钟", text or "")
+    if not match:
+        return None
+    value = int(match.group(1))
+    return value if 10 <= value <= 180 else None
+
+
+def _schedule_for(text: str, actions: list[dict]) -> list[dict]:
+    """把训练动作按用户时间偏好拆成 1-3 个时段。
+
+    模型路径由 prompt 约束；这里是模型不可用/校验失败时的确定性兜底，
+    不能永远写死 18:30。
+    """
+    times = _preferred_times(text)
+    count = _split_count(text, times)
+    if actions:
+        count = max(1, min(count, len(actions)))
+    if len(times) < count:
+        defaults = {1: ["18:30"], 2: ["07:30", "18:30"],
+                    3: ["07:30", "12:30", "18:30"]}[count]
+        used = set()
+        for value in times:
+            used.update(value.split("-"))
+        for value in defaults:
+            if len(times) >= count:
+                break
+            if value not in used:
+                times.append(value)
+                used.add(value)
+    times.sort(key=lambda value: (
+        int(value.split("-")[0].split(":")[0]) * 60
+        + int(value.split("-")[0].split(":")[1])
+    ))
+    times = times[:count]
+    if not times:
+        times = ["18:30"]
+
+    if not actions:
+        return [{"time": times[0], "activity": "按当前计划执行", "why": "按当前计划版本执行"}]
+
+    size, extra = divmod(len(actions), count)
+    groups: list[list[dict]] = []
+    cursor = 0
+    for index in range(count):
+        take = size + (1 if index < extra else 0)
+        groups.append(actions[cursor:cursor + take])
+        cursor += take
+    cap = _session_cap_minutes(text)
+    schedule = []
+    for index, group in enumerate(groups):
+        names = [str(item.get("name") or item.get("action_ref") or "训练") for item in group]
+        minutes = sum(int(item.get("duration_min") or 0) for item in group) or 35
+        if cap:
+            minutes = min(minutes, cap)
+        schedule.append({
+            "time": times[index] if index < len(times) else times[-1],
+            "activity": f"{'、'.join(names)} · 约 {minutes} 分钟",
+            "why": "按你指定的时间拆分" if _preferred_times(text) else "按当前计划版本执行",
+        })
+    return schedule
+
+
+def _enforce_schedule(final: dict, text: str, ctx: dict) -> None:
+    """用户明确给了时间/拆分要求时，模型输出也要服从。
+
+    模型可能仍按习惯写一个 18:30；这里用同一套确定性时间解析覆盖 schedule，
+    避免"用户说了分两次，模型还是只给一个时段"。
+    """
+    times = _preferred_times(text)
+    if not times and _split_count(text, times) <= 1:
+        return
+    actions = [
+        {"name": (getattr(item, "meta", None) or {}).get("name_zh") or item.action_ref,
+         "action_ref": item.action_ref,
+         "duration_min": item.duration_min}
+        for item in (ctx.get("actions") or [])
+        if getattr(item, "action_type", "") == "exercise"
+    ]
+    final["schedule"] = _schedule_for(text, actions)
+
+
 # ---------------------------------------------------------------- 确定性编排
 
 def _deterministic(db, ctx: dict, text: str, on_step=None) -> TodayResult:
@@ -352,15 +570,14 @@ def _deterministic(db, ctx: dict, text: str, on_step=None) -> TodayResult:
             cue_tips.append({"text": f"{action.get('name')}：{data[0]['content'][:80]}",
                              "source_ids": [data[0]["id"]]})
 
+    schedule = _schedule_for(text, actions)
+    split_note = f"分 {len(schedule)} 次训练；" if len(schedule) > 1 else ""
     final = {
         "summary": (
-            f"今天 {len(actions)} 个动作；{len(meals)} 餐各给了 3 个替换选项，"
+            f"今天 {len(actions)} 个动作；{split_note}{len(meals)} 餐各给了 3 个替换选项，"
             "训练前先热身，餐后留出 60-90 分钟再练。"
         ),
-        "schedule": [
-            {"time": "18:30", "activity": f"{len(actions)} 个动作，约 35 分钟",
-             "why": "按当前计划版本执行"},
-        ],
+        "schedule": schedule,
         "meals": meals,
         "tips": cue_tips + (recovery.get("data") or {}).get("tips", []),
         "nutrition_notes": [
@@ -453,6 +670,9 @@ def run(db, user, day, text: str, client=None, on_step=None,
     except Exception as exc:  # noqa: BLE001 - 模型失败要能降级
         result = _deterministic(db, ctx, text, on_step=on_step)
         result.error = f"{type(exc).__name__}: {str(exc)[:120]}"
+
+    if result.final and not result.refused:
+        _enforce_schedule(result.final, text, ctx)
 
     problems = validate(result.final or {}, ctx, db)
     if problems:

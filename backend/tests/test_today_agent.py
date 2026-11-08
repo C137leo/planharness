@@ -178,6 +178,105 @@ def test_max_steps_falls_back(ready) -> None:
     assert result.final is not None
 
 
+def test_deterministic_schedule_honors_split_times(ready) -> None:
+    """用户说分两次、给具体时间，兜底路径也不能再固定 18:30。"""
+    db, user, day = ready
+    result = run(
+        db, user, day,
+        "帮我规划今天；分成两次训练：早上7:30-8:10、晚上18:30-19:10",
+        client=None,
+    )
+    assert result.fallback
+    schedule = result.final["schedule"]
+    assert len(schedule) == 2
+    assert schedule[0]["time"] == "07:30-08:10"
+    assert schedule[1]["time"] == "18:30-19:10"
+    assert "分 2 次训练" in result.final["summary"]
+
+
+def test_feedback_time_replaces_instead_of_accumulating(ready) -> None:
+    """连续提意见只认最后一条时间，不能把 7:30、18:30、20:00 越积越多。"""
+    db, user, day = ready
+    text = (
+        "帮我规划今天；分成两次训练：早上7:30-8:10、晚上18:30-19:10\n"
+        "修改意见：训练改到晚上20:00"
+    )
+    result = run(db, user, day, text, client=None)
+    assert result.fallback
+    schedule = result.final["schedule"]
+    assert len(schedule) == 1
+    assert schedule[0]["time"] == "20:00"
+
+
+def test_feedback_split_keeps_requested_count(ready) -> None:
+    """最后一条只说"分三次"时，用次数拆，而不是沿用旧的两个时间。"""
+    db, user, day = ready
+    text = (
+        "帮我规划今天；分成两次训练：早上7:30-8:10、晚上18:30-19:10\n"
+        "修改意见：还是分三次吧"
+    )
+    result = run(db, user, day, text, client=None)
+    schedule = result.final["schedule"]
+    assert [item["time"] for item in schedule] == ["07:30-08:10", "12:30", "18:30-19:10"]
+
+
+def test_meal_times_are_not_training_slots(ready) -> None:
+    """早餐 7 点、午餐 12 点只是吃饭时间，不能把训练也拆到 7 点和 12 点。"""
+    db, user, day = ready
+    result = run(
+        db, user, day,
+        "帮我规划今天；早餐7点、午餐12点、晚餐18点",
+        client=None,
+    )
+    schedule = result.final["schedule"]
+    assert len(schedule) == 1
+    assert schedule[0]["time"] == "18:30"
+
+
+def test_session_cap_shortens_each_slot(ready) -> None:
+    db, user, day = ready
+    text = (
+        "帮我规划今天；分成两次训练：早上7:30-8:10、晚上18:30-19:10\n"
+        "修改意见：每次训练控制在30分钟"
+    )
+    result = run(db, user, day, text, client=None)
+    schedule = result.final["schedule"]
+    assert len(schedule) == 2
+    minutes = [int(item["activity"].split("约 ")[1].split(" 分钟")[0]) for item in schedule]
+    assert all(value <= 30 for value in minutes)
+
+
+def test_session_cap_actually_shortens_a_long_slot() -> None:
+    from app.agent.today_agent import _schedule_for
+
+    schedule = _schedule_for(
+        "每次训练控制在30分钟",
+        [{"name": "力量训练", "duration_min": 55}],
+    )
+    assert "约 30 分钟" in schedule[0]["activity"]
+
+
+def test_model_schedule_is_overridden_by_explicit_split(ready) -> None:
+    """假模型固定只写 18:30，但用户明确要分两次：跑完必须还是两个时段。"""
+    db, user, day = ready
+    client = FakeClient([
+        ("get_today_plan", {}),
+        ("search_knowledge", {"query": "训练前热身"}),
+        ("search_food_options", {"meal_slot": "lunch"}),
+        ("search_food_options", {"meal_slot": "dinner"}),
+        ("search_food_options", {"meal_slot": "breakfast"}),
+    ])
+    result = run(
+        db, user, day,
+        "分成两次训练：早上7:30-8:10、晚上18:30-19:10",
+        client=client,
+    )
+    # FakeClient 的最终 JSON 只有一条 18:30；这里验证代码覆盖了它
+    assert len(result.final["schedule"]) == 2
+    assert result.final["schedule"][0]["time"] == "07:30-08:10"
+    assert result.final["schedule"][1]["time"] == "18:30-19:10"
+
+
 def test_no_model_uses_deterministic_tools(ready) -> None:
     db, user, day = ready
     result = run(db, user, day, "帮我规划今天", client=None)

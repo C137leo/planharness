@@ -172,6 +172,12 @@ const MEAL_TITLES: Record<string, string> = {
 }
 
 const AGENT_PRESETS = ['帮我规划今天', '今天想休息', '午餐换清淡一点', '膝盖不舒服，别安排深蹲']
+const AGENT_FEEDBACK_PRESETS = [
+  '分成两次训练：早上7:30-8:10、晚上18:30-19:10',
+  '训练改到晚上20:00',
+  '每次训练控制在30分钟',
+]
+const agentFeedback = ref('')
 const selectedMeals = ref<Record<string, string>>({})
 const applying = ref(false)
 
@@ -261,6 +267,28 @@ function openAgent(text = '') {
   agentOpen.value = true
 }
 
+/** 轮询一次 run，直到模型/降级流程结束；runAgent 和 feedback 共用。 */
+async function followRun(runId: string) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 800))
+    const run = await api.getRun(runId)
+    agentTrace.value = (run.trace || []).map((item) => ({
+      node: item.node,
+      status: item.status,
+      detail: item.detail as Record<string, unknown> | undefined,
+    }))
+    if (run.status !== 'running') {
+      if (run.status === 'failed') {
+        agentError.value = '规划失败，请重试'
+      } else {
+        agentResult.value = run.output as unknown as TodayAgentResult
+        await loadSavedPlan()
+      }
+      break
+    }
+  }
+}
+
 async function runAgent() {
   if (agentBusy.value || !agentText.value.trim()) return
   agentBusy.value = true
@@ -268,32 +296,37 @@ async function runAgent() {
   agentResult.value = null
   agentTrace.value = []
   agentTraceOpen.value = false
+  agentFeedback.value = ''
   startTraceTimer()
   try {
     const started = await api.startTodayPlan(agentText.value.trim(), undefined, getStoredMcdToken())
     agentRunId.value = started.run_id
-    // 800ms 一轮：后端每完成一步就写库，前端就能"边跑边看"
-    for (let attempt = 0; attempt < 40; attempt += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 800))
-      const run = await api.getRun(started.run_id)
-      agentTrace.value = (run.trace || []).map((item) => ({
-        node: item.node,
-        status: item.status,
-        detail: item.detail as Record<string, unknown> | undefined,
-      }))
-      if (run.status !== 'running') {
-        if (run.status === 'failed') {
-          agentError.value = '规划失败，请重试'
-        } else {
-          agentResult.value = run.output as unknown as TodayAgentResult
-          // 后端已经按天存好了，前端同步一下"已保存"状态
-          await loadSavedPlan()
-        }
-        break
-      }
-    }
+    await followRun(started.run_id)
   } catch (err) {
     agentError.value = err instanceof Error ? err.message : '规划失败'
+  } finally {
+    stopTraceTimer()
+    agentBusy.value = false
+  }
+}
+
+/** 对刚生成的今日计划提意见：分几次、几点到几点；后端会带上上一轮原话重规划。 */
+async function refineAgent() {
+  if (agentBusy.value || !agentFeedback.value.trim() || !agentRunId.value) return
+  const feedback = agentFeedback.value.trim()
+  agentBusy.value = true
+  agentError.value = ''
+  agentResult.value = null
+  agentTrace.value = []
+  agentTraceOpen.value = false
+  agentFeedback.value = ''
+  startTraceTimer()
+  try {
+    const started = await api.feedbackTodayPlan(agentRunId.value, feedback, getStoredMcdToken())
+    agentRunId.value = started.run_id
+    await followRun(started.run_id)
+  } catch (err) {
+    agentError.value = err instanceof Error ? err.message : '调整失败'
   } finally {
     stopTraceTimer()
     agentBusy.value = false
@@ -991,6 +1024,34 @@ onShow(() => {
             <view v-for="item in agentResult.citations" :key="item.id" class="list-row">
               <text class="list-meta">{{ item.title }}</text>
               <text class="link" @click="openAgentLink(item.source_url)">来源 →</text>
+            </view>
+          </view>
+
+          <view v-if="agentRunId" class="agent-card feedback-card">
+            <view class="section-title">不满意？再调一下</view>
+            <view class="muted" style="margin: 6px 0 8px">
+              比如「分成两次训练」「早上7:30到8:10」「晚上20:00练」；会带着这次结果重新排，不会重来一遍。
+            </view>
+            <textarea
+              v-model="agentFeedback"
+              class="input"
+              maxlength="200"
+              placeholder="例如：分成两次训练，早上7:30和晚上18:30"
+            />
+            <view class="chip-scroll">
+              <view
+                v-for="item in AGENT_FEEDBACK_PRESETS"
+                :key="item"
+                class="pill"
+                @click="agentFeedback = item"
+              >
+                {{ item }}
+              </view>
+            </view>
+            <view class="btn-row">
+              <view class="btn-sm primary" @click="refineAgent">
+                {{ agentBusy ? '调整中…' : '按这个再规划' }}
+              </view>
             </view>
           </view>
 
