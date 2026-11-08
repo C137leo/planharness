@@ -551,7 +551,8 @@ class AuditEvent(Base):
     __table_args__ = (UniqueConstraint("stream_id", "seq", name="uq_audit_seq"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
-    stream_id: Mapped[str] = mapped_column(String(36), index=True)
+    # plan_id 是 36；用户级审计流是 "user:<36>"，所以不能只留 36。
+    stream_id: Mapped[str] = mapped_column(String(64), index=True)
     seq: Mapped[int] = mapped_column(Integer)
     # actor_type: user / agent / system
     actor_type: Mapped[str] = mapped_column(String(16), default="agent")

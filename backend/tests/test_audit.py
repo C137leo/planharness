@@ -160,6 +160,18 @@ def test_audit_stream_of_other_user_is_404(client: TestClient, auth_headers) -> 
     assert client.get(f"/api/v1/audit/{plan_id}", headers=other_headers).status_code == 404
     assert client.get(f"/api/v1/audit/{plan_id}/verify", headers=other_headers).status_code == 404
 
+def test_audit_stream_id_can_hold_user_prefix() -> None:
+    """用户级审计流是 user:<36>，列宽不能只按 plan_id 的 36 设计。
+
+    SQLite 不校验 VARCHAR 长度，所以这个 bug 只在 Postgres 上炸；
+    这里直接校验模型列宽，避免再次部署才暴露。
+    """
+    from app.models import AuditEvent
+
+    width = AuditEvent.__table__.c.stream_id.type.length
+    assert width is not None and width >= len("user:") + 36
+
+
 def test_verify_returns_head_and_signature(client: TestClient, auth_headers) -> None:
     """链头 + 签名：把这三个值抄到库外，就能发现"整链重写/尾部截断"。"""
     from app.audit import sign_head
