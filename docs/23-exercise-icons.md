@@ -15,6 +15,7 @@
 - 6 张身体部位图（legs / hip / chest / back / core / stretch）；
 - 7 张具体动作图（`pull-up` / `dead-bug` / `dumbbell-bench-press` / `deadlift` /
   `walking-lunge` / `leg-press` / `seated-row`），放在 `frontend/src/static/ex/`；
+  原始大图留在 `docs/assets/exercise-sources/`（本地留档，不进仓库/镜像）；
 - 先按 `action_ref`（精确或动作模式）命中具体动作图，命中不了再退回
   `meta.movement_mode` / `meta.primary_muscle` 对应的部位图。
 

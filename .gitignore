@@ -18,3 +18,6 @@ backend/data/rag/sr_legacy.json
 backend/data/rag/foods_raw.json
 backend/data/rag/foundation_food.zip
 backend/data/rag/foundation_food_raw.json
+
+# 动作图原始 PNG：本地留档，不进仓库/镜像；运行时用 frontend/src/static/ex/*.jpg
+docs/assets/exercise-sources/*.png
