@@ -55,7 +55,10 @@ class SkillBridge:
 
     def __init__(self, skill_dir: str | None = None, node: str | None = None,
                  timeout: float | None = None) -> None:
-        self.skill_dir = skill_dir or os.environ.get("SKILL_DIR") or DEFAULT_SKILL_DIR
+        raw_dir = skill_dir or os.environ.get("SKILL_DIR") or DEFAULT_SKILL_DIR
+        # 相对路径要相对当前工作目录解析；否则 runner 子进程 cwd 变了会找不到，
+        # 进而回退到 runner 里写死的开发机路径（线上就是 skill_not_found）。
+        self.skill_dir = str(Path(raw_dir).expanduser().resolve())
         self.node = node if node is not None else _resolve_node()
         self.timeout = timeout or float(os.environ.get("SKILL_TIMEOUT", "20"))
         self._cache: dict[str, Any] = {}

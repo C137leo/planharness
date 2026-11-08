@@ -1,0 +1,11 @@
+output/
+tmp/
+fitness-reports/
+local-tests/
+node_modules/
+__pycache__/
+coverage/
+.env
+.env.*
+!.env.example
+.DS_Store

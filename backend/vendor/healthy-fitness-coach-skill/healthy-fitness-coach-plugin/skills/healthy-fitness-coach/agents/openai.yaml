@@ -1,0 +1,4 @@
+interface:
+  display_name: "健康健身教练"
+  short_description: "安全训练计划、今日训练、复盘、训记、训练DNA与分享输出"
+  default_prompt: "直接说你的计划、今日训练、复盘、训记、训练DNA或分享需求，$healthy-fitness-coach 会先做安全门和信息充分度判断，再进入合适的训练场景。"

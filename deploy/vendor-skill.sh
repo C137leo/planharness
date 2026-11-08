@@ -24,7 +24,7 @@ fi
 
 echo "skill 源：$SRC"
 rm -rf "$DEST"
-mkdir -p "$(dirname "$DEST")"
+mkdir -p "$DEST"
 # 排除 .git / node_modules / 大图片缓存，保留运行需要的 JS 与资源
 tar -C "$SRC" \
   --exclude='.git' --exclude='node_modules' --exclude='.venv' \
