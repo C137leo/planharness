@@ -8,6 +8,20 @@
 > skill 的动作目录有 300+ 个动作，但自动生成只用到下面这些。
 > 只有当用户在「改计划」里点名（例如「把深蹲换成泽奇深蹲」）时，才会用到目录里的其它动作。
 
+## 实际前端缩略图（先看这一节）
+
+页面里的缩略图不是"每个动作一张 icon"，而是 `frontend/src/styles/thumbs.ts`：
+
+- 6 张身体部位图（legs / hip / chest / back / core / stretch）；
+- 7 张具体动作图（`pull-up` / `dead-bug` / `dumbbell-bench-press` / `deadlift` /
+  `walking-lunge` / `leg-press` / `seated-row`），放在 `frontend/src/static/ex/`；
+- 先按 `action_ref` 命中具体动作图，命中不了再退回 `meta.movement_mode` /
+  `meta.primary_muscle` 对应的部位图。
+
+具体动作图只配给动作一致的 ref：`seated-row` 用坐姿划船图，
+`row`（哑铃划船）仍走背部图；`leg-press` 是腿举机，不配给 `hanging-leg-raise`
+（举腿是另一个动作）。新增图片时先看动作模式，不要只按中文名硬配。
+
 | # | 动作 | 系统 ref | 器械 | 主肌群 | 出现场景 | 图标文件 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | 上斜杠铃卧推 | `incline-bench-press` | Barbell | Chest | 动作轮换 | `icon-incline-bench-press.png` |

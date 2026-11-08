@@ -1,12 +1,26 @@
 /**
- * 动作缩略图：按身体部位映射到一张插画。
+ * 动作缩略图：优先用具体动作图，其次退回身体部位插画。
  *
- * 我们用 6 张部位图覆盖全部 40 个动作（腿部/臀部/胸部/背部/核心/拉伸），
- * 比给每个动作配一张图便宜得多，也比 emoji 更统一。
- * 映射顺序：先看 meta.movement_mode，再看 meta.primary_muscle，最后按 ref 兜底。
+ * 当前有 6 张部位图 + 7 张动作图（引体/死虫/哑铃卧推/硬拉/行走弓步/腿举/坐姿划船）。
+ * 具体动作图只配给动作模式真正一致的动作：例如 `seated-row` 用坐姿划船图，
+ * `row`（哑铃划船）仍走背部部位图，避免把器械图配错。
+ * 映射顺序：先按 action_ref，再看 meta.movement_mode，最后看 meta.primary_muscle。
  */
 
-export type ThumbKey = 'legs' | 'hip' | 'chest' | 'back' | 'core' | 'stretch'
+export type ThumbKey =
+  | 'legs'
+  | 'hip'
+  | 'chest'
+  | 'back'
+  | 'core'
+  | 'stretch'
+  | 'pullUp'
+  | 'deadBug'
+  | 'dumbbellBenchPress'
+  | 'deadlift'
+  | 'walkingLunge'
+  | 'legPress'
+  | 'seatedRow'
 
 export const THUMBS: Record<ThumbKey, string> = {
   legs: '/static/ex/legs.jpg',
@@ -15,6 +29,13 @@ export const THUMBS: Record<ThumbKey, string> = {
   back: '/static/ex/back.jpg',
   core: '/static/ex/core.jpg',
   stretch: '/static/ex/stretch.jpg',
+  pullUp: '/static/ex/pull-up.jpg',
+  deadBug: '/static/ex/dead-bug.jpg',
+  dumbbellBenchPress: '/static/ex/dumbbell-bench-press.jpg',
+  deadlift: '/static/ex/deadlift.jpg',
+  walkingLunge: '/static/ex/walking-lunge.jpg',
+  legPress: '/static/ex/leg-press.jpg',
+  seatedRow: '/static/ex/seated-row.jpg',
 }
 
 const MODE_TO_THUMB: Record<string, ThumbKey> = {
@@ -43,8 +64,29 @@ const MUSCLE_TO_THUMB: Record<string, ThumbKey> = {
   mobility: 'stretch',
 }
 
-// 模板计划（没有 meta）用 ref 兜底
+// 模板计划（没有 meta）用 ref 兜底。
+// 这里放的是"动作图能对得上"的 ref；对不上的仍走部位图，别硬配。
 const REF_TO_THUMB: Record<string, ThumbKey> = {
+  'pull-up': 'pullUp',
+  pull_up: 'pullUp',
+  pullup: 'pullUp',
+  'dead-bug': 'deadBug',
+  dead_bug: 'deadBug',
+  'dumbbell-bench-press': 'dumbbellBenchPress',
+  dumbbell_bench_press: 'dumbbellBenchPress',
+  deadlift: 'deadlift',
+  'walking-lunge': 'walkingLunge',
+  walking_lunge: 'walkingLunge',
+  lunge: 'walkingLunge',
+  'forward-lunge': 'walkingLunge',
+  'barbell-lunge': 'walkingLunge',
+  'dumbbell-lunges': 'walkingLunge',
+  'leg-press': 'legPress',
+  leg_press: 'legPress',
+  'seated-row': 'seatedRow',
+  seated_row: 'seatedRow',
+  'seated-cable-row': 'seatedRow',
+  'cable-row': 'seatedRow',
   squat: 'legs',
   goblet_squat: 'legs',
   bodyweight_squat: 'legs',
