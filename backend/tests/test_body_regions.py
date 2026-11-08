@@ -162,7 +162,7 @@ def test_explicit_exclusions_are_parsed_and_enforced() -> None:
     """
     from app.domain.planner import plan_operations
 
-    text = "我腿不舒服，想换个部位练习；俯卧撑和划船都会用到腿，不合适"
+    text = "腿不舒服,想换点动作；俯卧撑和划船还是会用到腿,再改一下"
     intent = parse_intent(text)
     assert intent.kind == "injury_swap"
     assert intent.body_parts == ["legs"]

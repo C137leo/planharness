@@ -68,7 +68,7 @@ def test_second_feedback_exclusions_are_applied(client, auth_headers) -> None:
     resp = client.post(
         f"{API}/patch-requests/{first['request_id']}/feedback",
         headers=auth_headers,
-        json={"text": "俯卧撑和划船都会用到腿，不合适，重新生成一下"},
+        json={"text": "俯卧撑和划船还是会用到腿，再改一下"},
     )
     assert resp.status_code == 200, resp.text
     data = resp.json()["data"]
