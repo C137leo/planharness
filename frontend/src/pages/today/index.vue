@@ -173,9 +173,9 @@ const MEAL_TITLES: Record<string, string> = {
 
 const AGENT_PRESETS = ['帮我规划今天', '今天想休息', '午餐换清淡一点', '膝盖不舒服，别安排深蹲']
 const AGENT_FEEDBACK_PRESETS = [
-  '分成两次训练：早上7:30-8:10、晚上18:30-19:10',
-  '训练改到晚上20:00',
-  '每次训练控制在30分钟',
+  { label: '分成两次', text: '分成两次训练' },
+  { label: '晚上20:00', text: '训练改到晚上20:00' },
+  { label: '每次30分钟', text: '每次训练控制在30分钟' },
 ]
 const agentFeedback = ref('')
 const selectedMeals = ref<Record<string, string>>({})
@@ -210,7 +210,6 @@ async function applySelections() {
   try {
     const result = await api.applyAgentMeals(agentRunId.value, selections, todayStr())
     uni.showToast({ title: `已替换今日餐食（v${result.new_version}）`, icon: 'none' })
-    selectedMeals.value = {}
     await load()
   } catch (err) {
     uni.showToast({ title: err instanceof Error ? err.message : '保存失败', icon: 'none' })
@@ -232,7 +231,9 @@ async function loadSavedPlan() {
 async function viewSavedPlan() {
   if (!savedPlan.value) return
   agentResult.value = savedPlan.value.output
-  agentRunId.value = savedPlan.value.run_id || ''
+  const nextRunId = savedPlan.value.run_id || ''
+  if (agentRunId.value !== nextRunId) selectedMeals.value = {}
+  agentRunId.value = nextRunId
   agentTrace.value = []
   agentElapsed.value = 0
   agentOpen.value = true
@@ -297,6 +298,7 @@ async function runAgent() {
   agentTrace.value = []
   agentTraceOpen.value = false
   agentFeedback.value = ''
+  selectedMeals.value = {}
   startTraceTimer()
   try {
     const started = await api.startTodayPlan(agentText.value.trim(), undefined, getStoredMcdToken())
@@ -319,6 +321,7 @@ async function refineAgent() {
   agentResult.value = null
   agentTrace.value = []
   agentTraceOpen.value = false
+  selectedMeals.value = {}
   startTraceTimer()
   try {
     const started = await api.feedbackTodayPlan(agentRunId.value, feedback, getStoredMcdToken())
@@ -897,6 +900,42 @@ onShow(() => {
                 </view>
               </view>
             </view>
+
+            <view v-if="agentRunId" class="schedule-adjust">
+              <view class="adjust-head">
+                <text class="adjust-title">调整今日安排</text>
+                <text class="adjust-sub">改时间，其他不重来</text>
+              </view>
+              <view class="adjust-presets">
+                <view
+                  v-for="preset in AGENT_FEEDBACK_PRESETS"
+                  :key="preset.label"
+                  class="adjust-chip"
+                  :class="{ active: agentFeedback === preset.text }"
+                  @click="agentFeedback = preset.text"
+                >
+                  {{ preset.label }}
+                </view>
+              </view>
+              <input
+                v-model="agentFeedback"
+                class="input adjust-input"
+                maxlength="200"
+                placeholder="例如：分成两次，早上7:30和晚上18:30"
+                confirm-type="done"
+                @confirm="refineAgent"
+              />
+              <view class="adjust-actions">
+                <text class="adjust-note">会带着上一轮要求重排</text>
+                <view
+                  class="btn-sm primary adjust-submit"
+                  :class="{ disabled: !agentFeedback.trim() || agentBusy }"
+                  @click="refineAgent"
+                >
+                  {{ agentBusy ? '调整中…' : '按这个再规划' }}
+                </view>
+              </view>
+            </view>
           </view>
 
           <view v-for="meal in agentResult.meals" :key="meal.slot" class="agent-meal">
@@ -911,8 +950,11 @@ onShow(() => {
               :class="{ chosen: selectedMeals[meal.slot] === option.title }"
               @click="toggleMeal(meal.slot, option.title)"
             >
-              <view class="row">
-                <text class="list-title">{{ option.title }}</text>
+              <view class="row food-head">
+                <view class="food-title-wrap">
+                  <text class="list-title">{{ option.title }}</text>
+                  <text v-if="selectedMeals[meal.slot] === option.title" class="food-picked">已选</text>
+                </view>
                 <text class="list-value">{{ option.kcal }} kcal</text>
               </view>
               <text class="list-meta">蛋白 {{ option.protein_g }}g · {{ option.reason }}</text>
@@ -921,7 +963,7 @@ onShow(() => {
                   v-for="link in agentLinks(option.links)"
                   :key="link.label"
                   class="btn-sm"
-                  @click="openAgentLink(link.url)"
+                  @click.stop="openAgentLink(link.url)"
                 >
                   {{ link.label }}
                 </view>
@@ -1027,34 +1069,6 @@ onShow(() => {
             </view>
           </view>
 
-          <view v-if="agentRunId" class="agent-card feedback-card">
-            <view class="section-title">不满意？再调一下</view>
-            <view class="muted" style="margin: 6px 0 8px">
-              比如「分成两次训练」「早上7:30到8:10」「晚上20:00练」；会带着上一轮的要求重新排，不用从零再说一遍。
-            </view>
-            <textarea
-              v-model="agentFeedback"
-              class="input"
-              maxlength="200"
-              placeholder="例如：分成两次训练，早上7:30和晚上18:30"
-            />
-            <view class="chip-scroll">
-              <view
-                v-for="item in AGENT_FEEDBACK_PRESETS"
-                :key="item"
-                class="pill"
-                @click="agentFeedback = item"
-              >
-                {{ item }}
-              </view>
-            </view>
-            <view class="btn-row">
-              <view class="btn-sm primary" @click="refineAgent">
-                {{ agentBusy ? '调整中…' : '按这个再规划' }}
-              </view>
-            </view>
-          </view>
-
           <view class="muted" style="margin-top: 12px">{{ agentResult.disclaimer }}</view>
           <view class="btn-row">
             <view class="btn-sm primary" @click="applySelections">
@@ -1150,8 +1164,104 @@ onShow(() => {
   padding: 10px 12px;
 }
 .food-card.chosen {
-  background: var(--primary-soft);
+  background: #fff4ec;
   box-shadow: inset 0 0 0 2px var(--primary);
+}
+.food-card.chosen .list-title {
+  color: var(--primary-deep);
+}
+.food-head {
+  align-items: flex-start;
+}
+.food-title-wrap {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+.food-picked {
+  background: var(--primary);
+  border-radius: 999px;
+  color: #ffffff;
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin-top: 2px;
+  padding: 2px 8px;
+}
+
+/* 今日安排里的调整入口：贴着时间轴，不再单独占一张大卡片 */
+.schedule-adjust {
+  border-top: 1px dashed var(--line);
+  margin-top: 10px;
+  padding-top: 12px;
+}
+.adjust-head {
+  align-items: baseline;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+.adjust-title {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+.adjust-sub {
+  color: var(--muted);
+  font-size: 11px;
+}
+.adjust-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+.adjust-chip {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  box-sizing: border-box;
+  color: var(--ink-soft);
+  flex: 1 1 calc(33.333% - 4px);
+  font-size: 12px;
+  line-height: 1.2;
+  min-width: 78px;
+  padding: 8px 6px;
+  text-align: center;
+}
+.adjust-chip.active {
+  background: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-deep);
+  font-weight: 600;
+}
+.adjust-input.input {
+  box-sizing: border-box;
+  font-size: 13px;
+  height: 42px;
+  margin-top: 8px;
+}
+.adjust-actions {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.adjust-note {
+  color: var(--muted);
+  flex: 1 1 auto;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.adjust-submit {
+  flex: 0 0 auto;
+}
+.adjust-submit.disabled {
+  opacity: 0.45;
 }
 /* ---- 执行过程：让"思考中"变成看得见的步骤 ---- */
 .trace-card {
@@ -1330,16 +1440,17 @@ onShow(() => {
 .tl-rail {
   align-items: center;
   display: flex;
-  flex: 0 0 44px;
+  flex: 0 0 68px;
   flex-direction: column;
-  width: 44px;
+  width: 68px;
 }
 
 .tl-time {
   color: var(--primary-deep);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .tl-dot {
