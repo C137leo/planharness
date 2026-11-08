@@ -35,6 +35,9 @@ const request = ref<PatchRequest | null>(null)
 const feedback = ref('')
 const confirming = ref(false)
 const selectedParts = ref<string[]>([])
+// 区分"标签带出来的提示"和"用户自己写的"：前者可被下一个标签替换，后者不能覆盖。
+const textFromPreset = ref(false)
+const textFromPart = ref(false)
 const presets = ref<Array<{ key: string; label: string; example: string; hint: string }>>([])
 
 const draft = computed(() => request.value?.draft || null)
@@ -61,6 +64,9 @@ watch(
     if (!presets.value.length) loadPresets()
     text.value = props.presetText || ''
     quickAction.value = props.presetQuick || ''
+    // 今日页带过来的文案是提示，不是用户输入；允许下一个标签替换。
+    textFromPreset.value = !!props.presetText
+    textFromPart.value = false
     request.value = null
     feedback.value = ''
     error.value = ''
@@ -86,27 +92,49 @@ const BODY_PARTS: Array<{ key: string; text: string }> = [
 ]
 
 function pickBodyPart(part: { key: string; text: string }) {
+  error.value = ''
   // "先停练"是用户已经点过的模式，选部位只补信息，不要把它改成"换部位"。
   if (quickAction.value !== 'injury_stop') quickAction.value = 'injury_swap'
   if (!selectedParts.value.includes(part.key)) selectedParts.value.push(part.key)
   const phrase = quickAction.value === 'injury_stop'
     ? `${part.key}受伤了，先停止训练`
     : part.text
-  if (!text.value.trim()) {
+  // 空输入，或当前只是标签提示：直接换成这个部位的提示。
+  if (!text.value.trim() || textFromPreset.value) {
     text.value = phrase
+    textFromPreset.value = true
+    textFromPart.value = true
     return
   }
-  // 用户已经写了内容：保留原文，只补一个部位短语；重复点同一个部位不重复追加。
+  // 用户自己写了内容：保留原文，只补一个部位短语；重复点同一个部位不重复追加。
   if (!text.value.includes(part.key)) {
     text.value = text.value.trim().replace(/[；;，,]\s*$/, '') + '；' + phrase
   }
 }
 
 function pickQuick(key: string, sample: string) {
+  error.value = ''
   quickAction.value = key
-  // 用户已经写了内容就以用户为准；只有空输入时才用预设示例。
-  // 受伤类预设现在 example 为空，故意不替用户填"膝盖"这种具体部位。
-  if (!text.value.trim() && sample.trim()) text.value = sample
+  // 空输入，或当前只是上一个标签的提示：切换成新标签的提示。
+  // 用户自己改过内容后，标签只切模式，不再覆盖正文。
+  if (!text.value.trim() || textFromPreset.value) {
+    // 受伤类预设的 example 为空：清掉旧提示，让用户自己填部位；
+    // 但如果当前提示是"点部位"带出来的，保留部位，不要清掉。
+    if (!sample.trim() && textFromPart.value) {
+      textFromPreset.value = true
+      return
+    }
+    text.value = sample
+    textFromPreset.value = !!sample.trim()
+    textFromPart.value = false
+  }
+}
+
+function onTextInput() {
+  // 用户手动改过：从此标签不能再覆盖正文。
+  textFromPreset.value = false
+  textFromPart.value = false
+  if (error.value) error.value = ''
 }
 
 /** 服务端预设 → 界面上的同一套卡片；没有服务端数据时退回内置 quick actions。 */
@@ -117,7 +145,13 @@ const quickActions = computed(() =>
 )
 
 async function submit() {
-  if (busy.value || !text.value.trim()) return
+  if (busy.value) return
+  if (!text.value.trim()) {
+    error.value = ['injury_stop', 'injury_swap'].includes(quickAction.value)
+      ? '请先填写哪里不舒服，或点下面的部位'
+      : '先说说你想怎么改'
+    return
+  }
   busy.value = true
   error.value = ''
   try {
@@ -231,6 +265,7 @@ function describeError(err: unknown): string {
           class="input"
           maxlength="200"
           placeholder="例如：腰不舒服，想练练上肢"
+          @input="onTextInput"
         />
 
         <view v-if="error" class="error" style="margin-top: 12px">{{ error }}</view>
