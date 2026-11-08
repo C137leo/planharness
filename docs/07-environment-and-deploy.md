@@ -77,7 +77,7 @@ nano /etc/planharness/deepseek.key
 # /etc/planharness/planharness.env
 DEEPSEEK_API_KEY_FILE=/etc/planharness/deepseek.key
 DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
-DEEPSEEK_MODEL=deepseek-chat
+DEEPSEEK_MODEL=deepseek-flash
 DEEPSEEK_TIMEOUT_S=30
 ```
 
