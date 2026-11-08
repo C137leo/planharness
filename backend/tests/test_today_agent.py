@@ -319,6 +319,16 @@ def test_model_duration_is_capped_by_feedback(ready) -> None:
     assert all(value <= 30 for value in minutes)
 
 
+def test_latest_duration_cap_wins() -> None:
+    from app.agent.today_agent import _schedule_for
+
+    schedule = _schedule_for(
+        "每次训练控制在30分钟\n修改意见：每次训练控制在40分钟",
+        [{"name": "力量", "duration_min": 55}],
+    )
+    assert "约 40 分钟" in schedule[0]["activity"]
+
+
 def test_no_model_uses_deterministic_tools(ready) -> None:
     db, user, day = ready
     result = run(db, user, day, "帮我规划今天", client=None)

@@ -461,15 +461,19 @@ def _split_count(text: str, times: list[str]) -> int:
 
 
 def _session_cap_minutes(text: str) -> int | None:
-    """识别"每次训练控制在30分钟"；只缩短，不把一次训练拉长。"""
+    """识别"每次训练控制在30分钟"；只缩短，不把一次训练拉长。
+
+    有修改意见时以最后一条为准，避免旧的 30 分钟压住新的 40 分钟。
+    """
     import re
 
-    match = re.search(
-        r"(?:每次|单次|每个时段)[^。；;\n]{0,8}?(\d{1,3})\s*分钟", text or "")
-    if not match:
-        return None
-    value = int(match.group(1))
-    return value if 10 <= value <= 180 else None
+    pattern = r"(?:每次|单次|每个时段)[^。；;\n]{0,8}?(\d{1,3})\s*分钟"
+    for raw in (_latest_instruction(text), text or ""):
+        match = re.search(pattern, raw)
+        if match:
+            value = int(match.group(1))
+            return value if 10 <= value <= 180 else None
+    return None
 
 
 def _schedule_for(text: str, actions: list[dict]) -> list[dict]:

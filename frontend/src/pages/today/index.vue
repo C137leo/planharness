@@ -319,10 +319,10 @@ async function refineAgent() {
   agentResult.value = null
   agentTrace.value = []
   agentTraceOpen.value = false
-  agentFeedback.value = ''
   startTraceTimer()
   try {
     const started = await api.feedbackTodayPlan(agentRunId.value, feedback, getStoredMcdToken())
+    agentFeedback.value = ''
     agentRunId.value = started.run_id
     await followRun(started.run_id)
   } catch (err) {
@@ -1030,7 +1030,7 @@ onShow(() => {
           <view v-if="agentRunId" class="agent-card feedback-card">
             <view class="section-title">不满意？再调一下</view>
             <view class="muted" style="margin: 6px 0 8px">
-              比如「分成两次训练」「早上7:30到8:10」「晚上20:00练」；会带着这次结果重新排，不会重来一遍。
+              比如「分成两次训练」「早上7:30到8:10」「晚上20:00练」；会带着上一轮的要求重新排，不用从零再说一遍。
             </view>
             <textarea
               v-model="agentFeedback"
