@@ -41,6 +41,49 @@ def test_rest_draft_does_not_touch_plan(client, auth_headers) -> None:
     assert after["actions"] == before["actions"]
 
 
+def test_feedback_named_exercises_are_excluded(client, auth_headers) -> None:
+    """第二轮点名"俯卧撑/划船不能用"后，草案里不能再出现它们。"""
+    data = _ask(
+        client, auth_headers,
+        "我腿不舒服，想换个部位练习；俯卧撑和划船都会用到腿，不合适",
+    )
+    assert data["status"] == "ready", data
+    assert data["intent"]["target_body_parts"] == ["upper_body"]
+    assert data["intent"]["excluded_labels"] == ["俯卧撑", "划船"]
+    refs = [
+        (op.get("after_action") or {}).get("action_ref")
+        for op in data["draft"]["operations"] if op["op"] == "replace_action"
+    ]
+    assert refs
+    for ref in refs:
+        assert "row" not in ref
+        assert "push-up" not in ref and "pushup" not in ref
+    assert any("已避开" in risk for risk in data["draft"]["risks"])
+
+
+def test_second_feedback_exclusions_are_applied(client, auth_headers) -> None:
+    """复现截图：第二轮才点名"俯卧撑/划船不能用"，也必须生效。"""
+    first = _ask(client, auth_headers, "我腿不舒服，想换个部位练习")
+    assert first["status"] == "ready", first
+    resp = client.post(
+        f"{API}/patch-requests/{first['request_id']}/feedback",
+        headers=auth_headers,
+        json={"text": "俯卧撑和划船都会用到腿，不合适，重新生成一下"},
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert data["status"] == "ready", data
+    assert data["round"] == 2
+    refs = [
+        (op.get("after_action") or {}).get("action_ref")
+        for op in data["draft"]["operations"] if op["op"] == "replace_action"
+    ]
+    assert refs
+    for ref in refs:
+        assert "row" not in ref
+        assert "push-up" not in ref and "pushup" not in ref
+
+
 def test_injury_swap_respects_day_limit(client, auth_headers) -> None:
     """「膝盖疼，这周只能练两天」既要避开膝盖，也要把训练日压到 2 天。"""
     data = _ask(client, auth_headers, "膝盖疼，这周只能练两天")

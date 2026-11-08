@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from app.domain.planning import MEALS
 from app.domain.safety_rules import (
     detect_regions,
+    is_excluded_ref,
     labels_of,
     name_of as movement_name,
     regions_of,
@@ -43,6 +44,9 @@ class Intent:
     notes: str = ""
     needs_clarification: bool = False
     question: str | None = None
+    # 用户明确点名"不要/不能用"的动作：tokens 用于匹配 ref，labels 用于展示
+    excluded_tokens: list[str] = field(default_factory=list)
+    excluded_labels: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -54,6 +58,8 @@ class Intent:
             "notes": self.notes,
             "needs_clarification": self.needs_clarification,
             "question": self.question,
+            "excluded_tokens": self.excluded_tokens,
+            "excluded_labels": self.excluded_labels,
         }
 
 
@@ -114,6 +120,43 @@ def _find_days(text: str) -> int | None:
     return int(raw) if raw.isdigit() else CN_NUMBERS.get(raw)
 
 
+# 用户点名"不要用"的动作 → ref 关键词。只收常见动作，避免把"不要加量"误伤。
+EXCLUDE_ACTION_TERMS: dict[str, tuple[tuple[str, ...], str]] = {
+    "俯卧撑": (("push-up", "pushup"), "俯卧撑"),
+    "划船": (("row",), "划船"),
+    "深蹲": (("squat",), "深蹲"),
+    "硬拉": (("deadlift",), "硬拉"),
+    "卧推": (("bench-press", "bench_press"), "卧推"),
+    "弓步": (("lunge",), "弓步"),
+    "引体": (("pull-up", "pullup", "chin-up"), "引体"),
+    "平板支撑": (("plank",), "平板支撑"),
+    "臀桥": (("glute-bridge", "glute_bridge"), "臀桥"),
+    "腿举": (("leg-press", "leg_press"), "腿举"),
+    "推举": (("overhead-press", "shoulder-press"), "推举"),
+    "弯举": (("curl",), "弯举"),
+    "侧平举": (("lateral-raise",), "侧平举"),
+    "面拉": (("face-pull",), "面拉"),
+}
+# 只有出现这些否定/排除语义，才把动作名当成"不要用"
+EXCLUDE_HINTS = (
+    "不要", "不能", "不想", "别", "避免", "排除", "去掉", "除了", "不用",
+    "不合适", "不行", "受不了", "还是不能", "不能用",
+)
+
+
+def _find_exclusions(text: str) -> tuple[list[str], list[str]]:
+    raw = text or ""
+    if not any(word in raw for word in EXCLUDE_HINTS):
+        return [], []
+    tokens: list[str] = []
+    labels: list[str] = []
+    for name, (ref_tokens, label) in EXCLUDE_ACTION_TERMS.items():
+        if name in raw:
+            tokens.extend(ref_tokens)
+            labels.append(label)
+    return sorted(set(tokens)), labels
+
+
 def parse_intent(text: str, quick_action: str = "") -> Intent:
     """规则解析。字段与 LLM 契约一致，将来可整体替换。"""
     text = (text or "").strip()
@@ -163,11 +206,14 @@ def parse_intent(text: str, quick_action: str = "") -> Intent:
     ):
         kind = "injury_swap"
 
+    excluded_tokens, excluded_labels = _find_exclusions(text)
     intent = Intent(
         kind=kind,
         body_parts=parts if kind in ("injury_stop", "injury_swap") else [],
         available_days=days,
         notes=text,
+        excluded_tokens=excluded_tokens,
+        excluded_labels=excluded_labels,
     )
 
     # 3) 信息不足就追问，而不是猜
@@ -187,7 +233,7 @@ def parse_intent(text: str, quick_action: str = "") -> Intent:
         elif not intent.target_body_parts:
             if any(w in text for w in ("上肢", "上半身", "胸", "背", "手臂")):
                 intent.target_body_parts = ["upper_body"]
-            elif any(w in text for w in ("下肢", "下半身", "腿")):
+            elif any(w in text for w in ("下肢", "下半身", "练腿", "腿部训练")):
                 intent.target_body_parts = ["lower_body"]
             else:
                 intent.target_body_parts = ["upper_body"]
@@ -208,9 +254,10 @@ def _action_body_parts(ref: str) -> list[str]:
     return EXERCISE_BODY_PARTS.get(ref) or sorted(regions_of(ref))
 
 
-def _pick_safe_replacement(item: dict, injured: set[str], used: set[str]) -> str | None:
+def _pick_safe_replacement(item: dict, injured: set[str], used: set[str],
+                           exclude: set[str] | list[str] | None = None) -> str | None:
     """挑一个不涉及受伤部位、且没被用过的替代动作（通用规则表给候选）。"""
-    return safe_replacement(item["action_ref"], injured, used)
+    return safe_replacement(item["action_ref"], injured, used, exclude=exclude)
 
 
 def plan_operations(intent: Intent, actions: list[dict]) -> tuple[list[dict], list[str]]:
@@ -268,10 +315,14 @@ def plan_operations(intent: Intent, actions: list[dict]) -> tuple[list[dict], li
             return [], ["需要知道受伤部位才能避开它"]
         for item in exercises:
             parts = set(_action_body_parts(item["action_ref"]))
-            # 除了"涉及受伤部位"，还要看整条链：上肢不适就不排上肢动作（哪怕练的是别的关节）
-            if not (parts & injured) and not side_conflict(item["action_ref"], injured):
+            excluded = is_excluded_ref(item["action_ref"], intent.excluded_tokens)
+            # 除了"涉及受伤部位"，还要看整条链和用户点名排除的动作：
+            # 用户说"俯卧撑/划船不能用"时，即使它们不涉及受伤部位，也要换掉。
+            if (not excluded
+                    and not (parts & injured)
+                    and not side_conflict(item["action_ref"], injured)):
                 continue
-            replacement = _pick_safe_replacement(item, injured, used_refs)
+            replacement = _pick_safe_replacement(item, injured, used_refs, intent.excluded_tokens)
             if replacement is None:
                 # 连反向肢体/核心/拉伸都没有 → 这个槽位直接删掉（静养）
                 operations.append({
@@ -444,7 +495,10 @@ def cover_injured_slots(intent: Intent, base: list[dict],
         if item["action_type"] != "exercise" or item["slot_key"] in touched:
             continue
         parts = set(_action_body_parts(item["action_ref"]))
-        if not (parts & injured) and not side_conflict(item["action_ref"], injured):
+        excluded = is_excluded_ref(item["action_ref"], intent.excluded_tokens)
+        if (not excluded
+                and not (parts & injured)
+                and not side_conflict(item["action_ref"], injured)):
             continue
         if intent.kind == "injury_stop":
             extra.append({
@@ -454,7 +508,7 @@ def cover_injured_slots(intent: Intent, base: list[dict],
                 "reason": f"{labels_of(intent.body_parts)}不适，补删这个仍涉及该部位的动作",
             })
             continue
-        replacement = _pick_safe_replacement(item, injured, used_refs)
+        replacement = _pick_safe_replacement(item, injured, used_refs, intent.excluded_tokens)
         if replacement is None:
             extra.append({
                 "op": "remove_action",
@@ -503,7 +557,8 @@ def trim_unrelated_ops(intent: Intent, base: list[dict],
         if item is None:
             kept.append(op)
             continue
-        risky = why_risky(item["action_ref"], injured, item.get("meta"))
+        risky = (why_risky(item["action_ref"], injured, item.get("meta"))
+                 or is_excluded_ref(item["action_ref"], intent.excluded_tokens))
         if risky:
             kept.append(op)
         else:
@@ -520,6 +575,9 @@ def violates_constraints(actions: list[dict], intent: Intent) -> list[str]:
         if item["action_type"] != "exercise":
             continue
         ref = item["action_ref"]
+        if is_excluded_ref(ref, intent.excluded_tokens):
+            problems.append(f"你明确说不能用的动作仍在计划里：{movement_name(ref)}（{ref}）")
+            continue
         hit = why_risky(ref, injured, item.get("meta"))
         if hit:
             problems.append(f"{hit}不适却仍安排了 {movement_name(ref)}（{ref}）")

@@ -16,6 +16,7 @@ from app.domain.catalog import is_knee_risky_ref, name_of, refs_for_actions
 from app.domain.exercise_catalog import EXERCISE_CATALOG
 from app.domain.patches import is_knee_risky
 from app.domain.planner import QUICK_ACTIONS, Intent, parse_intent, plan_operations
+from app.domain.safety_rules import is_excluded_ref
 
 MAX_OPERATIONS = 6
 
@@ -29,6 +30,8 @@ CHANGE_CONTRACT = """你是计划修改器。根据用户这句话，输出**具
     不要输出"换成同一个动作"的 replace（那是空操作）。
 3c. 只有真的换动作才用 replace_action，且 after_action_ref 必须与原来的不同。
 4. 受伤时不能换成同一部位的动作；可用天数减少时必须删掉多余训练日。
+4b. 用户明确说"不要/不能用"的动作，不能出现在 after_action_ref 里
+    （constraints.excluded_action_keywords 是这些动作的 ref 关键词）。
 5. 信息不足（比如只说了"受伤了"但没说部位）时，status 用 clarifying 并在 question 里问一句。
 6. 只输出 JSON，不要 Markdown 围栏：
 {
@@ -120,6 +123,11 @@ def validate_operations(operations: list[dict], actions: list[dict],
         )
         if ref == current["action_ref"] and not changed_shape:
             # 空操作：模型表达"别改这个"时会这么写，直接忽略，不算错误
+            continue
+
+        intent = parse_intent(text, quick_action)
+        if is_excluded_ref(ref, intent.excluded_tokens):
+            errors.append(f"你明确说不能用 {name_of(ref)}（{ref}），换一个")
             continue
 
         candidate = {"action_ref": ref, "meta": {"name_zh": name_of(ref)}}

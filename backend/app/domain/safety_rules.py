@@ -308,15 +308,27 @@ FALLBACK_POOL = (
 )
 
 
+def is_excluded_ref(ref: str, tokens: set[str] | list[str] | None) -> bool:
+    """用户明确说"不要/不能用"的动作：按 ref 子串匹配。
+
+    例：text 里写"俯卧撑和划船不能用"，tokens 会包含 push-up / pushup / row，
+    于是 push-up、incline-push-up、seated-row、chest-supported-row 都会被排除。
+    """
+    norm = _norm(ref)
+    return any(_norm(token) in norm for token in (tokens or []))
+
+
 def safe_replacement(current_ref: str, injured: set[str], used: set[str],
-                     *, prefer: str = "") -> str | None:
+                     *, prefer: str = "",
+                     exclude: set[str] | list[str] | None = None) -> str | None:
     """挑一个不加重受伤部位、且没被用过的替代动作。
 
     规则：
     1. 先按部位过滤（`is_risky_for` 说不行的一律不选）；
-    2. 上肢替换优先"轻负荷抗阻"，其次核心，最后才是拉伸
+    2. 用户在反馈里点名的动作（`exclude`）也不能选；
+    3. 上肢替换优先"轻负荷抗阻"，其次核心，最后才是拉伸
        （肩痛不该直接把推类动作换成拉伸，训练刺激会掉太多）；
-    3. 尽量不选计划里已经在用的动作，避免整份计划变成同一个动作。
+    4. 尽量不选计划里已经在用的动作，避免整份计划变成同一个动作。
     """
     side = injured_side(injured)
     opposite = {"upper": "lower", "lower": "upper"}.get(side or "", "")
@@ -334,7 +346,9 @@ def safe_replacement(current_ref: str, injured: set[str], used: set[str],
 
     pool = [
         ref for ref in FALLBACK_POOL
-        if ref != current_ref and not why_risky(ref, injured)
+        if ref != current_ref
+        and not why_risky(ref, injured)
+        and not is_excluded_ref(ref, exclude)
     ]
     # 去重 + 按"反向肢体 > 核心 > 拉伸"排序
     seen: set[str] = set()

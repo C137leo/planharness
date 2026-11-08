@@ -167,6 +167,8 @@ def create_request(
 
     operations = proposal["operations"]
     risks = list(proposal.get("risks") or [])
+    if intent.excluded_labels:
+        risks.append("已避开你明确不能用的动作：" + "、".join(intent.excluded_labels))
 
     # 「今天想休息」必须落在**今天**：模型有时会改第 1 天，用户打开今天页却毫无变化。
     if intent.kind == "rest":
@@ -334,6 +336,9 @@ def _constraints(db: Session, user: User, plan: Plan, intent: Intent) -> dict:
         "weekly_days": int(getattr(profile, "weekly_days", 0) or 0),
         "available_days_hint": intent.available_days,
         "body_parts": list(intent.body_parts),
+        "target_body_parts": list(intent.target_body_parts),
+        "excluded_action_keywords": list(intent.excluded_tokens),
+        "excluded_action_labels": list(intent.excluded_labels),
         "current_days": sorted({item["day_index"] for item in _current_actions(db, plan)}),
     }
 

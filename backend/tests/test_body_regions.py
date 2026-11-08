@@ -153,6 +153,59 @@ def test_violates_constraints_reports_chinese_name() -> None:
     problems = violates_constraints([action("romanian-deadlift")], intent)
     assert problems and "背" in problems[0]
 
+
+def test_explicit_exclusions_are_parsed_and_enforced() -> None:
+    """用户说"俯卧撑和划船会用到腿"：不能再把它们换回来。
+
+    这是实际反馈里踩到的 bug：第二轮明确点名两个动作，但规则只认部位，
+    模型/规则仍会把下肢槽位换成划船/俯卧撑。
+    """
+    from app.domain.planner import plan_operations
+
+    text = "我腿不舒服，想换个部位练习；俯卧撑和划船都会用到腿，不合适"
+    intent = parse_intent(text)
+    assert intent.kind == "injury_swap"
+    assert intent.body_parts == ["legs"]
+    # "腿"是受伤部位，不是"练下肢"的目标；否则方向正好反了
+    assert intent.target_body_parts == ["upper_body"]
+    assert "row" in intent.excluded_tokens
+    assert "push-up" in intent.excluded_tokens
+    assert intent.excluded_labels == ["俯卧撑", "划船"]
+
+    base = [action("goblet-squat", day=1), action("leg-press", day=2),
+            action("walking-lunge", day=3)]
+    operations, _ = plan_operations(intent, base)
+    after = [(op.get("after_action") or {}).get("action_ref") for op in operations
+             if op["op"] == "replace_action"]
+    assert after
+    for ref in after:
+        assert "row" not in ref
+        assert "push-up" not in ref and "pushup" not in ref
+
+    replacement = rules.safe_replacement(
+        "goblet-squat", {"legs"}, set(), exclude=intent.excluded_tokens)
+    assert replacement is not None
+    assert "row" not in replacement
+    assert "push-up" not in replacement and "pushup" not in replacement
+
+
+def test_model_operation_with_excluded_ref_is_rejected() -> None:
+    """模型路径也要被确定性校验挡住，不能只靠 prompt 自觉。"""
+    from app.agent.change_agent import validate_operations
+    from app.domain.catalog import refs_for_actions
+
+    text = "我腿不舒服；俯卧撑和划船都会用到腿，不合适"
+    base = [action("goblet-squat")]
+    refs = set(refs_for_actions(base))
+    operations = [{
+        "op": "replace_action",
+        "slot_key": "1:strength:goblet-squat",
+        "after_action_ref": "push-up",
+    }]
+    normalized, errors = validate_operations(operations, base, refs, "", text)
+    assert normalized == []
+    assert errors and "不能用" in errors[0]
+
 @pytest.mark.parametrize("ref,region", [
     ("push-up", "shoulder"),
     ("pushup", "shoulder"),
