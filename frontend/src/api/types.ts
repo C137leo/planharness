@@ -566,6 +566,18 @@ export interface Me {
   nickname: string
   goal: string
   has_profile: boolean
+  /** 只有运营手机号会拿到 true；前端仅用于显示开关，后端仍会鉴权 */
+  is_llm_admin?: boolean
+}
+
+export interface SystemStatus {
+  paused: boolean
+  message: string
+}
+
+export interface LlmSwitchState {
+  paused: boolean
+  message: string
 }
 
 // ---------------- 订餐推荐（只做搜索深链） ----------------

@@ -26,6 +26,7 @@ from app.domain.patches import (
     rollback_plan,
 )
 from app.agent.change_agent import propose_with_model, propose_without_model
+from app.llm.guard import LLMDisabledError
 from app.domain.planner import (Intent, cover_injured_slots, parse_intent, plan_operations, trim_unrelated_ops, violates_constraints)
 from app.models import (
     PatchFeedback,
@@ -141,6 +142,8 @@ def create_request(
             proposal = propose_with_model(
                 client, text, quick_action, base, _constraints(db, user, plan, intent)
             )
+        except LLMDisabledError:
+            raise
         except Exception:  # noqa: BLE001 - 模型失败退回规则表，不能让改计划整体失败
             proposal = None
     if proposal is None:

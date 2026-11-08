@@ -506,6 +506,19 @@ class TodayAgentPlan(Base):
     )
 
 
+class RuntimeFlag(Base):
+    """运行期开关（不重启即可生效）；目前只有 llm_paused。"""
+
+    __tablename__ = "runtime_flags"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    updated_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+
 class ContextSnapshot(Base):
     """一次「上下文装配」的快照：说清楚这次到底喂给模型看了什么。
 

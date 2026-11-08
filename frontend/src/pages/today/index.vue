@@ -280,8 +280,9 @@ async function followRun(runId: string) {
     }))
     if (run.status !== 'running') {
       if (run.status === 'failed') {
+        const outputError = typeof run.output?.error === 'string' ? run.output.error : ''
         const detail = run.error_code ? `：${run.error_code}` : ''
-        agentError.value = `规划失败${detail}（run ${runId.slice(0, 8)}）`
+        agentError.value = outputError || `规划失败${detail}（run ${runId.slice(0, 8)}）`
       } else {
         agentResult.value = run.output as unknown as TodayAgentResult
         await loadSavedPlan()

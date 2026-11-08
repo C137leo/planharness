@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from app.agent.today_schema import TodayAnswer
 from app.agent.today_tools import TOOLS, dispatch, links_allowed, load_context
 from app.knowledge.service import FOOTER, MEDICAL
+from app.llm.guard import LLMDisabledError
 from pydantic import ValidationError
 
 from app.models import KnowledgeChunk, MealPlan
@@ -702,6 +703,8 @@ def run(db, user, day, text: str, client=None, on_step=None,
     try:
         result = (_run_loop(db, ctx, text, client, on_step=on_step) if client
                   else _deterministic(db, ctx, text, on_step=on_step))
+    except LLMDisabledError:
+        raise
     except Exception as exc:  # noqa: BLE001 - 模型失败要能降级
         result = _deterministic(db, ctx, text, on_step=on_step)
         result.error = f"{type(exc).__name__}: {str(exc)[:120]}"

@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.domain.allergens import describe_tags, resolve_tags
+from app.llm.guard import LLMDisabledError
 from app.skill.bridge import SkillBridge
 
 MAX_STEPS = 6
@@ -134,6 +135,8 @@ class PlanningAgent:
         if self.client is not None and getattr(self.client, "available", lambda: False)():
             try:
                 return self._llm_flow(profile_payload, instruction)
+            except LLMDisabledError:
+                raise
             except Exception as exc:  # noqa: BLE001 - 模型失败必须能退回确定性编排
                 proposal = self._deterministic_flow(profile_payload, instruction)
                 proposal.error = f"{type(exc).__name__}: {str(exc)[:160]}"

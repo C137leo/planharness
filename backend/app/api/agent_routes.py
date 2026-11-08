@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.api.routes import get_current_user, get_db, ok
 from app.agent.today_agent import run as run_today
+from app.llm.guard import PAUSED_MESSAGE, is_llm_paused, require_llm_enabled
 from app.llm.tool_client import tool_client_from_settings
 from app.models import AgentRun, User
 
@@ -48,6 +49,14 @@ def _run_agent(run_id: str, user_id: str, day: dt.date, text: str, session_facto
         if run is None:
             return
         user = db.get(User, user_id)
+        # 任务排队/执行期间运营可能刚打开开关：再查一次，避免仍请求模型
+        if is_llm_paused(db):
+            run.status = "failed"
+            run.error_code = "llm_paused"
+            run.output = {"error": PAUSED_MESSAGE, "llm_paused": True}
+            run.finished_at = dt.datetime.now(dt.timezone.utc)
+            db.commit()
+            return
         client = tool_client_from_settings(settings)
 
         def _stamp(status: str) -> dict:
@@ -129,6 +138,7 @@ def create_today_plan(
     background: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _llm_ready: None = Depends(require_llm_enabled),
 ):
     day = dt.date.fromisoformat(payload.date) if payload.date else dt.date.today()
     run = _create_run(db, user, payload.text)
@@ -194,6 +204,7 @@ def today_plan_feedback(
     background: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _llm_ready: None = Depends(require_llm_enabled),
 ):
     previous = db.get(AgentRun, run_id)
     if previous is None or previous.user_id != user.id:

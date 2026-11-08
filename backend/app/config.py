@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     deepseek_api_key: str = ""
     deepseek_model: str = "deepseek-flash"
+    # 只允许这个手机号在 Console 操作「暂停大模型」开关
+    llm_admin_phone: str = "13772692821"
     deepseek_timeout_s: float = 30.0
     # deepseek-flash 的思考档位：low / high / max；留空 = 用服务端默认（high）
     deepseek_reasoning_effort: str = ""

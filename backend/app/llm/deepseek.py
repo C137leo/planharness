@@ -4,6 +4,7 @@ import time
 import httpx
 
 from app.llm.fallback import fallback_explanation
+from app.llm.guard import LLMDisabledError, ensure_llm_enabled
 from app.llm.types import ExplainResult
 
 
@@ -32,6 +33,8 @@ class DeepSeekExplainer:
         返回值带用量与耗时 —— 这些是「成本控制」的原始数据，
         不能只在日志里打一行就算完。
         """
+        # 维护开关打开时不发请求，也不伪装成普通降级
+        ensure_llm_enabled()
         if not self.available():
             return ExplainResult(
                 text=fallback_explanation(operations, diff),
@@ -60,6 +63,8 @@ class DeepSeekExplainer:
                 latency_ms=int((time.perf_counter() - started) * 1000),
                 model=self.model,
             )
+        except LLMDisabledError:
+            raise
         except Exception as exc:  # noqa: BLE001 - 任何失败都必须能降级
             return ExplainResult(
                 text=fallback_explanation(operations, diff),

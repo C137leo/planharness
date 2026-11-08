@@ -12,6 +12,8 @@ import time
 
 import httpx
 
+from app.llm.guard import ensure_llm_enabled
+
 
 class ToolCallingClient:
     def __init__(self, *, api_key: str, base_url: str, model: str,
@@ -32,6 +34,8 @@ class ToolCallingClient:
                  tool_choice: str = "auto", temperature: float = 0.2,
                  max_tokens: int = 1200) -> dict:
         """返回 {message, usage, latency_ms, model}；任何网络/协议错误都抛异常，由调用方降级。"""
+        # 运营开关优先级最高：即使有 Key，也不允许请求 DeepSeek
+        ensure_llm_enabled()
         if not self.available():
             raise RuntimeError("no_api_key")
 

@@ -256,4 +256,7 @@ def whoami(
         nickname=user.nickname or "",
         goal=(profile.goal if profile is not None else ""),
         has_profile=profile is not None,
+        is_llm_admin=bool(
+            user.phone and user.phone == request.app.state.settings.llm_admin_phone
+        ),
     ).model_dump())

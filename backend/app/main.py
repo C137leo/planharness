@@ -23,9 +23,11 @@ from app.api.food_routes import router as food_router
 from app.api.mcd_routes import router as mcd_router
 from app.api.knowledge_routes import router as knowledge_router
 from app.api.routes import router
+from app.api.system_routes import router as system_router
 from app.config import Settings, get_settings
 from app.db import Base, make_engine, make_session_factory
 from app.llm.deepseek import explainer_from_settings
+from app.llm.guard import configure_llm_guard
 from app.llm.types import LlmBudget
 from app.openapi_docs import mount_api_docs
 from app.seed import seed_demo
@@ -47,6 +49,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     session_factory = make_session_factory(engine)
     # 无迁移工具时的兜底建表；已存在的表不会被重复创建
     Base.metadata.create_all(engine)
+    # 全局大模型开关：底层客户端和接口依赖都读它
+    configure_llm_guard(session_factory)
 
     # 种子逻辑内部幂等（demo 用户已存在就直接返回），所以每次启动都调用
     with session_factory() as session:
@@ -135,6 +139,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(food_router)
     app.include_router(mcd_router)
     app.include_router(agent_router)
+    app.include_router(system_router)
     app.include_router(knowledge_router)
     app.include_router(router)
 

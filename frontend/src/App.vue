@@ -1,15 +1,69 @@
 <script setup lang="ts">
-import { onLaunch } from '@dcloudio/uni-app'
-import { getStoredToken } from './api'
+import { onHide, onLaunch, onShow } from '@dcloudio/uni-app'
+import { api, getStoredToken } from './api'
+
+let statusTimer: ReturnType<typeof setInterval> | null = null
+let lastPaused = false
+let checkingStatus = false
+
+/** 所有页面共享的维护提示：开关打开后弹一次，关掉后恢复。 */
+async function checkSystemStatus() {
+  if (checkingStatus) return
+  checkingStatus = true
+  try {
+    const status = await api.getSystemStatus()
+    if (status.paused && !lastPaused) {
+      lastPaused = true
+      uni.showModal({
+        title: '维护通知',
+        content: status.message || '该项目正在修改中，暂时无法调用大模型，请等待通知后再使用~',
+        showCancel: false,
+        confirmText: '知道了',
+      })
+    } else if (!status.paused) {
+      lastPaused = false
+    }
+  } catch {
+    // 状态接口不可用时不打扰用户；真正的模型请求仍有后端兜底
+  } finally {
+    checkingStatus = false
+  }
+}
+
+function startStatusPolling() {
+  if (statusTimer) return
+  void checkSystemStatus()
+  // 运营可能随时开/关；30 秒足够及时，也不会给 2C2G 服务器添负担
+  statusTimer = setInterval(checkSystemStatus, 30_000)
+}
+
+function stopStatusPolling() {
+  if (!statusTimer) return
+  clearInterval(statusTimer)
+  statusTimer = null
+}
 
 onLaunch(() => {
   // 冷启动没有 token 就直接去登录页；有 token 时让目标页自己校验有效性
-  if (getStoredToken()) return
-  const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
-  const current = pages.length ? pages[pages.length - 1].route || '' : ''
-  if (!current.includes('pages/login')) {
-    uni.reLaunch({ url: '/pages/login/index' })
+  if (!getStoredToken()) {
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+    const current = pages.length ? pages[pages.length - 1].route || '' : ''
+    if (!current.includes('pages/login')) {
+      uni.reLaunch({ url: '/pages/login/index' })
+    }
   }
+  startStatusPolling()
+})
+
+onShow(() => {
+  startStatusPolling()
+  void checkSystemStatus()
+})
+
+onHide(() => {
+  stopStatusPolling()
+  // 下次回到前台时，如果仍在维护就再提醒一次
+  lastPaused = false
 })
 </script>
 

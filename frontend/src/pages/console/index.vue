@@ -25,6 +25,9 @@ const auditPlanId = ref('')
 const auditVerify = ref<AuditVerify | null>(null)
 const auditBusy = ref(false)
 const auditOpen = ref(false)
+const isLlmAdmin = ref(false)
+const llmPaused = ref(false)
+const llmBusy = ref(false)
 
 /** 审计默认只露 12 条：一屏 120 行没人看得完，展开才看全部 */
 const auditShown = computed(() =>
@@ -269,6 +272,53 @@ function versionChanges(row: PlanVersionHistory['versions'][number]) {
   return `改 ${changes.changed_slots}/${changes.total_slots} 个槽位${meals ? ` · ${meals} 餐` : ''}`
 }
 
+async function loadLlmControl() {
+  try {
+    const me = await api.me()
+    isLlmAdmin.value = !!me.is_llm_admin
+    if (!isLlmAdmin.value) return
+    const state = await api.getLlmSwitch()
+    llmPaused.value = state.paused
+  } catch {
+    // 非管理员或状态接口不可用时静默隐藏，不打断 Console
+    isLlmAdmin.value = false
+  }
+}
+
+function confirmLlm(nextPaused: boolean): Promise<boolean> {
+  return new Promise((resolve) => {
+    uni.showModal({
+      title: nextPaused ? '暂停大模型调用？' : '恢复大模型调用？',
+      content: nextPaused
+        ? '打开后所有用户都会看到维护提示，后端会停止请求 DeepSeek。确认要暂停吗？'
+        : '恢复后用户会重新获得模型能力，并开始产生 token 费用。确认恢复吗？',
+      confirmText: nextPaused ? '暂停' : '恢复',
+      success: (res) => resolve(res.confirm),
+      fail: () => resolve(false),
+    })
+  })
+}
+
+async function toggleLlm() {
+  if (llmBusy.value) return
+  const nextPaused = !llmPaused.value
+  if (!(await confirmLlm(nextPaused))) return
+  llmBusy.value = true
+  error.value = ''
+  try {
+    const state = await api.setLlmSwitch(nextPaused)
+    llmPaused.value = state.paused
+    uni.showToast({
+      title: state.paused ? '已暂停大模型' : '已恢复大模型',
+      icon: 'none',
+    })
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '开关操作失败'
+  } finally {
+    llmBusy.value = false
+  }
+}
+
 async function loadScenarios() {
   try {
     scenarios.value = await api.listEvalScenarios()
@@ -341,6 +391,7 @@ async function loadMore() {
 onShow(() => {
   load()
   loadScenarios()
+  loadLlmControl()
 })
 </script>
 
@@ -351,6 +402,36 @@ onShow(() => {
     <view class="subtitle">真实 run · trace 时间线 · diff · 上下文预算 · 独立验证</view>
 
     <view v-if="error" class="error">{{ error }}</view>
+
+    <view v-if="isLlmAdmin" class="card llm-control">
+      <view class="row">
+        <view>
+          <view class="eyebrow">AI KILL SWITCH</view>
+          <view class="llm-control-title">大模型调用</view>
+        </view>
+        <view class="chip" :class="llmPaused ? 'paused' : 'succeeded'">
+          {{ llmPaused ? '已暂停' : '正常' }}
+        </view>
+      </view>
+      <view class="llm-control-row">
+        <view class="llm-control-copy">
+          <text class="llm-control-name">暂停大模型（维护模式）</text>
+          <text class="muted small">
+            打开后停止所有 DeepSeek 请求，并向所有用户显示维护提示；演示前再关闭。
+          </text>
+        </view>
+        <view
+          class="llm-switch"
+          :class="{ on: llmPaused, busy: llmBusy }"
+          @click="toggleLlm"
+        >
+          <view class="llm-knob" />
+        </view>
+      </view>
+      <view v-if="llmPaused" class="notice" style="margin-top: 10px">
+        用户当前会看到：该项目正在修改中，暂时无法调用大模型，请等待通知后再使用~
+      </view>
+    </view>
 
     <view class="console-grid">
       <view class="console-col">
@@ -1152,6 +1233,64 @@ onShow(() => {
 .chip.failed {
   background: #fdeceb;
   color: #b3261e;
+}
+.chip.paused {
+  background: #fdeceb;
+  color: #b3261e;
+}
+.llm-control {
+  border-color: #efc9b9;
+  background: linear-gradient(135deg, #fff8f3 0%, #ffffff 70%);
+}
+.llm-control-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 3px;
+}
+.llm-control-row {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+.llm-control-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.llm-control-name {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+.llm-switch {
+  background: #e8d8cd;
+  border-radius: 999px;
+  cursor: pointer;
+  flex: 0 0 52px;
+  height: 30px;
+  padding: 3px;
+  transition: background 0.18s ease;
+  width: 52px;
+}
+.llm-switch.on {
+  background: var(--primary);
+}
+.llm-switch.busy {
+  opacity: 0.55;
+}
+.llm-knob {
+  background: #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 1px 3px rgba(70, 40, 25, 0.25);
+  height: 24px;
+  transition: transform 0.18s ease;
+  width: 24px;
+}
+.llm-switch.on .llm-knob {
+  transform: translateX(22px);
 }
 .timeline {
   margin-top: 10px;

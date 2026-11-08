@@ -48,6 +48,9 @@ ACTIONS = (
     # 麦当劳点餐：建单/取消都要能在审计链里查到（谁在什么时候点了多少钱）
     "mcd_order_created",
     "mcd_order_cancelled",
+    # 运营开关：谁在什么时候暂停/恢复了大模型调用
+    "llm_paused",
+    "llm_resumed",
 )
 
 

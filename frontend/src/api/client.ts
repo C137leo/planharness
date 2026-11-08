@@ -9,6 +9,8 @@ import type {
   CalorieStats,
   FoodOptionPayload,
   TodayAgentResult,
+  SystemStatus,
+  LlmSwitchState,
   KnowledgeAnswer,
   LoginPayload,
   Me,
@@ -233,6 +235,11 @@ export const api = {
     rawRequest<TokenPayload>('POST', '/auth/login', payload),
   demoLogin: () => rawRequest<TokenPayload>('POST', '/auth/demo', {}),
   me: () => request<Me>('GET', '/auth/me'),
+  // 公开状态：登录页也能读，用来显示维护提示
+  getSystemStatus: () => rawRequest<SystemStatus>('GET', '/system/status'),
+  getLlmSwitch: () => request<LlmSwitchState>('GET', '/admin/llm-switch'),
+  setLlmSwitch: (paused: boolean) =>
+    request<LlmSwitchState>('PUT', '/admin/llm-switch', { paused }),
   logout: () => {
     clearToken()
   },

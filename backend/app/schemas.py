@@ -231,6 +231,8 @@ class MeOut(BaseModel):
     nickname: str = ""
     goal: str = ""
     has_profile: bool = False
+    # 前端只用来决定是否显示「暂停大模型」开关；真正鉴权仍在后端
+    is_llm_admin: bool = False
 
 class TraceEntryOut(BaseModel):
     """trace 里的一步：哪个节点、什么状态、什么时候。"""

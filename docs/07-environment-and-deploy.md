@@ -126,6 +126,19 @@ sudo grep '^DEEPSEEK_API_KEY=' /etc/planharness/planharness.env | awk -F= '{prin
 # 输出 0 表示没配 Key；改完 env 后 systemctl restart planharness-api
 ```
 
+### 大模型总闸（运营开关）
+
+Console 顶部有一个只对 `LLM_ADMIN_PHONE`（默认 `13772692821`）显示的开关：
+
+- 打开：写入 `runtime_flags.llm_paused=true`，所有 `/api/` 请求里的大模型调用在
+  `ToolCallingClient` / `DeepSeekExplainer` 这一层被拦住，不请求 DeepSeek；
+  所有用户会看到「该项目正在修改中，暂时无法调用大模型，请等待通知后再使用~」，
+  今日规划/计划草案/改计划等入口直接返回 503。
+- 关闭：恢复模型调用，token 与费用重新开始累计。
+
+开关不需要重启；状态每 30 秒由前端轮询一次。审计链 `system:llm` 会记录谁在什么时候
+暂停/恢复。
+
 ## 4. 服务器与 Docker
 
 ### 建议

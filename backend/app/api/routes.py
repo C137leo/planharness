@@ -30,6 +30,7 @@ from app.domain.patches import (
 )
 from app.domain.planning import PlanValidationError, generate_plan as generate_plan_service
 from app.llm.deepseek import DeepSeekExplainer
+from app.llm.guard import require_llm_enabled
 from app.models import (
     AgentRun,
     AuditEvent,
@@ -283,6 +284,7 @@ def create_plan_draft(
     request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _llm_ready: None = Depends(require_llm_enabled),
 ):
     """生成计划草案：模型调用 skill 的工具 → 训练 + 食谱 + 摄入目标，先不落版本。"""
     try:
@@ -315,6 +317,7 @@ def feedback_plan_draft(
     request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _llm_ready: None = Depends(require_llm_enabled),
 ):
     """「再改改」：带着这句反馈重新生成一份草案（≤3 轮）。"""
     try:
@@ -742,6 +745,7 @@ def create_patch_request(
     request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _llm_ready: None = Depends(require_llm_enabled),
 ):
     """一句话改计划：解析意图 → 生成草案（或追问）。
 
@@ -783,6 +787,7 @@ def feedback_patch_request(
     request: Request,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    _llm_ready: None = Depends(require_llm_enabled),
 ):
     """「再改改」：基于同一 base_version 重新规划一轮（最多 3 轮）。"""
     try:
