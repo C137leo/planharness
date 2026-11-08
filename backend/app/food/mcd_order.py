@@ -59,7 +59,8 @@ def _items_payload(items: list[dict]) -> list[dict]:
 
 # ---------------------------------------------------------------- 门店 / 菜单
 
-def find_stores(city: str, keyword: str, *, client=None) -> dict:
+def find_stores(city: str, keyword: str, *, client=None,
+                token: str | None = None) -> dict:
     """按城市 + 关键词搜门店（到店自取）。官方这两个参数都必填。"""
     city = (city or "").strip()
     keyword = (keyword or "").strip()
@@ -67,7 +68,7 @@ def find_stores(city: str, keyword: str, *, client=None) -> dict:
         return {"status": "error", "error": "mcd_need_city_and_keyword", "retryable": False}
     result = call_tool_json("query-nearby-stores", {
         "beType": BE_TYPE, "searchType": 2, "city": city, "keyword": keyword,
-    }, client=client)
+    }, client=client, token=token)
     if result["status"] != "ok":
         return result
     rows = (result["data"].get("data") or [])
@@ -87,13 +88,13 @@ def find_stores(city: str, keyword: str, *, client=None) -> dict:
     return {"status": "ok", "data": {"stores": stores}, "citations": []}
 
 
-def store_menu(store_code: str, *, client=None) -> dict:
+def store_menu(store_code: str, *, client=None, token: str | None = None) -> dict:
     """当前门店可售卖的餐品（含官方现价，单位元）。"""
     if not store_code:
         return {"status": "error", "error": "mcd_need_store", "retryable": False}
     result = call_tool_json("query-meals", {
         "storeCode": store_code, "orderType": ORDER_TYPE, "beType": BE_TYPE,
-    }, client=client)
+    }, client=client, token=token)
     if result["status"] != "ok":
         return result
     data = result["data"].get("data") or {}
@@ -157,7 +158,8 @@ def _pick_take_way(options: list[dict]) -> str:
     return codes[0] if codes else ""
 
 
-def quote(store_code: str, items: list[dict], *, client=None) -> dict:
+def quote(store_code: str, items: list[dict], *, client=None,
+          token: str | None = None) -> dict:
     """算价：返回官方口径的应付金额（分→元）和可选取餐方式。"""
     official = _items_payload(items)
     if not official:
@@ -165,7 +167,7 @@ def quote(store_code: str, items: list[dict], *, client=None) -> dict:
     result = call_tool_json("calculate-price", {
         "storeCode": store_code, "orderType": ORDER_TYPE, "beType": BE_TYPE,
         "items": official,
-    }, client=client)
+    }, client=client, token=token)
     if result["status"] != "ok":
         return result
     data = result["data"].get("data") or {}
@@ -187,21 +189,21 @@ def quote(store_code: str, items: list[dict], *, client=None) -> dict:
 
 
 def create_order(store_code: str, items: list[dict], take_way_code: str = "",
-                 *, client=None) -> dict:
+                 *, client=None, token: str | None = None) -> dict:
     """建一张**待支付**订单，返回官方支付链接。用户不付就作废（15 分钟）。"""
     official = _items_payload(items)
     if not official:
         return {"status": "error", "error": "mcd_need_items", "retryable": False}
     if not take_way_code:
         # 取餐方式不是我们该猜的：先算一次价，拿官方给的候选
-        priced = quote(store_code, items, client=client)
+        priced = quote(store_code, items, client=client, token=token)
         if priced["status"] != "ok":
             return priced
         take_way_code = _pick_take_way(priced["data"]["take_way"])
     result = call_tool_json("create-order", {
         "storeCode": store_code, "orderType": ORDER_TYPE, "beType": BE_TYPE,
         "takeWayCode": take_way_code, "items": official, "needTableware": False,
-    }, client=client)
+    }, client=client, token=token)
     if result["status"] != "ok":
         # 600039 = 官方账号级的"今日下单数已经上限"（不是我们的限流，也不是次数统计错误）。
         # 已取消的订单也算一天里的下单数，所以调试/反复试单很容易把它用光。
@@ -233,10 +235,10 @@ def create_order(store_code: str, items: list[dict], take_way_code: str = "",
     }, "citations": []}
 
 
-def get_order(order_id: str, *, client=None) -> dict:
+def get_order(order_id: str, *, client=None, token: str | None = None) -> dict:
     if not order_id:
         return {"status": "error", "error": "mcd_need_order", "retryable": False}
-    result = call_tool_json("query-order", {"orderId": order_id}, client=client)
+    result = call_tool_json("query-order", {"orderId": order_id}, client=client, token=token)
     if result["status"] != "ok":
         return result
     data = result["data"].get("data") or {}
@@ -250,13 +252,14 @@ def get_order(order_id: str, *, client=None) -> dict:
     }, "citations": []}
 
 
-def cancel_order(order_id: str, reason_code: str = "3", *, client=None) -> dict:
+def cancel_order(order_id: str, reason_code: str = "3", *, client=None,
+                 token: str | None = None) -> dict:
     """取消订单。reason_code：1 改主意、2 重复下单、3 点错了、-1 其它（官方枚举）。"""
     if not order_id:
         return {"status": "error", "error": "mcd_need_order", "retryable": False}
     result = call_tool_json("cancel-order", {
         "orderId": order_id, "cancelReasonCode": str(reason_code or "3"),
-    }, client=client)
+    }, client=client, token=token)
     if result["status"] != "ok":
         return result
     data = result["data"].get("data") or {}

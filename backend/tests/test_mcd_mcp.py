@@ -85,6 +85,23 @@ def test_unavailable_without_token(monkeypatch) -> None:
     assert result["error"] == "mcd_mcp_unavailable"
 
 
+def test_user_token_alias_and_own_token() -> None:
+    """joe123456 用服务端 token；其它输入用用户自己的 token；空值回落服务端。"""
+    assert mcd_mcp.resolve_token("joe123456") == TOKEN
+    assert mcd_mcp.resolve_token("user-token") == "user-token"
+    assert mcd_mcp.resolve_token("") == TOKEN
+    assert mcd_mcp.resolve_token(None) == TOKEN
+
+
+def test_call_tool_uses_user_token_header() -> None:
+    http = FakeHttp([_init_ok(), _initialized_ok(),
+                     FakeResponse(200, json.dumps({"jsonrpc": "2.0", "id": 2,
+                                                   "result": {"content": []}}))])
+    assert mcd_mcp.call_tool("list-nutrition-foods", {}, client=http,
+                             token="user-token")["status"] == "ok"
+    assert http.calls[0]["headers"]["Authorization"] == "Bearer user-token"
+
+
 def test_call_tool_does_handshake_first() -> None:
     """顺序必须是 initialize → notifications/initialized → tools/call。"""
     http = FakeHttp([_init_ok(), _initialized_ok(),

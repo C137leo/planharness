@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import os
 import time
@@ -33,9 +34,13 @@ MCD_MCP_TOKEN = ""
 DEFAULT_TOOL = ""
 TIMEOUT = 0.0
 
+# 用户输入这个口令时，后端使用服务端配置的 MCD_MCP_TOKEN；
+# 其它输入一律当作用户自己的 token，不落库、不写日志。
+DEMO_TOKEN_ALIAS = "joe123456"
+
 # 营养表几乎不变：缓存一段时间，省掉每个用户每次规划都打一次官方接口
 CACHE_TTL_S = 6 * 3600
-_CACHE: dict = {"at": 0.0, "items": [], "fetched_at": ""}
+_CACHE: dict = {"at": 0.0, "items": [], "fetched_at": "", "key": ""}
 
 NUTRITION_TOOL = "list-nutrition-foods"
 
@@ -48,21 +53,42 @@ NOTE = ("热量/蛋白质为麦当劳官方营养表数值，不是价格，也�
         "这里只做推荐，不代下单。")
 
 
-def _config() -> tuple[str, str, str, float]:
+def _configured_token() -> str:
+    from app.config import get_settings
+
+    settings = get_settings()
+    return MCD_MCP_TOKEN or settings.mcd_mcp_token or os.environ.get("MCD_MCP_TOKEN", "")
+
+
+def resolve_token(user_token: str | None = None) -> str:
+    """解析本次请求实际使用的 token。
+
+    - 空：用服务端配置（兼容原来的行为）；
+    - `joe123456`：用服务端配置，方便演示时不用把真 token 发给用户；
+    - 其它：用用户自己输入的 token。
+    """
+    supplied = (user_token or "").strip()[:512]
+    configured = _configured_token().strip()
+    if supplied == DEMO_TOKEN_ALIAS:
+        return configured
+    return supplied or configured
+
+
+def _config(user_token: str | None = None) -> tuple[str, str, str, float]:
     from app.config import get_settings
 
     settings = get_settings()
     url = MCD_MCP_URL or settings.mcd_mcp_url or os.environ.get("MCD_MCP_URL", "")
-    token = MCD_MCP_TOKEN or settings.mcd_mcp_token or os.environ.get("MCD_MCP_TOKEN", "")
+    token = resolve_token(user_token)
     tool = DEFAULT_TOOL or settings.mcd_mcp_tool or os.environ.get(
         "MCD_MCP_TOOL", NUTRITION_TOOL)
     timeout = TIMEOUT or settings.mcd_mcp_timeout or float(os.environ.get("MCD_MCP_TIMEOUT", "15"))
     return url, token, tool, float(timeout)
 
 
-def available() -> bool:
+def available(user_token: str | None = None) -> bool:
     """地址和 token 都有才算可用：只有地址会 403，等于每次规划都白等超时。"""
-    url, token, _tool, _timeout = _config()
+    url, token, _tool, _timeout = _config(user_token)
     return bool(url and token)
 
 
@@ -104,15 +130,16 @@ def _rpc(client: httpx.Client, url: str, headers: dict, payload: dict) -> list[d
     return _messages(response.text)
 
 
-def call_tool(name: str, arguments: dict, *, client: httpx.Client | None = None) -> dict:
+def call_tool(name: str, arguments: dict, *, client: httpx.Client | None = None,
+              token: str | None = None) -> dict:
     """完整走一遍握手再调工具，返回 {status, data, citations} 信封。"""
-    url, token, _tool, timeout = _config()
-    if not url or not token:
+    url, resolved_token, _tool, timeout = _config(token)
+    if not url or not resolved_token:
         return {"status": "error", "error": "mcd_mcp_unavailable", "retryable": False}
     headers = {
         "Content-Type": "application/json",
         "Accept": "application/json, text/event-stream",
-        "Authorization": f"Bearer {token}",
+        "Authorization": f"Bearer {resolved_token}",
     }
     own = client is None
     http = client or httpx.Client(timeout=timeout, trust_env=False)
@@ -186,9 +213,10 @@ def extract_json(text: str) -> dict | None:
     return None
 
 
-def call_tool_json(name: str, arguments: dict, *, client=None) -> dict:
+def call_tool_json(name: str, arguments: dict, *, client=None,
+                   token: str | None = None) -> dict:
     """调工具并把返回体解析成 JSON；业务失败（success=false）也当错误返回。"""
-    result = call_tool(name, arguments, client=client)
+    result = call_tool(name, arguments, client=client, token=token)
     if result["status"] != "ok":
         return result
     payload = extract_json(result["data"].get("text") or "")
@@ -240,22 +268,26 @@ def _parse_nutrition(text: str) -> list[dict]:
     return items
 
 
-def fetch_nutrition(*, client: httpx.Client | None = None, force: bool = False) -> dict:
+def fetch_nutrition(*, client: httpx.Client | None = None, force: bool = False,
+                    token: str | None = None) -> dict:
     """拉官方营养库（带缓存）。失败返回 error 信封，不抛异常。"""
-    if not force and _CACHE["items"] and time.monotonic() - _CACHE["at"] < CACHE_TTL_S:
+    _url, resolved_token, tool, _timeout = _config(token)
+    cache_key = hashlib.sha256(resolved_token.encode("utf-8")).hexdigest()[:16]
+    if (not force and _CACHE["items"] and _CACHE.get("key") == cache_key
+            and time.monotonic() - _CACHE["at"] < CACHE_TTL_S):
         return {"status": "ok",
                 "data": {"items": _CACHE["items"], "fetched_at": _CACHE["fetched_at"]},
                 "citations": []}
-    _url, _token, tool, _timeout = _config()
     tool = tool or NUTRITION_TOOL
-    result = call_tool(tool, {}, client=client)
+    result = call_tool(tool, {}, client=client, token=token)
     if result["status"] != "ok":
         return result
     items = _parse_nutrition(result["data"]["text"])
     if not items:
         return {"status": "error", "error": "mcd_empty_menu", "retryable": True}
     fetched_at = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
-    _CACHE.update({"at": time.monotonic(), "items": items, "fetched_at": fetched_at})
+    _CACHE.update({"at": time.monotonic(), "items": items, "fetched_at": fetched_at,
+                   "key": cache_key})
     return {"status": "ok", "data": {"items": items, "fetched_at": fetched_at}, "citations": []}
 
 

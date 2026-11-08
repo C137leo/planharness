@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import datetime as dt
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -24,6 +24,7 @@ from app.api.routes import get_current_user, get_db, ok
 from app.audit import append_event
 from app.config import get_settings
 from app.food import mcd_order
+from app.food.mcd_mcp import resolve_token
 from app.models import AuditEvent, Plan, User
 
 router = APIRouter(prefix="/api/v1")
@@ -73,6 +74,11 @@ def _fail(result: dict) -> None:
     raise HTTPException(ERROR_STATUS.get(code, 502), f"{message}")
 
 
+def _mcd_token(x_mcd_token: str | None = Header(default=None, alias="X-MCD-Token")) -> str:
+    """用户自己的 token 从请求头来；`joe123456` 在 resolve_token 里映射到服务端 token。"""
+    return resolve_token(x_mcd_token)
+
+
 def _guard():
     settings = get_settings()
     if not settings.mcd_mcp_allow_order:
@@ -80,13 +86,14 @@ def _guard():
 
 
 @router.get("/mcd/status")
-def mcd_status(request: Request, user: User = Depends(get_current_user)):
+def mcd_status(request: Request, user: User = Depends(get_current_user),
+               token: str = Depends(_mcd_token)):
     """前端用它决定要不要显示"帮你点好"的入口。"""
     settings = get_settings()
     from app.food.mcd_mcp import available
 
     return ok(request, {
-        "available": available(),
+        "available": available(token),
         "allow_order": bool(settings.mcd_mcp_allow_order),
     })
 
@@ -97,9 +104,10 @@ def mcd_stores(
     city: str,
     keyword: str,
     user: User = Depends(get_current_user),
+    token: str = Depends(_mcd_token),
 ):
     _guard()
-    result = mcd_order.find_stores(city, keyword)
+    result = mcd_order.find_stores(city, keyword, token=token)
     if result["status"] != "ok":
         _fail(result)
     return ok(request, result["data"])
@@ -111,10 +119,11 @@ def mcd_menu(
     store_code: str,
     names: str = "",
     user: User = Depends(get_current_user),
+    token: str = Depends(_mcd_token),
 ):
     """这家店的菜单；带 `names` 时顺便把推荐餐名对到真实商品上。"""
     _guard()
-    result = mcd_order.store_menu(store_code)
+    result = mcd_order.store_menu(store_code, token=token)
     if result["status"] != "ok":
         _fail(result)
     data = result["data"]
@@ -129,11 +138,12 @@ def mcd_quote(
     request: Request,
     body: QuoteIn,
     user: User = Depends(get_current_user),
+    token: str = Depends(_mcd_token),
 ):
     _guard()
     items = [{"product_code": item.get("product_code"),
               "quantity": item.get("quantity", 1)} for item in body.items]
-    result = mcd_order.quote(body.store_code, items)
+    result = mcd_order.quote(body.store_code, items, token=token)
     if result["status"] != "ok":
         _fail(result)
     return ok(request, result["data"])
@@ -145,13 +155,14 @@ def mcd_create_order(
     body: OrderIn,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    token: str = Depends(_mcd_token),
 ):
     """建一张待支付订单，返回官方支付链接。付款由用户自己在麦当劳页面完成。"""
     _guard()
     _check_cooldown(db, user)
     items = [{"product_code": item.get("product_code"),
               "quantity": item.get("quantity", 1)} for item in body.items]
-    result = mcd_order.create_order(body.store_code, items, body.take_way_code)
+    result = mcd_order.create_order(body.store_code, items, body.take_way_code, token=token)
     if result["status"] != "ok":
         _fail(result)
     data = result["data"]
@@ -173,9 +184,10 @@ def mcd_get_order(
     request: Request,
     order_id: str,
     user: User = Depends(get_current_user),
+    token: str = Depends(_mcd_token),
 ):
     _guard()
-    result = mcd_order.get_order(order_id)
+    result = mcd_order.get_order(order_id, token=token)
     if result["status"] != "ok":
         _fail(result)
     return ok(request, result["data"])
@@ -187,9 +199,10 @@ def mcd_cancel_order(
     order_id: str,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    token: str = Depends(_mcd_token),
 ):
     _guard()
-    result = mcd_order.cancel_order(order_id)
+    result = mcd_order.cancel_order(order_id, token=token)
     if result["status"] != "ok":
         _fail(result)
     if result["data"]["cancelled"]:

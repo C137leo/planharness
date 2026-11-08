@@ -7,7 +7,7 @@
  */
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { api, ApiError, type CurrentPlan, type PatchPreset, type TodayAgentResult, type TodayPlanSnapshot } from '../../api'
+import { api, ApiError, getStoredMcdToken, type CurrentPlan, type PatchPreset, type TodayAgentResult, type TodayPlanSnapshot } from '../../api'
 import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
 import FoodOptionsSheet from '../../components/FoodOptionsSheet.vue'
@@ -270,7 +270,7 @@ async function runAgent() {
   agentTraceOpen.value = false
   startTraceTimer()
   try {
-    const started = await api.startTodayPlan(agentText.value.trim())
+    const started = await api.startTodayPlan(agentText.value.trim(), undefined, getStoredMcdToken())
     agentRunId.value = started.run_id
     // 800ms 一轮：后端每完成一步就写库，前端就能"边跑边看"
     for (let attempt = 0; attempt < 40; attempt += 1) {

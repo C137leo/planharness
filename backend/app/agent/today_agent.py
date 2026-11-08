@@ -435,13 +435,16 @@ def _all_knowledge_ids(db) -> set[str]:
 
 # ---------------------------------------------------------------- 入口
 
-def run(db, user, day, text: str, client=None, on_step=None) -> TodayResult:
+def run(db, user, day, text: str, client=None, on_step=None,
+        mcd_token: str | None = None) -> TodayResult:
     """跑一轮今日规划。
 
     on_step(step) 是"边跑边看"的钩子：每记一步就回调一次，
     后台任务用它把 trace 立刻写库，前端轮询就能看到进度，而不是干等。
+    mcd_token 是用户自己的麦当劳 MCP token；为空时用服务端配置。
     """
     ctx = load_context(db, user, day)
+    ctx["mcd_token"] = mcd_token
     # 手机比价工具需要 VLM 客户端（同一个 OpenAI 兼容客户端即可）
     ctx["vlm_client"] = client
     try:

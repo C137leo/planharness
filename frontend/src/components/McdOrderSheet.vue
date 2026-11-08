@@ -9,7 +9,7 @@
  * 两边不互通；官方 MCP 也没有"加购物车"工具，只有 create-order。
  */
 import { computed, ref, watch } from 'vue'
-import { api, ApiError, type McdMenuItem, type McdOrder, type McdQuote, type McdStore } from '../api'
+import { api, ApiError, getStoredMcdToken, setStoredMcdToken, type McdMenuItem, type McdOrder, type McdQuote, type McdStore } from '../api'
 
 const props = defineProps<{
   visible: boolean
@@ -19,11 +19,13 @@ const props = defineProps<{
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 const step = ref<'store' | 'items' | 'order'>('store')
-// 上次搜过的城市/关键词记一下，下次打开直接带出来（没做定位，就记手动输入）
+// 没接定位：默认北京，用户自己改；上次搜过的城市/关键词记一下。
 const LAST_CITY_KEY = 'planharness_mcd_city'
 const LAST_KEYWORD_KEY = 'planharness_mcd_keyword'
-const city = ref((uni.getStorageSync(LAST_CITY_KEY) as string) || '上海')
+const city = ref((uni.getStorageSync(LAST_CITY_KEY) as string) || '北京')
 const keyword = ref((uni.getStorageSync(LAST_KEYWORD_KEY) as string) || '')
+// 用户自己的 MCD token；joe123456 让后端换成服务端内置 token
+const mcdToken = ref(getStoredMcdToken())
 const stores = ref<McdStore[]>([])
 const store = ref<McdStore | null>(null)
 const matched = ref<Array<McdMenuItem & { suggestion: string }>>([])
@@ -66,6 +68,7 @@ watch(
   () => props.visible,
   (open) => {
     if (!open) return
+    mcdToken.value = getStoredMcdToken()
     reset()
   },
 )
@@ -82,8 +85,13 @@ async function searchStores(auto = false) {
   loading.value = true
   if (!auto) error.value = ''
   try {
-    const data = await api.mcdStores(city.value.trim() || '上海', keyword.value.trim())
-    uni.setStorageSync(LAST_CITY_KEY, city.value.trim())
+    setStoredMcdToken(mcdToken.value.trim())
+    const data = await api.mcdStores(
+      city.value.trim() || '北京',
+      keyword.value.trim(),
+      mcdToken.value.trim(),
+    )
+    uni.setStorageSync(LAST_CITY_KEY, city.value.trim() || '北京')
     uni.setStorageSync(LAST_KEYWORD_KEY, keyword.value.trim())
     // 官方已按距离排过，这里再稳一次：近的在前
     stores.value = [...data.stores].sort(
@@ -101,7 +109,7 @@ async function pickStore(target: McdStore) {
   loading.value = true
   error.value = ''
   try {
-    const menu = await api.mcdMenu(target.store_code, props.suggestions)
+    const menu = await api.mcdMenu(target.store_code, props.suggestions, mcdToken.value.trim())
     store.value = target
     matched.value = menu.matched
     missing.value = menu.missing
@@ -131,7 +139,8 @@ async function getQuote() {
   loading.value = true
   error.value = ''
   try {
-    quote.value = await api.mcdQuote(store.value.store_code, selected.value)
+    quote.value = await api.mcdQuote(
+      store.value.store_code, selected.value, mcdToken.value.trim())
     takeWay.value = quote.value.take_way
     if (!takeWayCode.value && quote.value.take_way.length) {
       takeWayCode.value = quote.value.take_way[0].code
@@ -152,6 +161,7 @@ async function createOrder() {
       store.value.store_code,
       selected.value,
       takeWayCode.value,
+      mcdToken.value.trim(),
     )
     step.value = 'order'
   } catch (err) {
@@ -166,7 +176,7 @@ async function cancelOrder() {
   if (!order.value) return
   loading.value = true
   try {
-    await api.mcdCancelOrder(order.value.order_id)
+    await api.mcdCancelOrder(order.value.order_id, mcdToken.value.trim())
     uni.showToast({ title: '订单已取消', icon: 'none' })
     order.value = null
     step.value = 'items'
@@ -217,12 +227,23 @@ function copy(text: string) {
           选好门店和餐品，我把订单建好，付款由你自己点。
         </text>
         <view class="mcd-field">
+          <text class="mcd-label">MCP Token</text>
+          <input
+            v-model="mcdToken"
+            class="input"
+            placeholder="输入你的 MCD Token；输入 joe123456 使用内置账号"
+          />
+          <text class="mcd-meta">
+            只保存在本机并随请求发送；joe123456 会映射到服务端配置的 token。
+          </text>
+        </view>
+        <view class="mcd-field">
           <text class="mcd-label">城市</text>
-          <input v-model="city" class="input" placeholder="上海" />
+          <input v-model="city" class="input" placeholder="北京" />
         </view>
         <view class="mcd-field">
           <text class="mcd-label">门店 / 地标</text>
-          <input v-model="keyword" class="input" placeholder="例如 人民广场" @confirm="searchStores" />
+          <input v-model="keyword" class="input" placeholder="例如 国贸 / 三里屯" @confirm="searchStores" />
         </view>
         <view class="btn-row">
           <view class="btn-sm primary" @click="searchStores">

@@ -22,10 +22,13 @@ router = APIRouter(prefix="/api/v1")
 class TodayPlanIn(BaseModel):
     text: str = Field(min_length=1, max_length=500)
     date: str | None = None
+    # 用户自己的麦当劳 MCP token；joe123456 会映射到服务端 token
+    mcd_token: str | None = Field(default=None, max_length=512)
 
 
 class FeedbackIn(BaseModel):
     text: str = Field(min_length=1, max_length=300)
+    mcd_token: str | None = Field(default=None, max_length=512)
 
 
 class ApplyIn(BaseModel):
@@ -33,7 +36,8 @@ class ApplyIn(BaseModel):
     date: str | None = None
 
 
-def _run_agent(run_id: str, user_id: str, day: dt.date, text: str, session_factory, settings) -> None:
+def _run_agent(run_id: str, user_id: str, day: dt.date, text: str, session_factory, settings,
+               mcd_token: str | None = None) -> None:
     """后台执行：独立 session，结束后写回 run。
 
     trace 边跑边写：每完成一步就 commit 一次，前端轮询 /runs/{id} 能看到进度，
@@ -62,6 +66,7 @@ def _run_agent(run_id: str, user_id: str, day: dt.date, text: str, session_facto
                 db, user, day, text,
                 client=client if client.available() else None,
                 on_step=on_step,
+                mcd_token=mcd_token,
             )
             run.status = "rejected" if result.refused else "succeeded"
             run.output = result.final or {}
@@ -130,6 +135,7 @@ def create_today_plan(
     background.add_task(
         _run_agent, run.id, user.id, day, payload.text,
         request.app.state.session_factory, request.app.state.settings,
+        payload.mcd_token,
     )
     return ok(request, {"run_id": run.id, "status": run.status}, message="accepted")
 
@@ -197,5 +203,6 @@ def today_plan_feedback(
     background.add_task(
         _run_agent, run.id, user.id, dt.date.today(), text,
         request.app.state.session_factory, request.app.state.settings,
+        payload.mcd_token,
     )
     return ok(request, {"run_id": run.id, "status": run.status}, message="accepted")

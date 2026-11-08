@@ -291,9 +291,10 @@ def mcd_nutrition(args: dict, ctx: dict, db) -> dict:
     """
     from app.food.mcd_mcp import available, build_block, fetch_nutrition
 
-    if not available():
+    token = ctx.get("mcd_token")
+    if not available(token):
         return {"status": "error", "error": "mcd_mcp_unavailable", "retryable": False}
-    fetched = fetch_nutrition()
+    fetched = fetch_nutrition(token=token)
     if fetched["status"] != "ok":
         return fetched
     data = fetched["data"]

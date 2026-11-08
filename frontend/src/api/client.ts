@@ -38,6 +38,7 @@ import type {
 
 const API_BASE = (import.meta.env.VITE_API_BASE || '/api/v1').replace(/\/$/, '')
 const TOKEN_KEY = 'planharness_token'
+export const MCD_TOKEN_KEY = 'planharness_mcd_token'
 
 export class ApiError extends Error {
   constructor(
@@ -58,6 +59,20 @@ export function setStoredToken(token: string): void {
   uni.setStorageSync(TOKEN_KEY, token)
 }
 
+/** 麦当劳 MCP token 存在本机；输入 joe123456 时后端会换成服务端 token。 */
+export function getStoredMcdToken(): string {
+  return (uni.getStorageSync(MCD_TOKEN_KEY) as string) || ''
+}
+
+export function setStoredMcdToken(token: string): void {
+  if (token) uni.setStorageSync(MCD_TOKEN_KEY, token)
+  else uni.removeStorageSync(MCD_TOKEN_KEY)
+}
+
+function mcdHeaders(token = ''): Record<string, string> {
+  return token ? { 'X-MCD-Token': token } : {}
+}
+
 function parseError(data: unknown, statusCode: number): ApiError {
   const body = data as { detail?: unknown; message?: string } | null
   const detail = body?.detail
@@ -72,6 +87,7 @@ async function rawRequest<T>(
   path: string,
   data?: unknown,
   token = '',
+  extraHeaders: Record<string, string> = {},
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     uni.request({
@@ -81,6 +97,7 @@ async function rawRequest<T>(
       header: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...extraHeaders,
       },
       success: (response) => {
         if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -128,7 +145,12 @@ async function rawGetChallenge(purpose: 'register' | 'login') {
   return rawRequest<AuthChallenge>('GET', `/auth/challenge?purpose=${purpose}`)
 }
 
-async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: string, data?: unknown): Promise<T> {
+async function request<T>(
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+  path: string,
+  data?: unknown,
+  extraHeaders: Record<string, string> = {},
+): Promise<T> {
   let token: string
   try {
     token = await ensureToken()
@@ -137,7 +159,7 @@ async function request<T>(method: 'GET' | 'POST' | 'PUT' | 'DELETE', path: strin
     throw err
   }
   try {
-    return await rawRequest<T>(method, path, data, token)
+    return await rawRequest<T>(method, path, data, token, extraHeaders)
   } catch (error) {
     if (error instanceof ApiError && error.statusCode === 401) {
       // 不再悄悄换一个身份重试：把用户送回登录页，由他决定登哪个账号
@@ -264,45 +286,58 @@ export const api = {
     ),
 
   // ---- 麦当劳点餐：找门店 → 菜单 → 算价 → 建单（付款留给用户）----
-  mcdStatus: () => request<{ available: boolean; allow_order: boolean }>('GET', '/mcd/status'),
-  mcdStores: (city: string, keyword: string) =>
+  mcdStatus: (mcdToken = '') =>
+    request<{ available: boolean; allow_order: boolean }>(
+      'GET', '/mcd/status', undefined, mcdHeaders(mcdToken),
+    ),
+  mcdStores: (city: string, keyword: string, mcdToken = '') =>
     request<{ stores: McdStore[] }>(
       'GET',
       `/mcd/stores?city=${encodeURIComponent(city)}&keyword=${encodeURIComponent(keyword)}`,
+      undefined,
+      mcdHeaders(mcdToken),
     ),
-  mcdMenu: (storeCode: string, names: string[] = []) =>
+  mcdMenu: (storeCode: string, names: string[] = [], mcdToken = '') =>
     request<McdMenuPayload>(
       'GET',
       `/mcd/menu?store_code=${encodeURIComponent(storeCode)}${names.length ? `&names=${encodeURIComponent(names.join('|'))}` : ''}`,
+      undefined,
+      mcdHeaders(mcdToken),
     ),
-  mcdQuote: (storeCode: string, items: Array<{ product_code: string; quantity: number }>) =>
-    request<McdQuote>('POST', '/mcd/quote', { store_code: storeCode, items }),
+  mcdQuote: (storeCode: string, items: Array<{ product_code: string; quantity: number }>, mcdToken = '') =>
+    request<McdQuote>('POST', '/mcd/quote', { store_code: storeCode, items }, mcdHeaders(mcdToken)),
   mcdCreateOrder: (
     storeCode: string,
     items: Array<{ product_code: string; quantity: number }>,
     takeWayCode = '',
+    mcdToken = '',
   ) =>
     request<McdOrder>('POST', '/mcd/orders', {
       store_code: storeCode,
       items,
       take_way_code: takeWayCode,
-    }),
-  mcdGetOrder: (orderId: string) => request<McdOrder>('GET', `/mcd/orders/${orderId}`),
-  mcdCancelOrder: (orderId: string) =>
-    request<{ order_id: string; cancelled: boolean }>('POST', `/mcd/orders/${orderId}/cancel`, {}),
+    }, mcdHeaders(mcdToken)),
+  mcdGetOrder: (orderId: string, mcdToken = '') =>
+    request<McdOrder>('GET', `/mcd/orders/${orderId}`, undefined, mcdHeaders(mcdToken)),
+  mcdCancelOrder: (orderId: string, mcdToken = '') =>
+    request<{ order_id: string; cancelled: boolean }>(
+      'POST', `/mcd/orders/${orderId}/cancel`, {}, mcdHeaders(mcdToken),
+    ),
 
   foodOptions: (planId: string, date: string, mealSlot: string, refresh = false) =>
     request<FoodOptionPayload>(
       'GET',
       `/food/options?plan_id=${planId}&date=${date}&meal_slot=${mealSlot}${refresh ? '&refresh=true' : ''}`,
     ),
-  startTodayPlan: (text: string, date?: string) =>
-    request<{ run_id: string; status: string }>('POST', '/agent/today-plan', { text, date }),
-  feedbackTodayPlan: (runId: string, text: string) =>
+  startTodayPlan: (text: string, date?: string, mcdToken = '') =>
+    request<{ run_id: string; status: string }>(
+      'POST', '/agent/today-plan', { text, date, mcd_token: mcdToken || undefined },
+    ),
+  feedbackTodayPlan: (runId: string, text: string, mcdToken = '') =>
     request<{ run_id: string; status: string }>(
       'POST',
       `/agent/today-plan/${runId}/feedback`,
-      { text },
+      { text, mcd_token: mcdToken || undefined },
     ),
   applyAgentMeals: (runId: string, selections: unknown[], date?: string) =>
     request<{ new_version: number }>('POST', `/agent/today-plan/${runId}/apply`, {

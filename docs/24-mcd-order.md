@@ -44,7 +44,7 @@ create-order         建单 → 订单号 + payH5Url（待支付，15 分钟有�
 ## 3. 本项目怎么用
 
 - 后端：`app/food/mcd_order.py`（解析 + 建单/取消）、`app/api/mcd_routes.py`（HTTP 接口）
-- 前端：`frontend/src/components/McdOrderSheet.vue`（选门店 → 确认餐品 → 算价 → 建单 → 付款/取消）
+- 前端：`frontend/src/components/McdOrderSheet.vue`（MCP Token + 城市/门店 → 确认餐品 → 算价 → 建单 → 付款/取消）
 - 入口：今日规划结果里麦当劳卡片的「让 Agent 帮我点好（到付款前）→」
 
 菜单匹配规则（`match_items`）：先精确同名，再双向包含；对不上的**不猜**，
@@ -54,7 +54,7 @@ create-order         建单 → 订单号 + payH5Url（待支付，15 分钟有�
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/v1/mcd/status` | 是否已配置、是否允许建单 |
+| GET | `/api/v1/mcd/status` | 是否已配置、是否允许建单（可用 `X-MCD-Token` 传用户 token） |
 | GET | `/api/v1/mcd/stores?city=&keyword=` | 搜门店（官方两个参数都必填） |
 | GET | `/api/v1/mcd/menu?store_code=&names=a\|b` | 菜单 + 把推荐餐名对到商品 |
 | POST | `/api/v1/mcd/quote` | 官方算价 |
@@ -91,7 +91,27 @@ create-order         建单 → 订单号 + payH5Url（待支付，15 分钟有�
   取消写 `mcd_order_cancelled`；Console 里能查到"谁在什么时候点了多少钱"。
 - **不碰支付**：不保存支付信息、不代付；`pay_url` 是麦当劳官方 H5 收银台。
 
-## 5. 配置
+## 5. 用户自己的 MCP Token
+
+点餐抽屉里有 `MCP Token` 输入框，请求会带：
+
+```http
+X-MCD-Token: <用户输入>
+```
+
+后端解析规则（`app/food/mcd_mcp.py::resolve_token`）：
+
+- 空：用服务端 `MCD_MCP_TOKEN`（兼容原来的单账号演示）；
+- `joe123456`：用服务端 `MCD_MCP_TOKEN`，方便演示时不用把真 token 发给用户；
+- 其它值：用用户自己的 token，只随本次请求发往 MCP，不写数据库、不写日志。
+
+前端把 token 存在浏览器 localStorage 的 `planharness_mcd_token`，
+点「找门店」时保存；「今日规划」的麦当劳营养块也会带同一个 token。
+
+默认城市是 **北京**，用户可以直接改；官方 `query-nearby-stores` 只接受
+`city + keyword`，没有经纬度入口，所以不做 IP 定位，避免猜错城市。
+
+## 5.1 服务端配置
 
 ```dotenv
 MCD_MCP_URL=https://mcp.mcd.cn
@@ -106,8 +126,9 @@ dev 写 `backend/.env`，prod 写 `/etc/planharness/planharness.env`
 
 ## 6. 已知边界 / 没做的事
 
-- **一个 Token 一个账号**：所有用户共用这套 MCP Token，订单都会落在 Token 主人的会员账号下。
-  要做多用户，就得让每个用户绑自己的 MCP Token（控制台里各自激活）。
+- **一个 Token 一个账号**：默认所有用户共用服务端 MCP Token；现在点餐抽屉支持用户填自己的
+  token（`joe123456` 映射到服务端 token），订单落在该 token 对应的账号下。
+  不填时仍走服务端 token。
 - **外送没做**：要接 `delivery-query-addresses` → 选地址 → `orderType=2`，
   而且地址是 Token 主人账号里的，这个演示不合适。
 - **没有购物车语义**：建单即订单，没有"先放购物车再改"的中间态；
@@ -115,6 +136,6 @@ dev 写 `backend/.env`，prod 写 `/etc/planharness/planharness.env`
 - **未验证**：真机支付页跳转、弱网/超时下的重试、多个用户同时建单的并发。
 - **会真的产生订单**：只在你点"生成订单"时发生，且 15 分钟不付就失效、也能即时取消。
 - **自动定位已去掉**：`query-nearby-stores` 只接受 `city` + `keyword`，没有经纬度入口；
-  按 IP 猜城市能跑，但猜错了反而更像 bug，所以改成手动填（会记住上次的城市/关键词）。
+  默认北京，用户自己改（会记住上次的城市/关键词）。
 - **每天能下几单不是我们能定的**：见 3.9，官方账号级限制，文档没写数值，实测 5 单后报
   `600039 今日下单数已经上限`。
