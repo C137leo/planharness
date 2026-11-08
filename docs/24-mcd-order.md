@@ -93,7 +93,10 @@ create-order         建单 → 订单号 + payH5Url（待支付，15 分钟有�
 
 ## 5. 用户自己的 MCP Token
 
-点餐抽屉里有 `MCP Token` 输入框，请求会带：
+官方获取地址：<https://open.mcd.cn/mcp>
+
+步骤：手机号登录 → 右上角「控制台」→ 激活 → 复制 MCP Token。
+点餐抽屉里有 `MCP Token` 输入框，并带「去麦当劳 MCP 控制台获取 →」链接；请求会带：
 
 ```http
 X-MCD-Token: <用户输入>

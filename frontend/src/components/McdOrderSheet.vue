@@ -26,6 +26,7 @@ const LAST_KEYWORD_KEY = 'planharness_mcd_keyword_v2'
 const city = ref((uni.getStorageSync(LAST_CITY_KEY) as string) || '北京')
 const keyword = ref((uni.getStorageSync(LAST_KEYWORD_KEY) as string) || '')
 // 用户自己的 MCD token；是否映射服务端 token 由后端配置决定
+const MCD_TOKEN_GUIDE_URL = 'https://open.mcd.cn/mcp'
 const mcdToken = ref(getStoredMcdToken())
 
 function persistMcdToken() {
@@ -192,6 +193,19 @@ async function cancelOrder() {
   }
 }
 
+function openTokenGuide() {
+  const url = MCD_TOKEN_GUIDE_URL
+  const globalOpen = (globalThis as unknown as { open?: (u: string, t?: string) => unknown }).open
+  if (typeof globalOpen === 'function') {
+    globalOpen(url, '_blank')
+    return
+  }
+  uni.setClipboardData({
+    data: url,
+    success: () => uni.showToast({ title: '获取链接已复制', icon: 'none' }),
+  })
+}
+
 function openPay() {
   const url = order.value?.pay_url
   if (!url) return
@@ -239,6 +253,11 @@ function copy(text: string) {
             placeholder="输入你的 MCD Token（选填）"
             @blur="persistMcdToken"
           />
+          <view class="mcd-token-help">
+            <text class="mcd-meta">还没有 Token？</text>
+            <text class="link" @click="openTokenGuide">去麦当劳 MCP 控制台获取 →</text>
+          </view>
+          <text class="mcd-meta">手机号登录 → 控制台 → 激活 → 复制 MCP Token。</text>
         </view>
         <view class="mcd-field">
           <text class="mcd-label">城市</text>
@@ -534,6 +553,18 @@ function copy(text: string) {
   font-size: 11px;
   line-height: 1.5;
   margin-top: 6px;
+}
+
+.mcd-token-help {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.mcd-token-help .mcd-meta {
+  margin-top: 0;
 }
 
 .mcd-order-card {
