@@ -2,9 +2,10 @@
  * 动作缩略图：优先用具体动作图，其次退回身体部位插画。
  *
  * 当前有 6 张部位图 + 7 张动作图（引体/死虫/哑铃卧推/硬拉/行走弓步/腿举/坐姿划船）。
- * 具体动作图只配给动作模式真正一致的动作：例如 `seated-row` 用坐姿划船图，
- * `row`（哑铃划船）仍走背部部位图，避免把器械图配错。
- * 映射顺序：先按 action_ref，再看 meta.movement_mode，最后看 meta.primary_muscle。
+ * demo 阶段不做器械级严格匹配：同一动作模式的变体（弹力带/哑铃/单腿/绳索）
+ * 复用同一张图，例如 dead-bug / banded-dead-bug 都先用死虫图，
+ * deadlift 系列都用硬拉图，row 系列都用划船图。
+ * 映射顺序：先按 action_ref 精确匹配，再按 ref 模式匹配，最后看 meta。
  */
 
 export type ThumbKey =
@@ -65,7 +66,7 @@ const MUSCLE_TO_THUMB: Record<string, ThumbKey> = {
 }
 
 // 模板计划（没有 meta）用 ref 兜底。
-// 这里放的是"动作图能对得上"的 ref；对不上的仍走部位图，别硬配。
+// 先放明确 ref；同模式变体交给下面的 REF_PATTERNS，避免为每个动作枚举一遍。
 const REF_TO_THUMB: Record<string, ThumbKey> = {
   'pull-up': 'pullUp',
   pull_up: 'pullUp',
@@ -94,8 +95,8 @@ const REF_TO_THUMB: Record<string, ThumbKey> = {
   pushup: 'chest',
   push_up: 'chest',
   bench_press: 'chest',
-  row: 'back',
-  backpack_row: 'back',
+  row: 'seatedRow',
+  backpack_row: 'seatedRow',
   glute_bridge: 'hip',
   hip_thrust: 'hip',
   plank: 'core',
@@ -104,6 +105,17 @@ const REF_TO_THUMB: Record<string, ThumbKey> = {
   brisk_walk: 'legs',
   easy_walk: 'legs',
 }
+
+// 模式匹配：demo 允许"同动作模式共用一张图"。
+// 注意 row 要用分隔符边界，避免把 throw 里的 row 也吃掉。
+const REF_PATTERNS: Array<[RegExp, ThumbKey]> = [
+  [/(?:^|[-_])dead[-_]?bug(?:$|[-_])/, 'deadBug'],
+  [/(?:^|[-_])deadlift(?:$|[-_])/, 'deadlift'],
+  [/(?:^|[-_])row(?:$|[-_])/, 'seatedRow'],
+  [/(?:^|[-_])(?:pull|chin)[-_]?up(?:$|[-_])/, 'pullUp'],
+  [/lunge/, 'walkingLunge'],
+  [/(?:^|[-_])leg[-_]?press(?:$|[-_])/, 'legPress'],
+]
 
 export function thumbOf(action: {
   action_ref?: string
@@ -115,6 +127,10 @@ export function thumbOf(action: {
   const rawRef = String(action.action_ref || '')
   const refKey = REF_TO_THUMB[rawRef] || REF_TO_THUMB[rawRef.replace(/-/g, '_').toLowerCase()]
   if (refKey) return THUMBS[refKey]
+  const normalizedRef = rawRef.replace(/_/g, '-').toLowerCase()
+  for (const [pattern, key] of REF_PATTERNS) {
+    if (pattern.test(normalizedRef)) return THUMBS[key]
+  }
 
   const meta = action.meta || {}
   const mode = String(meta.movement_mode || '').toLowerCase()

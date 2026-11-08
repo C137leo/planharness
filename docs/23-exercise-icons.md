@@ -15,12 +15,19 @@
 - 6 张身体部位图（legs / hip / chest / back / core / stretch）；
 - 7 张具体动作图（`pull-up` / `dead-bug` / `dumbbell-bench-press` / `deadlift` /
   `walking-lunge` / `leg-press` / `seated-row`），放在 `frontend/src/static/ex/`；
-- 先按 `action_ref` 命中具体动作图，命中不了再退回 `meta.movement_mode` /
-  `meta.primary_muscle` 对应的部位图。
+- 先按 `action_ref`（精确或动作模式）命中具体动作图，命中不了再退回
+  `meta.movement_mode` / `meta.primary_muscle` 对应的部位图。
 
-具体动作图只配给动作一致的 ref：`seated-row` 用坐姿划船图，
-`row`（哑铃划船）仍走背部图；`leg-press` 是腿举机，不配给 `hanging-leg-raise`
-（举腿是另一个动作）。新增图片时先看动作模式，不要只按中文名硬配。
+demo 阶段按**动作模式**复用它，不做器械级严格匹配：
+
+- `dead-bug` / `banded-dead-bug` / `dumbbell-dead-bug` → 死虫图；
+- `deadlift` / `romanian-deadlift` / `dumbbell-sumo-deadlift` / `trap-bar-deadlift` → 硬拉图；
+- `row` / `barbell-row` / `backpack_row` / `seated-row` / `inverted-row` 等 → 划船图；
+- `pull-up` / `chin-up` / `assisted-pull-up` → 引体图；
+- `walking-lunge` / `reverse-lunge` / `lateral-lunge` → 弓步图；
+- `leg-press` / `leg-press-calf-raise` → 腿举图。
+
+`leg-press` 仍然不配给 `hanging-leg-raise`：那是举腿，不是腿举机。
 
 | # | 动作 | 系统 ref | 器械 | 主肌群 | 出现场景 | 图标文件 |
 | --- | --- | --- | --- | --- | --- | --- |
