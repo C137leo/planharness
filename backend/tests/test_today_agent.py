@@ -170,6 +170,16 @@ def test_tool_error_is_observation_not_crash(ready) -> None:
     assert not result.refused
 
 
+def test_validation_fallback_keeps_model_usage(ready) -> None:
+    """模型调用了、但输出没通过校验：降级仍要记录真实 token，不能显示 0 成本。"""
+    db, user, day = ready
+    client = FakeClient([], always_tools=False)
+    result = run(db, user, day, "规划今天", client=client)
+    assert result.fallback
+    assert result.usage["prompt_tokens"] > 0
+    assert result.usage["completion_tokens"] > 0
+
+
 def test_max_steps_falls_back(ready) -> None:
     db, user, day = ready
     client = FakeClient([("get_today_plan", {})], always_tools=True)

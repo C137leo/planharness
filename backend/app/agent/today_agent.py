@@ -125,7 +125,8 @@ def _parse_answer(content: str) -> dict:
     return TodayAnswer.model_validate(data).model_dump()
 
 
-def _repair(client, messages: list[dict], error: str) -> dict:
+def _repair(client, messages: list[dict], error: str,
+            usage_total: dict | None = None) -> dict:
     """截断/格式错时让模型只重发一次 JSON（不带工具）。"""
     retry_messages = messages + [
         {"role": "user", "content": (
@@ -135,6 +136,10 @@ def _repair(client, messages: list[dict], error: str) -> dict:
         )},
     ]
     reply = client.complete(retry_messages, tools=None, max_tokens=1200)
+    if usage_total is not None:
+        usage = reply.get("usage") or {}
+        usage_total["prompt_tokens"] += int(usage.get("prompt_tokens") or 0)
+        usage_total["completion_tokens"] += int(usage.get("completion_tokens") or 0)
     return _parse_answer((reply.get("message") or {}).get("content") or "")
 
 
@@ -174,7 +179,11 @@ def _run_loop(db, ctx: dict, text: str, client, on_step=None) -> TodayResult:
                 _push(trace, on_step, "parse", "failed",
                       error=f"{type(exc).__name__}: {str(exc)[:100]}")
                 # 修复一次：只让模型重发文字部分，餐食本来就不在模型输出里
-                answer = _repair(client, messages, f"{type(exc).__name__}: {str(exc)[:100]}")
+                answer = _repair(
+                    client, messages,
+                    f"{type(exc).__name__}: {str(exc)[:100]}",
+                    usage_total,
+                )
                 _push(trace, on_step, "parse", "repaired")
             final = _assemble(answer, food_meals, tool_citations, mcd_data)
             # 不管模型有没有主动查，规划完成后都补一次麦当劳营养库：
@@ -717,6 +726,9 @@ def run(db, user, day, text: str, client=None, on_step=None,
         fallback = _deterministic(db, ctx, text, on_step=on_step)
         _push(result.trace, on_step, "validate", "failed", problems=problems[:5])
         fallback.trace = result.trace
+        # 模型已经花掉的 token 不能因为"输出没通过校验"就记成 0；
+        # 否则 Console 会把一次真实模型调用显示成 0 成本。
+        fallback.usage = dict(result.usage or {})
         fallback.error = "; ".join(problems[:3])
         return fallback
     _push(result.trace, on_step, "validate", "ok")
