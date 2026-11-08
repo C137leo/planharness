@@ -20,8 +20,9 @@ const emit = defineEmits<{ (e: 'close'): void }>()
 
 const step = ref<'store' | 'items' | 'order'>('store')
 // 没接定位：默认北京，用户自己改；上次搜过的城市/关键词记一下。
-const LAST_CITY_KEY = 'planharness_mcd_city'
-const LAST_KEYWORD_KEY = 'planharness_mcd_keyword'
+// v2：旧版本默认上海/人民广场，升级后不再读取旧 key，确保默认北京生效。
+const LAST_CITY_KEY = 'planharness_mcd_city_v2'
+const LAST_KEYWORD_KEY = 'planharness_mcd_keyword_v2'
 const city = ref((uni.getStorageSync(LAST_CITY_KEY) as string) || '北京')
 const keyword = ref((uni.getStorageSync(LAST_KEYWORD_KEY) as string) || '')
 // 用户自己的 MCD token；是否映射服务端 token 由后端配置决定
