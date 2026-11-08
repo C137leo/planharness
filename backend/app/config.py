@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     # token 留空 = 不启用：工具不会暴露给模型，规划流程照常
     mcd_mcp_url: str = "https://mcp.mcd.cn"
     mcd_mcp_token: str = ""
+    # 可选：设置一个私有口令，用户输入它时使用上面的服务端 token；
+    # 留空则只认用户自己的 token。不要把这个值提交到 Git。
+    mcd_mcp_token_alias: str = ""
     mcd_mcp_tool: str = "list-nutrition-foods"
     mcd_mcp_timeout: float = 15.0
     # 是否允许"帮你点好（到付款前）"：建单是真的在麦当劳侧生成待支付订单，

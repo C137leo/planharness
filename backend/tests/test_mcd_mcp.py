@@ -68,6 +68,7 @@ def _reset(monkeypatch):
     """每个用例都从"已配置 + 空缓存"开始，避免互相污染。"""
     monkeypatch.setattr(mcd_mcp, "MCD_MCP_URL", URL)
     monkeypatch.setattr(mcd_mcp, "MCD_MCP_TOKEN", TOKEN)
+    monkeypatch.setattr(mcd_mcp, "MCD_MCP_TOKEN_ALIAS", "test-alias")
     monkeypatch.setattr(mcd_mcp, "DEFAULT_TOOL", "")
     monkeypatch.setattr(mcd_mcp, "_CACHE", {"at": 0.0, "items": [], "fetched_at": ""})
     yield
@@ -86,8 +87,8 @@ def test_unavailable_without_token(monkeypatch) -> None:
 
 
 def test_user_token_alias_and_own_token() -> None:
-    """joe123456 用服务端 token；其它输入用用户自己的 token；空值回落服务端。"""
-    assert mcd_mcp.resolve_token("joe123456") == TOKEN
+    """配置的口令用服务端 token；其它输入用用户自己的 token；空值回落服务端。"""
+    assert mcd_mcp.resolve_token("test-alias") == TOKEN
     assert mcd_mcp.resolve_token("user-token") == "user-token"
     assert mcd_mcp.resolve_token("") == TOKEN
     assert mcd_mcp.resolve_token(None) == TOKEN

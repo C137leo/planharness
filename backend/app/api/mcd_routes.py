@@ -75,7 +75,7 @@ def _fail(result: dict) -> None:
 
 
 def _mcd_token(x_mcd_token: str | None = Header(default=None, alias="X-MCD-Token")) -> str:
-    """用户自己的 token 从请求头来；`joe123456` 在 resolve_token 里映射到服务端 token。"""
+    """用户自己的 token 从请求头来；配置了私有口令时由 resolve_token 映射到服务端 token。"""
     return resolve_token(x_mcd_token)
 
 

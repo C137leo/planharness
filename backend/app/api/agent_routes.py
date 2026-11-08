@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/v1")
 class TodayPlanIn(BaseModel):
     text: str = Field(min_length=1, max_length=500)
     date: str | None = None
-    # 用户自己的麦当劳 MCP token；joe123456 会映射到服务端 token
+    # 用户自己的麦当劳 MCP token；配置了私有口令时映射到服务端 token
     mcd_token: str | None = Field(default=None, max_length=512)
 
 

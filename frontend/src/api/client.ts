@@ -59,14 +59,38 @@ export function setStoredToken(token: string): void {
   uni.setStorageSync(TOKEN_KEY, token)
 }
 
-/** 麦当劳 MCP token 存在本机；输入 joe123456 时后端会换成服务端 token。 */
+/** 麦当劳 MCP token 按登录用户分别存在本机；是否映射服务端 token 由后端配置决定。 */
+function mcdStorageKey(): string {
+  const auth = getStoredToken()
+  if (!auth) return `${MCD_TOKEN_KEY}:anon`
+  try {
+    const raw = auth.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    const padded = raw.padEnd(Math.ceil(raw.length / 4) * 4, '=')
+    const payload = JSON.parse(globalThis.atob(padded)) as { sub?: string }
+    return `${MCD_TOKEN_KEY}:${payload.sub || 'anon'}`
+  } catch {
+    return `${MCD_TOKEN_KEY}:anon`
+  }
+}
+
 export function getStoredMcdToken(): string {
-  return (uni.getStorageSync(MCD_TOKEN_KEY) as string) || ''
+  const key = mcdStorageKey()
+  const current = (uni.getStorageSync(key) as string) || ''
+  if (current) return current
+  // 兼容旧版本：以前存在全局 key 上，第一次读取时迁移到当前用户名下。
+  const legacy = (uni.getStorageSync(MCD_TOKEN_KEY) as string) || ''
+  if (legacy) {
+    uni.setStorageSync(key, legacy)
+    uni.removeStorageSync(MCD_TOKEN_KEY)
+    return legacy
+  }
+  return ''
 }
 
 export function setStoredMcdToken(token: string): void {
-  if (token) uni.setStorageSync(MCD_TOKEN_KEY, token)
-  else uni.removeStorageSync(MCD_TOKEN_KEY)
+  const key = mcdStorageKey()
+  if (token) uni.setStorageSync(key, token)
+  else uni.removeStorageSync(key)
 }
 
 function mcdHeaders(token = ''): Record<string, string> {

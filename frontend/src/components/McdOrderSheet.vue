@@ -24,8 +24,12 @@ const LAST_CITY_KEY = 'planharness_mcd_city'
 const LAST_KEYWORD_KEY = 'planharness_mcd_keyword'
 const city = ref((uni.getStorageSync(LAST_CITY_KEY) as string) || '北京')
 const keyword = ref((uni.getStorageSync(LAST_KEYWORD_KEY) as string) || '')
-// 用户自己的 MCD token；joe123456 让后端换成服务端内置 token
+// 用户自己的 MCD token；是否映射服务端 token 由后端配置决定
 const mcdToken = ref(getStoredMcdToken())
+
+function persistMcdToken() {
+  setStoredMcdToken(mcdToken.value.trim())
+}
 const stores = ref<McdStore[]>([])
 const store = ref<McdStore | null>(null)
 const matched = ref<Array<McdMenuItem & { suggestion: string }>>([])
@@ -231,11 +235,9 @@ function copy(text: string) {
           <input
             v-model="mcdToken"
             class="input"
-            placeholder="输入你的 MCD Token；输入 joe123456 使用内置账号"
+            placeholder="输入你的 MCD Token（选填）"
+            @blur="persistMcdToken"
           />
-          <text class="mcd-meta">
-            只保存在本机并随请求发送；joe123456 会映射到服务端配置的 token。
-          </text>
         </view>
         <view class="mcd-field">
           <text class="mcd-label">城市</text>

@@ -102,11 +102,13 @@ X-MCD-Token: <用户输入>
 后端解析规则（`app/food/mcd_mcp.py::resolve_token`）：
 
 - 空：用服务端 `MCD_MCP_TOKEN`（兼容原来的单账号演示）；
-- `joe123456`：用服务端 `MCD_MCP_TOKEN`，方便演示时不用把真 token 发给用户；
+- 与服务端配置的私有口令（`MCD_MCP_TOKEN_ALIAS`）相同：用服务端 `MCD_MCP_TOKEN`；
 - 其它值：用用户自己的 token，只随本次请求发往 MCP，不写数据库、不写日志。
 
-前端把 token 存在浏览器 localStorage 的 `planharness_mcd_token`，
-点「找门店」时保存；「今日规划」的麦当劳营养块也会带同一个 token。
+前端按登录用户把 token 存在 localStorage 的
+`planharness_mcd_token:<user_id>`（user_id 从 JWT 的 `sub` 解出）；
+输入框失焦或点「找门店」时保存，同一账号下次打开默认带出。
+「今日规划」的麦当劳营养块也会带同一个 token。
 
 默认城市是 **北京**，用户可以直接改；官方 `query-nearby-stores` 只接受
 `city + keyword`，没有经纬度入口，所以不做 IP 定位，避免猜错城市。
@@ -115,11 +117,15 @@ X-MCD-Token: <用户输入>
 
 ```dotenv
 MCD_MCP_URL=https://mcp.mcd.cn
-MCD_MCP_TOKEN=***                 # open.mcd.cn 控制台激活后生成
+MCD_MCP_TOKEN=***                 # open.mcd.cn 控制台激活后生成，只放环境文件
+MCD_MCP_TOKEN_ALIAS=              # 可选：私有口令；输入它时用上面的 token
 MCD_MCP_TOOL=list-nutrition-foods # 营养库（只读）
 MCD_MCP_TIMEOUT=15
 MCD_MCP_ALLOW_ORDER=1             # 1 允许建单；0 只读
 ```
+
+`MCD_MCP_TOKEN_ALIAS` 留空时，只认用户自己的 token；配置后，输入该口令会使用
+服务端 token。真实值不要提交 Git，也不要写进前端。
 
 dev 写 `backend/.env`，prod 写 `/etc/planharness/planharness.env`
 （systemd `EnvironmentFile`），改完 `systemctl restart planharness`。
@@ -127,7 +133,8 @@ dev 写 `backend/.env`，prod 写 `/etc/planharness/planharness.env`
 ## 6. 已知边界 / 没做的事
 
 - **一个 Token 一个账号**：默认所有用户共用服务端 MCP Token；现在点餐抽屉支持用户填自己的
-  token（`joe123456` 映射到服务端 token），订单落在该 token 对应的账号下。
+  token（配置了 `MCD_MCP_TOKEN_ALIAS` 时，输入该口令映射到服务端 token），
+  订单落在该 token 对应的账号下。
   不填时仍走服务端 token。
 - **外送没做**：要接 `delivery-query-addresses` → 选地址 → `orderType=2`，
   而且地址是 Token 主人账号里的，这个演示不合适。

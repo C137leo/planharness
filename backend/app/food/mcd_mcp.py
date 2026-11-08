@@ -34,9 +34,9 @@ MCD_MCP_TOKEN = ""
 DEFAULT_TOOL = ""
 TIMEOUT = 0.0
 
-# 用户输入这个口令时，后端使用服务端配置的 MCD_MCP_TOKEN；
-# 其它输入一律当作用户自己的 token，不落库、不写日志。
-DEMO_TOKEN_ALIAS = "joe123456"
+# 模块级变量优先（测试可直接改）；否则读 Settings / 环境变量。
+# 这是"口令"不是 token，真实 token 只在 MCD_MCP_TOKEN 里。
+MCD_MCP_TOKEN_ALIAS = ""
 
 # 营养表几乎不变：缓存一段时间，省掉每个用户每次规划都打一次官方接口
 CACHE_TTL_S = 6 * 3600
@@ -60,16 +60,25 @@ def _configured_token() -> str:
     return MCD_MCP_TOKEN or settings.mcd_mcp_token or os.environ.get("MCD_MCP_TOKEN", "")
 
 
+def _configured_alias() -> str:
+    from app.config import get_settings
+
+    settings = get_settings()
+    return (MCD_MCP_TOKEN_ALIAS or settings.mcd_mcp_token_alias
+            or os.environ.get("MCD_MCP_TOKEN_ALIAS", "")).strip()
+
+
 def resolve_token(user_token: str | None = None) -> str:
     """解析本次请求实际使用的 token。
 
     - 空：用服务端配置（兼容原来的行为）；
-    - `joe123456`：用服务端配置，方便演示时不用把真 token 发给用户；
+    - 与服务端配置的私有口令相同：用服务端配置，方便演示时不用把真 token 发给用户；
     - 其它：用用户自己输入的 token。
     """
     supplied = (user_token or "").strip()[:512]
     configured = _configured_token().strip()
-    if supplied == DEMO_TOKEN_ALIAS:
+    alias = _configured_alias()
+    if alias and supplied == alias:
         return configured
     return supplied or configured
 
