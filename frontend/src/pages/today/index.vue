@@ -677,7 +677,7 @@ onShow(() => {
 
         <view class="chip-scroll">
           <view class="pill" @click="openComposer('今天想休息', 'rest')">今天想休息</view>
-          <view class="pill" @click="openComposer('这周膝盖不舒服，换不伤膝的动作', 'injury_swap')">受伤换动作</view>
+          <view class="pill" @click="openComposer('', 'injury_swap')">受伤换动作</view>
           <view class="pill" @click="openComposer('想加点强度', 'increase')">加强度</view>
         </view>
       </view>

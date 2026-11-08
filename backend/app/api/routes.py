@@ -370,12 +370,14 @@ def patch_presets(request: Request):
         PatchPresetOut(key="rest", label="今天想休息",
                        example="今天想休息，把今天的训练挪到明天",
                        hint="只改今天，不动整周结构"),
+        # 受伤类预设不替用户填部位：点标签只选模式，部位由用户自己写/选，
+        # 否则默认文案永远是"膝盖"，跟实际诉求不符。
         PatchPresetOut(key="injury_stop", label="受伤了，先停练",
-                       example="膝盖受伤了，先停止所有腿部训练",
-                       hint="停练 + 说明恢复条件"),
+                       example="",
+                       hint="先选部位或填写哪里不舒服"),
         PatchPresetOut(key="injury_swap", label="受伤了，换个部位练",
-                       example="膝盖疼，换成上肢训练",
-                       hint="避开受伤部位，保留训练频率"),
+                       example="",
+                       hint="先选部位，或直接说想换到哪"),
         PatchPresetOut(key="increase", label="感觉进步了，加强度",
                        example="这周感觉轻松，想加一点强度",
                        hint="加量受安全门约束"),

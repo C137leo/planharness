@@ -34,6 +34,7 @@ const error = ref('')
 const request = ref<PatchRequest | null>(null)
 const feedback = ref('')
 const confirming = ref(false)
+const selectedParts = ref<string[]>([])
 const presets = ref<Array<{ key: string; label: string; example: string; hint: string }>>([])
 
 const draft = computed(() => request.value?.draft || null)
@@ -41,6 +42,9 @@ const canApply = computed(
   () => !!request.value && request.value.status === 'ready' && !!draft.value,
 )
 const roundsLeft = computed(() => Math.max(0, 3 - ((request.value?.round || 1) - 1)))
+const needsBodyPart = computed(
+  () => ['injury_stop', 'injury_swap'].includes(quickAction.value) && !text.value.trim(),
+)
 
 async function loadPresets() {
   try {
@@ -61,11 +65,12 @@ watch(
     feedback.value = ''
     error.value = ''
     confirming.value = false
+    selectedParts.value = []
   },
 )
 
-/** 受伤部位快捷项：点一下就等于说了"XX 不舒服，先避开它"。
-    规则表和模型都认这些部位（膝/踝/腿/髋/腰/背/肩/肘/腕/胸/手臂）。 */
+/** 受伤部位快捷项：空输入时填"XX 不舒服，先避开它"；
+    用户已经写了内容则保留原文，只补部位，不覆盖。 */
 const BODY_PARTS: Array<{ key: string; text: string }> = [
   { key: '膝盖', text: '膝盖不舒服，先避开它' },
   { key: '脚踝', text: '脚踝不舒服，先避开它' },
@@ -81,13 +86,27 @@ const BODY_PARTS: Array<{ key: string; text: string }> = [
 ]
 
 function pickBodyPart(part: { key: string; text: string }) {
-  quickAction.value = 'injury_swap'
-  text.value = part.text
+  // "先停练"是用户已经点过的模式，选部位只补信息，不要把它改成"换部位"。
+  if (quickAction.value !== 'injury_stop') quickAction.value = 'injury_swap'
+  if (!selectedParts.value.includes(part.key)) selectedParts.value.push(part.key)
+  const phrase = quickAction.value === 'injury_stop'
+    ? `${part.key}受伤了，先停止训练`
+    : part.text
+  if (!text.value.trim()) {
+    text.value = phrase
+    return
+  }
+  // 用户已经写了内容：保留原文，只补一个部位短语；重复点同一个部位不重复追加。
+  if (!text.value.includes(part.key)) {
+    text.value = text.value.trim().replace(/[；;，,]\s*$/, '') + '；' + phrase
+  }
 }
 
 function pickQuick(key: string, sample: string) {
   quickAction.value = key
-  text.value = sample
+  // 用户已经写了内容就以用户为准；只有空输入时才用预设示例。
+  // 受伤类预设现在 example 为空，故意不替用户填"膝盖"这种具体部位。
+  if (!text.value.trim() && sample.trim()) text.value = sample
 }
 
 /** 服务端预设 → 界面上的同一套卡片；没有服务端数据时退回内置 quick actions。 */
@@ -174,7 +193,7 @@ function describeError(err: unknown): string {
       <template v-if="!request">
         <view class="sheet-title">想怎么改？</view>
         <view class="muted" style="margin-top: 6px">
-          用一句话说就行，比如「膝盖疼，这周只能练两天」。系统只改该改的，不会重生成整份计划。
+          用一句话说就行，比如「腿不舒服，这周只能练两天」。系统只改该改的，不会重生成整份计划。
         </view>
 
         <view class="quick-row">
@@ -188,11 +207,20 @@ function describeError(err: unknown): string {
             {{ item.label }}
           </view>
         </view>
+        <view v-if="needsBodyPart" class="muted" style="margin-top: 6px">
+          请先填写哪里不舒服，或点下面的部位。
+        </view>
 
         <view class="part-row">
           <text class="part-label">哪里不舒服</text>
           <view class="part-chips">
-            <view v-for="part in BODY_PARTS" :key="part.key" class="chip" @click="pickBodyPart(part)">
+            <view
+              v-for="part in BODY_PARTS"
+              :key="part.key"
+              class="chip"
+              :class="{ active: selectedParts.includes(part.key) }"
+              @click="pickBodyPart(part)"
+            >
               {{ part.key }}
             </view>
           </view>

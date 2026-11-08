@@ -93,8 +93,8 @@ export const KIND_LABELS: Record<string, string> = {
 /** 兜底预设：接口拿不到时用它，保证抽屉不会空着。 */
 export const QUICK_ACTIONS: Array<{ key: string; label: string; text: string; hint?: string }> = [
   { key: 'rest', label: '今天想休息', text: '今天想休息，把今天的训练挪到明天' },
-  { key: 'injury_stop', label: '受伤了，先停练', text: '膝盖受伤了，先停止所有腿部训练' },
-  { key: 'injury_swap', label: '换部位练', text: '膝盖疼，换成上肢训练' },
+  { key: 'injury_stop', label: '受伤了，先停练', text: '' },
+  { key: 'injury_swap', label: '换部位练', text: '' },
   { key: 'increase', label: '加强度', text: '这周感觉轻松，想加一点强度' },
   { key: 'diet', label: '调饮食', text: '晚餐想吃清淡一点，少油' },
   { key: 'time', label: '这周没时间', text: '这周只能练两天，每次 30 分钟' },

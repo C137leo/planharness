@@ -98,7 +98,11 @@ def test_patch_presets_are_user_facing() -> None:
             presets = client.get(f"{API}/patch-presets").json()["data"]
     keys = {item["key"] for item in presets}
     assert {"rest", "injury_stop", "injury_swap", "increase", "diet", "time"} <= keys
-    assert all(item["example"] for item in presets)
+    # 受伤类预设故意留空：部位由用户填写/选择，不能默认写死"膝盖"。
+    assert all(item["example"] for item in presets
+               if item["key"] not in ("injury_stop", "injury_swap"))
+    assert all(item["example"] == "" for item in presets
+               if item["key"] in ("injury_stop", "injury_swap"))
 
 
 @needs_skill
