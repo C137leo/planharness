@@ -21,6 +21,7 @@ const challenge = ref<AuthChallenge | null>(null)
 // 票据是"页面打开时就签发"，用户输入的时间才是填表耗时；
 // 若在提交那一刻才申请，服务端只会看到几十毫秒 → 一律判成机器。
 const challengeAt = ref(0)
+const challengeError = ref('')
 
 const form = reactive({
   phone: '',
@@ -74,13 +75,26 @@ function switchMode(next: 'login' | 'register') {
 }
 
 async function fetchChallenge() {
-  try {
-    challenge.value = await api.authChallenge(mode.value)
-    challengeAt.value = Date.now()
-  } catch {
-    challenge.value = null
-    challengeAt.value = 0
+  const wanted = mode.value
+  challengeError.value = ''
+  let lastError = ''
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const ticket = await api.authChallenge(wanted)
+      // 用户可能在请求过程中切了登录/注册，旧 tab 的票据不能覆盖新 tab。
+      if (mode.value !== wanted) return
+      challenge.value = ticket
+      challengeAt.value = Date.now()
+      return
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : '票据请求失败'
+      if (attempt === 0) await sleep(250)
+    }
   }
+  if (mode.value !== wanted) return
+  challenge.value = null
+  challengeAt.value = 0
+  challengeError.value = lastError
 }
 
 /** 票据有效期 10 分钟，这里留 1 分钟余量；过期或没有就重新取。 */
@@ -101,9 +115,16 @@ async function submitWithTicket(
   call: (ticket: { challenge_id: string; challenge_token: string }) => Promise<unknown>,
 ): Promise<void> {
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const ticket = await ensureTicket()
+    let ticket = await ensureTicket()
     if (!ticket) {
-      error.value = '网络不给力，票据没取到，请再点一次'
+      // 页面打开时的请求可能刚好失败；提交前再争取一次，不直接判死。
+      await fetchChallenge()
+      ticket = await ensureTicket()
+    }
+    if (!ticket) {
+      error.value = challengeError.value
+        ? `票据没拿到：${challengeError.value}。再点一次试试`
+        : '网络不给力，票据没取到，请再点一次'
       return
     }
     try {
