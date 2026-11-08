@@ -102,6 +102,8 @@ const REF_TO_THUMB: Record<string, ThumbKey> = {
   plank: 'core',
   crunch: 'core',
   stretch: 'stretch',
+  full_body_stretch: 'stretch',
+  'full-body-stretch': 'stretch',
   brisk_walk: 'legs',
   easy_walk: 'legs',
 }
@@ -115,6 +117,7 @@ const REF_PATTERNS: Array<[RegExp, ThumbKey]> = [
   [/(?:^|[-_])(?:pull|chin)[-_]?up(?:$|[-_])/, 'pullUp'],
   [/lunge/, 'walkingLunge'],
   [/(?:^|[-_])leg[-_]?press(?:$|[-_])/, 'legPress'],
+  [/(?:^|[-_])stretch(?:$|[-_])/, 'stretch'],
 ]
 
 export function thumbOf(action: {
