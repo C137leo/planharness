@@ -18,21 +18,24 @@ export function createApp() {
       return
     }
 
-    // dev 下把完整堆栈报到后端，截图看不全的时候直接读日志
-    try {
-      const message = err instanceof Error ? err.message : String(err)
-      const stack = err instanceof Error ? (err.stack || '') : ''
-      const page = typeof getCurrentPages === 'function'
-        ? (getCurrentPages() as Array<{ route?: string }>).slice(-1)[0]?.route || ''
-        : ''
-      uni.request({
-        url: `${(import.meta.env.VITE_API_BASE || '/api/v1').replace(/\/$/, '')}/_debug/client-error`,
-        method: 'POST',
-        data: { message, stack, page, info },
-        fail: () => {},
-      })
-    } catch {
-      // 上报失败不影响页面
+    // 只有 dev 才把完整堆栈报到后端；生产没有 /_debug/client-error，
+    // 之前无条件下报会在控制台制造一个无意义的 404。
+    if (import.meta.env.DEV) {
+      try {
+        const message = err instanceof Error ? err.message : String(err)
+        const stack = err instanceof Error ? (err.stack || '') : ''
+        const page = typeof getCurrentPages === 'function'
+          ? (getCurrentPages() as Array<{ route?: string }>).slice(-1)[0]?.route || ''
+          : ''
+        uni.request({
+          url: `${(import.meta.env.VITE_API_BASE || '/api/v1').replace(/\/$/, '')}/_debug/client-error`,
+          method: 'POST',
+          data: { message, stack, page, info },
+          fail: () => {},
+        })
+      } catch {
+        // 上报失败不影响页面
+      }
     }
     try {
       // 带上具体原因，出问题时截一张图就能定位，不用再来回猜

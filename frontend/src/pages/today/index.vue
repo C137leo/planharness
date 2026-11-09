@@ -180,6 +180,174 @@ const AGENT_FEEDBACK_PRESETS = [
 ]
 const agentFeedback = ref('')
 
+const hasExerciseDbLink = computed(() =>
+  (agentResult.value?.tips || []).some((tip) => !!exerciseSearchTerm(tip.text)),
+)
+
+function openExerciseDb(text: string) {
+  openExerciseDbTerm(exerciseSearchTerm(text))
+}
+
+const selectedMeals = ref<Record<string, string>>({})
+const applying = ref(false)
+
+function toggleMeal(slot: string, title: string) {
+  selectedMeals.value = {
+    ...selectedMeals.value,
+    [slot]: selectedMeals.value[slot] === title ? '' : title,
+  }
+}
+
+function citationById(id: string) {
+  return (agentResult.value?.citations || []).find((item) => item.id === id)
+}
+
+async function applySelections() {
+  if (applying.value || !agentResult.value) return
+  const meals = agentResult.value.meals || []
+  const selections = meals
+    .map((meal) => {
+      const title = selectedMeals.value[meal.slot]
+      const option = (meal.options || []).find((item) => item.title === title)
+      return option ? { slot: meal.slot, ...option } : null
+    })
+    .filter(Boolean)
+  if (!selections.length) {
+    uni.showToast({ title: '先选每餐想要的选项', icon: 'none' })
+    return
+  }
+  applying.value = true
+  try {
+    const result = await api.applyAgentMeals(agentRunId.value, selections, todayStr())
+    uni.showToast({ title: `已替换今日餐食（v${result.new_version}）`, icon: 'none' })
+    await load()
+  } catch (err) {
+    uni.showToast({ title: err instanceof Error ? err.message : '保存失败', icon: 'none' })
+  } finally {
+    applying.value = false
+  }
+}
+
+/** 读今天的快照：有就直接能看，不用再花一次模型调用 */
+async function loadSavedPlan() {
+  try {
+    savedPlan.value = await api.getTodayPlan(todayStr())
+  } catch {
+    savedPlan.value = null // 读不到就当作没生成过，不挡页面
+  }
+}
+
+/** 打开抽屉看已保存的那一份（不再重新生成，但过程还能从 run 里读回来） */
+async function viewSavedPlan() {
+  if (!savedPlan.value) return
+  agentResult.value = savedPlan.value.output
+  const nextRunId = savedPlan.value.run_id || ''
+  if (agentRunId.value !== nextRunId) selectedMeals.value = {}
+  agentRunId.value = nextRunId
+  agentTrace.value = []
+  agentElapsed.value = 0
+  agentOpen.value = true
+  const runId = savedPlan.value.run_id
+  if (!runId) return
+  try {
+    const run = await api.getRun(runId)
+    agentTrace.value = (run.trace || []).map((item) => ({
+      node: item.node,
+      status: item.status,
+      detail: item.detail as Record<string, unknown> | undefined,
+    }))
+    if (run.created_at && run.finished_at) {
+      agentElapsed.value = Math.max(
+        0,
+        Math.round((new Date(run.finished_at).getTime() - new Date(run.created_at).getTime()) / 1000),
+      )
+    }
+  } catch {
+    // 过程拿不到不影响看结果
+  }
+}
+
+/** 后端已按本地时间返回 "2026-11-05 20:23"，这里只取 "11-05 20:23" */
+function savedAtLabel() {
+  if (!savedPlan.value?.saved_at) return ''
+  return savedPlan.value.saved_at.slice(5, 16)
+}
+
+function openAgent(text = '') {
+  agentText.value = text
+  agentOpen.value = true
+}
+
+/** 轮询一次 run，直到模型/降级流程结束；runAgent 和 feedback 共用。 */
+async function followRun(runId: string) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 800))
+    const run = await api.getRun(runId)
+    agentTrace.value = (run.trace || []).map((item) => ({
+      node: item.node,
+      status: item.status,
+      detail: item.detail as Record<string, unknown> | undefined,
+    }))
+    if (run.status !== 'running') {
+      if (run.status === 'failed') {
+        const outputError = typeof run.output?.error === 'string' ? run.output.error : ''
+        const detail = run.error_code ? `：${run.error_code}` : ''
+        agentError.value = outputError || `规划失败${detail}（run ${runId.slice(0, 8)}）`
+      } else {
+        agentResult.value = run.output as unknown as TodayAgentResult
+        await loadSavedPlan()
+      }
+      break
+    }
+  }
+}
+
+async function runAgent() {
+  if (agentBusy.value || !agentText.value.trim()) return
+  agentBusy.value = true
+  agentError.value = ''
+  agentResult.value = null
+  agentTrace.value = []
+  agentTraceOpen.value = false
+  agentFeedback.value = ''
+  selectedMeals.value = {}
+  startTraceTimer()
+  try {
+    const started = await api.startTodayPlan(agentText.value.trim(), undefined, getStoredMcdToken())
+    agentRunId.value = started.run_id
+    await followRun(started.run_id)
+  } catch (err) {
+    agentError.value = err instanceof Error ? err.message : '规划失败'
+  } finally {
+    stopTraceTimer()
+    agentBusy.value = false
+  }
+}
+
+/** 对刚生成的今日计划提意见：分几次、几点到几点；后端会带上上一轮原话重规划。 */
+async function refineAgent() {
+  if (agentBusy.value || !agentFeedback.value.trim() || !agentRunId.value) return
+  const feedback = agentFeedback.value.trim()
+  agentBusy.value = true
+  agentError.value = ''
+  agentResult.value = null
+  agentTrace.value = []
+  agentTraceOpen.value = false
+  selectedMeals.value = {}
+  startTraceTimer()
+  try {
+    const started = await api.feedbackTodayPlan(agentRunId.value, feedback, getStoredMcdToken())
+    agentFeedback.value = ''
+    agentRunId.value = started.run_id
+    await followRun(started.run_id)
+  } catch (err) {
+    agentError.value = err instanceof Error ? err.message : '调整失败'
+  } finally {
+    stopTraceTimer()
+    agentBusy.value = false
+  }
+}
+
 function agentLinks(links: Record<string, string>) {
   return [
     { label: '京东', url: links.jd },
@@ -899,7 +1067,7 @@ onShow(() => {
                 <text
                   v-if="exerciseSearchTerm(tip.text)"
                   class="link exercise-db-link"
-                  @click.stop="openExerciseDbTerm(exerciseSearchTerm(tip.text))"
+                  @click.stop="openExerciseDb(tip.text)"
                 >
                   动作库 · {{ exerciseSearchTerm(tip.text) }} →
                 </text>
