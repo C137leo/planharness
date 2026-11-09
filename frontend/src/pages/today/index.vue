@@ -1062,36 +1062,25 @@ onShow(() => {
               点「动作库」会复制英文动作名，打开页面后粘贴到搜索框。
             </text>
             <view v-for="(tip, index) in agentResult.tips" :key="index" class="tip-row">
-              <text class="list-meta">{{ tip.text }}</text>
-              <view class="tip-sources">
-                <text
-                  v-if="exerciseSearchTerm(tip.text)"
-                  class="link exercise-db-link"
-                  @click.stop="openExerciseDb(tip.text)"
-                >
-                  动作库 · {{ exerciseSearchTerm(tip.text) }} →
-                </text>
-                <!-- 动作类 tip 只保留「动作库」入口，不再重复挂知识库来源；
-                     非动作类（每周频率、酸痛判断等）仍保留依据链接。 -->
-                <template v-if="!exerciseSearchTerm(tip.text)">
-                  <text
-                    v-for="sourceId in tip.source_ids || []"
-                    :key="sourceId"
-                    class="link"
-                    @click="openAgentLink(citationById(sourceId)?.source_url || '')"
-                  >
-                    {{ citationById(sourceId)?.title || sourceId }} →
-                  </text>
-                </template>
+              <text class="tip-text">{{ tip.text }}</text>
+              <!-- 动作类 tip 只保留一个动作库胶囊；非动作类 tip 保留依据文字。 -->
+              <view v-if="exerciseSearchTerm(tip.text)" class="tip-footer">
+                <view class="tip-action" @click.stop="openExerciseDb(tip.text)">
+                  <text class="tip-action-kicker">动作库</text>
+                  <text class="tip-action-term">{{ exerciseSearchTerm(tip.text) }}</text>
+                  <text class="tip-action-arrow">→</text>
+                </view>
               </view>
-            </view>
-          </view>
-
-          <view v-if="agentResult.citations.length" class="agent-card">
-            <view class="section-title">依据</view>
-            <view v-for="item in agentResult.citations" :key="item.id" class="list-row">
-              <text class="list-meta">{{ item.title }}</text>
-              <text class="link" @click="openAgentLink(item.source_url)">来源 →</text>
+              <view v-else-if="(tip.source_ids || []).length" class="tip-footer">
+                <text
+                  v-for="sourceId in tip.source_ids || []"
+                  :key="sourceId"
+                  class="tip-source"
+                  @click="openAgentLink(citationById(sourceId)?.source_url || '')"
+                >
+                  依据 · {{ citationById(sourceId)?.title || sourceId }} →
+                </text>
+              </view>
             </view>
           </view>
 
@@ -1703,18 +1692,50 @@ onShow(() => {
 }
 
 .tip-row {
-  border-top: 1px solid var(--line-soft);
+  border-top: 1px dashed var(--line-soft);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 10px 0;
+  gap: 7px;
+  padding: 12px 0;
 }
-.tip-sources {
+.tip-text {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+.tip-footer {
+  align-items: center;
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: 8px;
 }
-.exercise-db-link {
-  font-weight: 600;
+.tip-action {
+  align-items: center;
+  align-self: flex-start;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 6px;
+  padding: 5px 10px;
+}
+.tip-action-kicker {
+  color: var(--primary-deep);
+  font-size: 11px;
+  font-weight: 700;
+}
+.tip-action-term {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+.tip-action-arrow {
+  color: var(--primary);
+  font-size: 12px;
+}
+.tip-source {
+  color: var(--primary);
+  font-size: 12px;
+  line-height: 1.4;
 }
 </style>
