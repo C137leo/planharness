@@ -12,6 +12,7 @@ import PatchComposer from '../../components/PatchComposer.vue'
 import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
 import { actionLabel, describeOperation, slotLabel, sortMeals } from '../../styles/copy'
 import { thumbOf } from '../../styles/thumbs'
+import { exerciseSearchTerm, openExerciseDbTerm } from '../../styles/exerciseDb'
 import { WEEKDAY_LABELS, isoWeekday, todayStr } from '../../styles/dates'
 
 const plan = ref<CurrentPlan | null>(null)
@@ -145,6 +146,14 @@ function pickDate(date: string) {
 /** 当天餐食总热量：直接按餐次累加，不在前端重复算营养。 */
 function dayMealKcal(day: { meals: Array<{ kcal: number }> }): number {
   return day.meals.reduce((sum, meal) => sum + (meal.kcal || 0), 0)
+}
+
+function exerciseDbTermForAction(action: PlanAction): string {
+  return exerciseSearchTerm(actionLabel(action))
+}
+
+function openActionExerciseDb(action: PlanAction) {
+  openExerciseDbTerm(exerciseDbTermForAction(action))
 }
 
 /** 待确认补丁的改动数：旧后端没有 operations 字段，不能直接取 .length。 */
@@ -297,6 +306,13 @@ onShow(load)
                 </text>
               </view>
             </view>
+            <text
+              v-if="exerciseDbTermForAction(action)"
+              class="link exercise-db-link"
+              @click.stop="openActionExerciseDb(action)"
+            >
+              动作库 · {{ exerciseDbTermForAction(action) }} →
+            </text>
           </view>
 
           <view v-if="selectedDay.meals.length" class="cal-meals">
@@ -342,6 +358,13 @@ onShow(load)
               </text>
             </view>
           </view>
+          <text
+            v-if="exerciseDbTermForAction(action)"
+            class="link exercise-db-link"
+            @click.stop="openActionExerciseDb(action)"
+          >
+            动作库 · {{ exerciseDbTermForAction(action) }} →
+          </text>
         </view>
       </view>
 
@@ -401,6 +424,12 @@ onShow(load)
 </template>
 
 <style>
+.exercise-db-link {
+  flex: 0 0 auto;
+  font-weight: 600;
+  max-width: 46%;
+  text-align: right;
+}
 .version-list {
   margin-top: 10px;
 }
