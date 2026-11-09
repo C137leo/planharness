@@ -427,7 +427,8 @@ onShow(load)
 .exercise-db-link {
   flex: 0 0 auto;
   font-weight: 600;
-  max-width: 46%;
+  line-height: 1.35;
+  max-width: 52%;
   text-align: right;
 }
 .version-list {
