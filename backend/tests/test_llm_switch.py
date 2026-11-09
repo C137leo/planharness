@@ -93,3 +93,35 @@ def test_settings_can_load_key_from_file(tmp_path) -> None:
         secret_key="test-secret-0123456789abcdef",
     )
     assert settings.deepseek_api_key == "sk-from-file"
+
+
+def test_pause_keeps_auth_and_saved_reads(client, auth_headers, app_fixture) -> None:
+    """维护开关只拦 Agent 调用，不能把登录/注册/查看已保存内容一起停掉。"""
+    _, app = app_fixture
+    from app.llm.guard import set_llm_paused
+
+    # 先生成一份已保存的今日规划
+    created = client.post(
+        "/api/v1/agent/today-plan", headers=auth_headers, json={"text": "帮我规划今天"}
+    ).json()["data"]
+    run = client.get(f"/api/v1/runs/{created['run_id']}", headers=auth_headers).json()["data"]
+    assert run["status"] == "succeeded"
+
+    with app.state.session_factory() as db:
+        set_llm_paused(db, True)
+        db.commit()
+
+    # 已注册用户仍能登录；新用户仍能注册
+    from tests.conftest import register_and_login
+
+    register_and_login(client, phone="13900000001")
+    register_and_login(client, phone="13900000002")
+
+    # 已保存内容仍可读；只是 Agent 生成被拦
+    saved = client.get("/api/v1/agent/today-plan", headers=auth_headers)
+    assert saved.status_code == 200
+    assert saved.json()["data"] is not None
+    blocked = client.post(
+        "/api/v1/agent/today-plan", headers=auth_headers, json={"text": "帮我规划今天"}
+    )
+    assert blocked.status_code == 503

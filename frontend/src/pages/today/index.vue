@@ -178,6 +178,60 @@ const AGENT_FEEDBACK_PRESETS = [
   { label: '每次30分钟', text: '每次训练控制在30分钟' },
 ]
 const agentFeedback = ref('')
+
+// free-exercise-db 的搜索框不接受 URL 预填（本地测过 ?q= 会被忽略）。
+// 所以这里显示英文名并复制到剪贴板，用户打开动作库后直接粘贴进搜索框。
+const EXERCISE_DB_TERMS: Array<[string, string]> = [
+  ['高脚杯深蹲', 'Goblet Squat'],
+  ['罗马尼亚硬拉', 'Romanian Deadlift'],
+  ['单臂哑铃划船', 'One-Arm Dumbbell Row'],
+  ['哑铃俯身划船', 'Dumbbell Bent-Over Row'],
+  ['坐姿绳索划船', 'Seated Cable Row'],
+  ['侧平板支撑', 'Side Bridge'],
+  ['平板支撑', 'Plank'],
+  ['俯卧撑', 'Push-up'],
+  ['俯卧撑架', 'Push-up'],
+  ['臀桥', 'Glute Bridge'],
+  ['臀推', 'Hip Thrust'],
+  ['箭步蹲', 'Lunge'],
+  ['弓步', 'Lunge'],
+  ['深蹲', 'Squat'],
+  ['硬拉', 'Deadlift'],
+  ['划船', 'Row'],
+  ['卧推', 'Bench Press'],
+  ['肩推', 'Shoulder Press'],
+  ['推举', 'Shoulder Press'],
+  ['引体向上', 'Pull-Up'],
+  ['死虫', 'Dead Bug'],
+  ['腿举', 'Leg Press'],
+  ['腿弯举', 'Leg Curl'],
+  ['提踵', 'Calf Raise'],
+  ['弯举', 'Curl'],
+  ['臂屈伸', 'Triceps Extension'],
+  ['卷腹', 'Crunch'],
+  ['鸟狗', 'Bird Dog'],
+]
+
+function exerciseSearchTerm(text: string): string {
+  const hit = EXERCISE_DB_TERMS.find(([zh]) => (text || '').includes(zh))
+  return hit ? hit[1] : ''
+}
+
+function openExerciseDb(text: string) {
+  const term = exerciseSearchTerm(text)
+  if (!term) return
+  const url = 'https://yuhonas.github.io/free-exercise-db/'
+  // 先同步打开新标签，避免 await 剪贴板后被浏览器拦截
+  const globalOpen = (globalThis as unknown as { open?: (u: string, t?: string) => unknown }).open
+  if (typeof globalOpen === 'function') globalOpen(url, '_blank')
+  else uni.setClipboardData({ data: url })
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(term).catch(() => uni.setClipboardData({ data: term }))
+  } else {
+    uni.setClipboardData({ data: term })
+  }
+  uni.showToast({ title: `已复制 ${term}`, icon: 'none', duration: 2500 })
+}
 const selectedMeals = ref<Record<string, string>>({})
 const applying = ref(false)
 
@@ -1052,6 +1106,13 @@ onShow(() => {
               <text class="list-meta">{{ tip.text }}</text>
               <view class="tip-sources">
                 <text
+                  v-if="exerciseSearchTerm(tip.text)"
+                  class="link exercise-db-link"
+                  @click.stop="openExerciseDb(tip.text)"
+                >
+                  动作库 · {{ exerciseSearchTerm(tip.text) }} →
+                </text>
+                <text
                   v-for="sourceId in tip.source_ids || []"
                   :key="sourceId"
                   class="link"
@@ -1689,5 +1750,8 @@ onShow(() => {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+.exercise-db-link {
+  font-weight: 600;
 }
 </style>

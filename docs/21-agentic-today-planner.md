@@ -377,6 +377,7 @@ POST /api/v1/agent/today-plan/{run_id}/feedback
 
 注意事项
 饭后 60-90 分钟再训练
+[动作库 · Squat →] [深蹲的动作要领 →]
 ...
 
 营养知识
@@ -397,6 +398,16 @@ POST /api/v1/agent/today-plan/{run_id}/feedback
 
 点「按这个再规划」会 `POST /agent/today-plan/{run_id}/feedback`，
 后端把上一轮原话和这次意见拼起来重跑（不是从零开始），前端照常轮询 trace 和新结果。
+
+### 动作要领 → Free Exercise DB
+
+注意事项里只要文本命中已知动作（高脚杯深蹲、臀桥、俯卧撑、平板支撑等），
+就会出现「动作库 · Goblet Squat →」这样的入口：
+
+- 点击会新开 `https://yuhonas.github.io/free-exercise-db/`；
+- 同时把英文动作名复制到剪贴板，用户在动作库搜索框粘贴即可；
+- 该站点目前不支持 `?q=` 预填搜索（本地用 headless Chrome 验证过会被忽略），
+  所以前端采用「显示英文名 + 复制 + 打开」的方式，而不是伪造成自动搜索。
 
 不要显示“mock/临时库/演示补丁”等开发提示。  
 只保留医疗免责声明。
