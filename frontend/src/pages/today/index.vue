@@ -217,20 +217,50 @@ function exerciseSearchTerm(text: string): string {
   return hit ? hit[1] : ''
 }
 
+function copyExerciseTerm(term: string): boolean {
+  // 必须在 window.open 之前同步复制：新标签一打开，原页面失去焦点，
+  // Clipboard API 和 execCommand 都可能被浏览器拒绝。
+  if (typeof document !== 'undefined') {
+    try {
+      const area = document.createElement('textarea')
+      area.value = term
+      area.setAttribute('readonly', '')
+      area.style.position = 'fixed'
+      area.style.top = '-9999px'
+      area.style.opacity = '0'
+      document.body.appendChild(area)
+      area.select()
+      area.setSelectionRange(0, term.length)
+      const copied = document.execCommand('copy')
+      document.body.removeChild(area)
+      if (copied) return true
+    } catch {
+      // 继续走 uni 的兼容实现
+    }
+  }
+  if (typeof uni !== 'undefined' && typeof uni.setClipboardData === 'function') {
+    uni.setClipboardData({ data: term })
+    return true
+  }
+  return false
+}
+
 function openExerciseDb(text: string) {
   const term = exerciseSearchTerm(text)
   if (!term) return
+  const copied = copyExerciseTerm(term)
   const url = 'https://yuhonas.github.io/free-exercise-db/'
-  // 先同步打开新标签，避免 await 剪贴板后被浏览器拦截
   const globalOpen = (globalThis as unknown as { open?: (u: string, t?: string) => unknown }).open
-  if (typeof globalOpen === 'function') globalOpen(url, '_blank')
-  else uni.setClipboardData({ data: url })
-  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-    navigator.clipboard.writeText(term).catch(() => uni.setClipboardData({ data: term }))
-  } else {
-    uni.setClipboardData({ data: term })
+  if (typeof globalOpen === 'function') {
+    globalOpen(url, '_blank')
+  } else if (typeof location !== 'undefined') {
+    location.href = url
   }
-  uni.showToast({ title: `已复制 ${term}`, icon: 'none', duration: 2500 })
+  uni.showToast({
+    title: copied ? `已复制 ${term}` : `搜索：${term}`,
+    icon: 'none',
+    duration: 2500,
+  })
 }
 const selectedMeals = ref<Record<string, string>>({})
 const applying = ref(false)
