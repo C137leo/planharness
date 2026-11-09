@@ -5,7 +5,8 @@
  * 答案来自本地知识库检索，**必须带引用**；检索不到就明确说没有依据。
  */
 import { ref, watch } from 'vue'
-import { api, ApiError, type KnowledgeAnswer } from '../api'
+import { api, ApiError, type KnowledgeAnswer, type KnowledgeCitation } from '../api'
+import { exerciseSearchTerm, openExerciseDbTerm } from '../styles/exerciseDb'
 
 const props = defineProps<{
   visible: boolean
@@ -40,6 +41,14 @@ watch(
   },
 )
 
+/** free-exercise-db 的清单类出处，换成动作库搜索入口；其他出处仍走原文链接。 */
+function citationExerciseTerm(item: KnowledgeCitation): string {
+  const isExerciseDb = /free-exercise-db/i.test(item.source_title || '')
+    || /free-exercise-db/i.test(item.source_url || '')
+  if (!isExerciseDb) return ''
+  return exerciseSearchTerm(item.title) || exerciseSearchTerm(props.question)
+}
+
 function openSource(url: string) {
   const globalOpen = (globalThis as unknown as { open?: (u: string, t?: string) => unknown }).open
   if (typeof globalOpen === 'function') {
@@ -72,7 +81,14 @@ function openSource(url: string) {
               <text class="list-title" style="font-weight: 500">{{ item.title }}</text>
               <text class="list-meta">{{ item.source_title }}</text>
             </view>
-            <text class="link" @click="openSource(item.source_url)">来源 →</text>
+            <text
+              v-if="citationExerciseTerm(item)"
+              class="link exercise-db-link"
+              @click="openExerciseDbTerm(citationExerciseTerm(item))"
+            >
+              动作库 · {{ citationExerciseTerm(item) }} →
+            </text>
+            <text v-else class="link" @click="openSource(item.source_url)">来源 →</text>
           </view>
         </view>
         <view v-else class="muted" style="margin-top: 10px">
@@ -92,5 +108,8 @@ function openSource(url: string) {
   margin-top: 12px;
   padding: 14px;
   white-space: pre-line;
+}
+.exercise-db-link {
+  font-weight: 600;
 }
 </style>
