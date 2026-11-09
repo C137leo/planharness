@@ -217,6 +217,10 @@ function exerciseSearchTerm(text: string): string {
   return hit ? hit[1] : ''
 }
 
+const hasExerciseDbLink = computed(() =>
+  (agentResult.value?.tips || []).some((tip) => !!exerciseSearchTerm(tip.text)),
+)
+
 function copyExerciseTerm(term: string): boolean {
   // 必须在 window.open 之前同步复制：新标签一打开，原页面失去焦点，
   // Clipboard API 和 execCommand 都可能被浏览器拒绝。
@@ -1132,6 +1136,9 @@ onShow(() => {
 
           <view v-if="agentResult.tips.length" class="agent-card">
             <view class="section-title">注意事项</view>
+            <text v-if="hasExerciseDbLink" class="muted small" style="margin-top: 4px">
+              点「动作库」会复制英文动作名，打开页面后粘贴到搜索框。
+            </text>
             <view v-for="(tip, index) in agentResult.tips" :key="index" class="tip-row">
               <text class="list-meta">{{ tip.text }}</text>
               <view class="tip-sources">
