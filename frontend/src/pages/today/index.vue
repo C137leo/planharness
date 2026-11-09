@@ -213,8 +213,17 @@ const EXERCISE_DB_TERMS: Array<[string, string]> = [
 ]
 
 function exerciseSearchTerm(text: string): string {
-  const hit = EXERCISE_DB_TERMS.find(([zh]) => (text || '').includes(zh))
-  return hit ? hit[1] : ''
+  // 取“在文本里最早出现”的动作，而不是映射表顺序：
+  // 「如果深蹲时膝盖疼，改成臀桥」应该搜 Squat，而不是臀桥。
+  let best: { index: number; length: number; en: string } | null = null
+  for (const [zh, en] of EXERCISE_DB_TERMS) {
+    const index = (text || '').indexOf(zh)
+    if (index < 0) continue
+    if (!best || index < best.index || (index === best.index && zh.length > best.length)) {
+      best = { index, length: zh.length, en }
+    }
+  }
+  return best ? best.en : ''
 }
 
 const hasExerciseDbLink = computed(() =>
@@ -1149,14 +1158,18 @@ onShow(() => {
                 >
                   动作库 · {{ exerciseSearchTerm(tip.text) }} →
                 </text>
-                <text
-                  v-for="sourceId in tip.source_ids || []"
-                  :key="sourceId"
-                  class="link"
-                  @click="openAgentLink(citationById(sourceId)?.source_url || '')"
-                >
-                  {{ citationById(sourceId)?.title || sourceId }} →
-                </text>
+                <!-- 动作类 tip 只保留「动作库」入口，不再重复挂知识库来源；
+                     非动作类（每周频率、酸痛判断等）仍保留依据链接。 -->
+                <template v-if="!exerciseSearchTerm(tip.text)">
+                  <text
+                    v-for="sourceId in tip.source_ids || []"
+                    :key="sourceId"
+                    class="link"
+                    @click="openAgentLink(citationById(sourceId)?.source_url || '')"
+                  >
+                    {{ citationById(sourceId)?.title || sourceId }} →
+                  </text>
+                </template>
               </view>
             </view>
           </view>
