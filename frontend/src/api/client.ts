@@ -1,4 +1,12 @@
+import { resetCoachWorkspace } from '../composables/coachWorkspace'
 import type {
+  AgentChatResult,
+  AgentConversation,
+  AgentAdjustment,
+  AgentDay,
+  AgentMemoryList,
+  ProgressInsights,
+  AgentMessageItem,
   ApiEnvelope,
   CheckinPayload,
   CurrentPlan,
@@ -36,6 +44,8 @@ import type {
   McdMenuPayload,
   McdQuote,
   McdOrder,
+  MemoryItem,
+  WorkoutSession,
 } from './types'
 
 const API_BASE = (import.meta.env.VITE_API_BASE || '/api/v1').replace(/\/$/, '')
@@ -159,6 +169,7 @@ export async function ensureToken(): Promise<string> {
 /** 清掉本地登录态（退出登录 / token 失效时调用）。 */
 export function clearToken(): void {
   uni.removeStorageSync(TOKEN_KEY)
+  resetCoachWorkspace()
 }
 
 /** 登录态失效时的统一处理：清 token → 回登录页（已经在登录页就不跳，避免循环）。 */
@@ -402,4 +413,119 @@ export const api = {
   listRuns: (limit = 20, status = '') =>
     request<RunSummary[]>('GET', `/runs?limit=${limit}${status ? `&status=${status}` : ''}`),
   getRun: (runId: string) => request<RunDetail>('GET', `/runs/${runId}`),
+
+  // ---- 统一教练 Agent：所有页面共用同一个入口 ----
+  agentChat: (
+    text: string,
+    page = 'today',
+    date = '',
+    sessionId = '',
+    context: Record<string, unknown> = {},
+    thread = '',
+  ) =>
+    request<AgentChatResult>('POST', '/agent/chat', {
+      text,
+      page,
+      date: date || undefined,
+      session_id: sessionId || undefined,
+      context,
+      thread: thread || undefined,
+    }),
+  agentMessages: (limit = 20, thread = 'coach') =>
+    request<AgentMessageItem[]>(
+      'GET',
+      `/agent/messages?limit=${limit}&thread=${encodeURIComponent(thread)}`,
+    ),
+  listAgentConversations: () =>
+    request<AgentConversation[]>('GET', '/agent/conversations'),
+  deleteAgentConversation: (thread: string) =>
+    request<{ thread: string; deleted: number }>(
+      'DELETE',
+      `/agent/conversations/${encodeURIComponent(thread)}`,
+    ),
+  getAgentDay: (date = '') =>
+    request<AgentDay>('GET', `/agent/day${date ? `?date=${date}` : ''}`),
+  resetAgentDay: (date = '') =>
+    request<AgentDay>('POST', '/agent/day/reset', { date: date || undefined }),
+  listAdjustments: (start = '', end = '', limit = 60) =>
+    request<{ items: AgentAdjustment[] }>(
+      'GET',
+      `/agent/adjustments?start=${start}&end=${end}&limit=${limit}`,
+    ),
+  restoreAdjustment: (adjustmentId: string) =>
+    request<{ adjustment: AgentAdjustment; day: AgentDay }>(
+      'POST', `/agent/adjustments/${adjustmentId}/restore`, {},
+    ),
+  getProgressInsights: (days = 14) =>
+    request<ProgressInsights>('GET', `/agent/progress-insights?days=${days}`),
+  getMemoryStatus: () =>
+    request<{
+      short_term_retention_days: number
+      temporary_context_retention_days: number
+      cleanup_interval_seconds: number
+      last_run: Record<string, unknown> | null
+      last_run_at: string
+    }>('GET', '/agent/memory/status'),
+  listMemories: (kind = '') =>
+    request<AgentMemoryList>('GET', `/agent/memories${kind ? `?kind=${kind}` : ''}`),
+  updateMemory: (memoryId: string, payload: { value?: string; structured?: Record<string, unknown> }) =>
+    request<MemoryItem>('PUT', `/agent/memories/${memoryId}`, payload),
+  deleteMemory: (memoryId: string) =>
+    request<{ deleted: string; value: string }>('DELETE', `/agent/memories/${memoryId}`),
+
+  // ---- 训练执行 ----
+  startWorkout: (date = '') =>
+    request<{ session: WorkoutSession; day: AgentDay }>(
+      'POST', '/workout-sessions', { date: date || undefined },
+    ),
+  getActiveWorkout: (date = '') =>
+    request<{ session: WorkoutSession | null; day: AgentDay }>(
+      'GET', `/workout-sessions/active${date ? `?date=${date}` : ''}`,
+    ),
+  getWorkout: (sessionId: string) =>
+    request<WorkoutSession>('GET', `/workout-sessions/${sessionId}`),
+  completeWorkoutSet: (sessionId: string) =>
+    request<{ session: WorkoutSession }>(
+      'POST', `/workout-sessions/${sessionId}/sets`, {},
+    ),
+  skipWorkoutAction: (sessionId: string, reason = '') =>
+    request<{ session: WorkoutSession }>(
+      'POST', `/workout-sessions/${sessionId}/skip`, { reason },
+    ),
+  replaceWorkoutAction: (
+    sessionId: string,
+    payload: {
+      reason?: string
+      action_ref?: string
+      equipment_busy?: boolean
+      injured_regions?: string[]
+      easier?: boolean
+      minutes_remaining?: number
+    },
+  ) =>
+    request<{ session: WorkoutSession; changes: string[] }>(
+      'POST', `/workout-sessions/${sessionId}/replace`, payload,
+    ),
+  pauseWorkout: (sessionId: string) =>
+    request<{ session: WorkoutSession }>(
+      'POST', `/workout-sessions/${sessionId}/pause`, {},
+    ),
+  finishWorkout: (
+    sessionId: string,
+    payload: {
+      completed: boolean
+      completion_pct?: number
+      difficulty: number
+      fatigue: number
+      actual_minutes?: number
+      note?: string
+    },
+  ) =>
+    request<{
+      session: WorkoutSession
+      summary: Record<string, unknown>
+      training_state: Record<string, unknown>
+      logs: Array<Record<string, unknown>>
+      day: AgentDay
+    }>('POST', `/workout-sessions/${sessionId}/finish`, payload),
 }

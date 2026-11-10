@@ -41,12 +41,21 @@ watch(
   },
 )
 
-/** free-exercise-db 的清单类出处，换成动作库搜索入口；其他出处仍走原文链接。 */
+/** 动作类条目统一换成动作库搜索入口；恢复/营养等通用条目才保留原文来源。 */
 function citationExerciseTerm(item: KnowledgeCitation): string {
-  const isExerciseDb = /free-exercise-db/i.test(item.source_title || '')
-    || /free-exercise-db/i.test(item.source_url || '')
-  if (!isExerciseDb) return ''
-  return exerciseSearchTerm(item.title) || exerciseSearchTerm(props.question)
+  const title = item.title || ''
+  if (/冷身|热身|恢复|酸痛|频率|每周|蛋白质|热量|缺口|补水/.test(title)) return ''
+  return exerciseSearchTerm(title) || ''
+}
+
+function isSpecificSource(url: string): boolean {
+  if (!url) return false
+  try {
+    const path = new URL(url).pathname.replace(/\/+$/, '')
+    return path.length > 0 && path !== '/live-well/exercise'
+  } catch {
+    return false
+  }
 }
 
 function openSource(url: string) {
@@ -88,7 +97,12 @@ function openSource(url: string) {
             >
               动作库 · {{ citationExerciseTerm(item) }} →
             </text>
-            <text v-else class="link" @click="openSource(item.source_url)">来源 →</text>
+            <text
+              v-else-if="isSpecificSource(item.source_url)"
+              class="link"
+              @click="openSource(item.source_url)"
+            >来源 →</text>
+            <text v-else class="source-static">来源：{{ item.source_title }}</text>
           </view>
         </view>
         <view v-else class="muted" style="margin-top: 10px">
@@ -111,5 +125,10 @@ function openSource(url: string) {
 }
 .exercise-db-link {
   font-weight: 600;
+}
+.source-static {
+  color: #ad998b;
+  font-size: 10px;
+  text-align: right;
 }
 </style>

@@ -8,15 +8,27 @@
  * 为什么不是"加进网页购物车"：网页购物车是浏览器会话，MCP 是另一条通道，
  * 两边不互通；官方 MCP 也没有"加购物车"工具，只有 create-order。
  */
-import { computed, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api, ApiError, getStoredMcdToken, setStoredMcdToken, type McdMenuItem, type McdOrder, type McdQuote, type McdStore } from '../api'
 
 const props = defineProps<{
   visible: boolean
   /** 推荐里的餐名（营养库叫法），用来匹配这家店的真实商品 */
   suggestions: string[]
+  /** 直接嵌在聊天里，而不是弹独立抽屉 */
+  inline?: boolean
+  /** 用户在聊天里说的原话，用来预填城市/门店 */
+  instruction?: string
+  /** 模型解析出的结构化实体，优先于前端正则 */
+  seedCity?: string
+  seedKeyword?: string
+  seedFoods?: string[]
 }>()
-const emit = defineEmits<{ (e: 'close'): void }>()
+const emit = defineEmits<{
+  (e: 'close'): void
+  (e: 'order-created', order: McdOrder): void
+  (e: 'order-cancelled', orderId: string): void
+}>()
 
 const step = ref<'store' | 'items' | 'order'>('store')
 // 没接定位：默认北京，用户自己改；上次搜过的城市/关键词记一下。
@@ -27,6 +39,9 @@ const city = ref((uni.getStorageSync(LAST_CITY_KEY) as string) || '北京')
 const keyword = ref((uni.getStorageSync(LAST_KEYWORD_KEY) as string) || '')
 // 用户自己的 MCD token；是否映射服务端 token 由后端配置决定
 const MCD_TOKEN_GUIDE_URL = 'https://open.mcd.cn/mcp'
+const MCD_CITIES = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '南京',
+  '重庆', '西安', '苏州', '天津', '长沙', '郑州', '青岛', '厦门']
+
 const mcdToken = ref(getStoredMcdToken())
 
 function persistMcdToken() {
@@ -35,6 +50,9 @@ function persistMcdToken() {
 const stores = ref<McdStore[]>([])
 const store = ref<McdStore | null>(null)
 const matched = ref<Array<McdMenuItem & { suggestion: string }>>([])
+const allItems = ref<McdMenuItem[]>([])
+const menuQuery = ref('')
+const parsedFoods = ref<string[]>([])
 const missing = ref<string[]>([])
 const qty = ref<Record<string, number>>({})
 const takeWay = ref<Array<{ code: string; title: string; subtitle?: string }>>([])
@@ -52,15 +70,30 @@ const selected = computed(() =>
     .filter(([, count]) => count > 0)
     .map(([code, count]) => ({ product_code: code, quantity: count })),
 )
+const catalog = computed(() => {
+  const seen = new Set(matched.value.map((item) => item.product_code))
+  return [...matched.value, ...allItems.value.filter((item) => !seen.has(item.product_code))]
+})
 const selectedTotal = computed(() =>
-  matched.value.reduce((sum, item) => sum + item.price * (qty.value[item.product_code] || 0), 0),
+  catalog.value.reduce((sum, item) => sum + item.price * (qty.value[item.product_code] || 0), 0),
 )
+const menuChoices = computed(() => {
+  const query = menuQuery.value.trim()
+  const recommended = new Set(matched.value.map((item) => item.product_code))
+  return allItems.value
+    .filter((item) => !recommended.has(item.product_code))
+    .filter((item) => !query || item.name.includes(query))
+    .slice(0, 40)
+})
 
 function reset() {
   step.value = 'store'
   stores.value = []
   store.value = null
   matched.value = []
+  allItems.value = []
+  menuQuery.value = ''
+  parsedFoods.value = []
   missing.value = []
   qty.value = {}
   takeWay.value = []
@@ -71,13 +104,63 @@ function reset() {
 }
 
 watch(
-  () => props.visible,
-  (open) => {
+  [() => props.visible, () => props.instruction],
+  ([open, instruction]) => {
     if (!open) return
     mcdToken.value = getStoredMcdToken()
     reset()
+    if (instruction) applyInstruction(instruction)
   },
+  { immediate: true },
 )
+
+onMounted(() => {
+  if (props.visible && props.instruction) {
+    applyInstruction(props.instruction)
+  }
+})
+
+function applyInstruction(text: string) {
+  if (props.seedCity) city.value = props.seedCity
+  if (props.seedKeyword) keyword.value = props.seedKeyword
+  if (props.seedFoods?.length) parsedFoods.value = [...props.seedFoods]
+  if (props.seedCity || props.seedKeyword || props.seedFoods?.length) {
+    if (keyword.value.trim()) void searchStores(true)
+    return
+  }
+  const cityHit = MCD_CITIES.find((item) => text.includes(item))
+  if (cityHit) city.value = cityHit
+  let place = ''
+  const at = text.match(/在\s*([^，,。；;\s]{2,24})/)
+  if (at) place = at[1]
+  else if (cityHit) {
+    const after = text.slice(text.indexOf(cityHit) + cityHit.length)
+    const named = after.match(/^([\u4e00-\u9fa5A-Za-z0-9]{2,20}?)(?:店|餐厅)/)
+    if (named) place = named[1]
+  }
+  if (cityHit) place = place.replace(cityHit, '')
+  if (!place.trim() && cityHit) {
+    const afterCity = text.slice(text.indexOf(cityHit) + cityHit.length)
+    const nextPlace = afterCity.replace(/^[，,。；;\s]+/, '').match(/^([\u4e00-\u9fa5A-Za-z0-9]{2,20})/)
+    if (nextPlace) place = nextPlace[1]
+  }
+  place = place
+    .replace(/^的/, '')
+    .replace(/的/g, '')
+    .replace(/麦当劳/g, '')
+    .replace(/(?:帮我|给我|我要|我想|点餐|点好|下单|来一份|点一份).*$/, '')
+    .replace(/(?:店|餐厅)$/, '')
+    .trim()
+  if (place) keyword.value = place
+  const foodMatch = text.match(/(?:点|要|来|吃)(?:一份|一个|一份儿)?\s*([^，,。；;]+)/)
+  if (foodMatch) {
+    parsedFoods.value = foodMatch[1]
+      .split(/[、,，和]/)
+      .map((item) => item.replace(/^(一份|一个|一份儿|个)/, '').replace(/(?:帮我|谢谢|吧).*$/, '').trim())
+      .filter((item) => item.length >= 2 && item !== '餐')
+  }
+  if (keyword.value.trim()) void searchStores(true)
+}
 
 function fail(err: unknown, fallback: string) {
   error.value = err instanceof ApiError ? err.message : fallback
@@ -115,9 +198,11 @@ async function pickStore(target: McdStore) {
   loading.value = true
   error.value = ''
   try {
-    const menu = await api.mcdMenu(target.store_code, props.suggestions, mcdToken.value.trim())
+    const suggestions = [...new Set([...props.suggestions, ...parsedFoods.value])]
+    const menu = await api.mcdMenu(target.store_code, suggestions, mcdToken.value.trim())
     store.value = target
     matched.value = menu.matched
+    allItems.value = menu.items || []
     missing.value = menu.missing
     qty.value = Object.fromEntries(menu.matched.map((item) => [item.product_code, 1]))
     // 推荐餐品都匹配不上时不硬点：让用户回到列表换一家店
@@ -170,6 +255,7 @@ async function createOrder() {
       mcdToken.value.trim(),
     )
     step.value = 'order'
+    if (order.value) emit('order-created', order.value)
   } catch (err) {
     if (err instanceof ApiError && err.statusCode === 429) limitHit.value = true
     fail(err, '建单失败')
@@ -184,6 +270,7 @@ async function cancelOrder() {
   try {
     await api.mcdCancelOrder(order.value.order_id, mcdToken.value.trim())
     uni.showToast({ title: '订单已取消', icon: 'none' })
+    emit('order-cancelled', order.value.order_id)
     order.value = null
     step.value = 'items'
   } catch (err) {
@@ -229,9 +316,9 @@ function copy(text: string) {
 </script>
 
 <template>
-  <view v-if="visible">
-    <view class="sheet-mask mcd-order-mask" @click="emit('close')" />
-    <view class="sheet mcd-order-sheet">
+  <view v-if="visible" :class="{ 'mcd-inline-root': inline }">
+    <view v-if="!inline" class="sheet-mask mcd-order-mask" @click="emit('close')" />
+    <view class="sheet mcd-order-sheet" :class="{ 'mcd-order-inline': inline }">
       <view class="row">
         <view class="section-title">麦当劳 · 帮你点好（到付款前）</view>
         <text class="link" @click="emit('close')">关闭</text>
@@ -310,6 +397,32 @@ function copy(text: string) {
         <text v-if="missing.length" class="mcd-missing">
           这家店没有：{{ missing.join('、') }}（换一家门店或自己再看一眼菜单）
         </text>
+
+        <view v-if="allItems.length" class="mcd-menu-pick">
+          <view class="row">
+            <text class="mcd-label">菜单里自己选</text>
+            <text class="list-meta">{{ menuChoices.length }} 项 · 推荐也可以加减</text>
+          </view>
+          <input v-model="menuQuery" class="input" placeholder="搜餐品，例如 麦辣鸡腿堡" />
+          <scroll-view
+            v-if="menuChoices.length"
+            class="mcd-menu-list"
+            :class="{ 'mcd-menu-list-scroll': menuChoices.length > 6 }"
+            scroll-y
+          >
+            <view v-for="item in menuChoices" :key="item.product_code" class="mcd-menu-row">
+              <view class="mcd-menu-main">
+                <text class="mcd-menu-name">{{ item.name }}</text>
+                <text class="list-meta">¥{{ item.price.toFixed(1) }}</text>
+              </view>
+              <view class="mcd-stepper">
+                <text v-if="qty[item.product_code]" class="mcd-qty">{{ qty[item.product_code] }}</text>
+                <view class="mcd-step-btn" @click="changeQty(item.product_code, 1)">＋</view>
+              </view>
+            </view>
+          </scroll-view>
+          <text v-if="menuQuery && !menuChoices.length" class="list-meta">没有匹配的餐品</text>
+        </view>
 
         <view v-if="takeWay.length" class="mcd-takeway">
           <text class="mcd-label">取餐方式</text>
@@ -586,4 +699,70 @@ function copy(text: string) {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+.mcd-inline-root {
+  display: block;
+  width: 100%;
+}
+
+.mcd-order-inline {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(90, 55, 35, 0.06);
+  left: auto;
+  max-height: none;
+  max-width: none;
+  overflow: visible;
+  padding: 14px;
+  position: static;
+  top: auto;
+  transform: none;
+  width: 100%;
+}
+
+.mcd-menu-pick {
+  border-top: 1px dashed var(--line);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.mcd-menu-list {
+  border-top: 1px solid var(--line-soft);
+  margin-top: 8px;
+}
+
+.mcd-menu-list-scroll {
+  height: min(252px, 42vh);
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+}
+
+.mcd-menu-row {
+  align-items: center;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.mcd-menu-row:first-child {
+  border-top: none;
+}
+
+.mcd-menu-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mcd-menu-name {
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 </style>

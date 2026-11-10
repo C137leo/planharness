@@ -15,6 +15,8 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+import inspect
+
 from app.agent.planning_agent import PlanningAgent, PlanProposal, skill_profile
 from app.domain.draft_edits import (
     apply_explicit_edits,
@@ -22,6 +24,8 @@ from app.domain.draft_edits import (
     extract_avoided_foods,
     has_explicit_edits,
 )
+from app.domain.memory import load_memory_context, memory_instruction, recent_training_state
+from app.domain.day_plan import allowed_equipment, pick_alternative
 from app.domain.revisions import apply_feedback
 from app.audit import append_event
 from app.domain.patches import PatchValidationError, _action_dict, _load_plan
@@ -100,6 +104,22 @@ def _skill_payload(profile: Profile) -> dict:
 # 生成
 # ---------------------------------------------------------------------------
 
+def _propose(agent, profile, instruction: str, feedback: list[str], memory: dict) -> PlanProposal:
+    """兼容测试里的简化 FakeAgent：没有 memory_context 参数时不传。"""
+    params = inspect.signature(agent.propose).parameters
+    if "memory_context" in params:
+        return agent.propose(profile, instruction, previous_feedback=feedback,
+                             memory_context=memory)
+    return agent.propose(profile, instruction, previous_feedback=feedback)
+
+
+def _propose_deterministic(agent, profile, instruction: str, memory: dict) -> PlanProposal:
+    params = inspect.signature(agent.propose_deterministic).parameters
+    if "memory_context" in params:
+        return agent.propose_deterministic(profile, instruction, memory_context=memory)
+    return agent.propose_deterministic(profile, instruction)
+
+
 def create_draft(
     db: Session,
     user: User,
@@ -132,13 +152,17 @@ def create_draft(
     _remember_goal(profile, instruction or "")
     _remember_allergies(profile, instruction or "")
     _remember_avoidances(profile, instruction or "")
+    memory = load_memory_context(db, user)
+    memory_text = memory_instruction(memory)
+    if memory_text:
+        instruction = (instruction or "") + "\n长期偏好：" + memory_text
     agent = PlanningAgent(bridge or get_bridge(), client=client)
-    proposal: PlanProposal = agent.propose(profile, instruction or "", previous_feedback=feedback)
+    proposal: PlanProposal = _propose(agent, profile, instruction or "", feedback, memory)
 
     # 第一次生成时模型也可能反问"要不要加背部动作"，但这句需求我们能执行：
     # 绕开模型，用确定性编排直接出计划。
     if proposal.payload.get("status") != "ready" and has_explicit_edits(instruction or ""):
-        retry = agent.propose_deterministic(profile, instruction or "")
+        retry = _propose_deterministic(agent, profile, instruction or "", memory)
         if retry.payload.get("status") == "ready":
             proposal = retry
             proposal.trace = list(proposal.trace) + [{
@@ -159,6 +183,32 @@ def create_draft(
                 "status": "applied",
                 "detail": {"changes": edit_changes[:10]},
             }]
+
+    # 长期喜恶也要真的落到计划上：用户说不喜欢深蹲，下一份计划里就不该还是深蹲
+    preference_changes = apply_memory_adjustments(proposal.payload, profile, memory)
+    if preference_changes:
+        proposal.trace = list(proposal.trace) + [{
+            "node": "apply_memory_preferences",
+            "status": "applied",
+            "detail": {"changes": preference_changes[:10]},
+        }]
+
+    # 近期状态（连续未完成 / 高难度）要真的影响下一份计划，而不是只在聊天里说一句
+    state = recent_training_state(db, user)
+    adaptive = apply_training_state_adjustments(proposal.payload, state)
+    if adaptive:
+        proposal.trace = list(proposal.trace) + [{
+            "node": "adaptive_load",
+            "status": "applied",
+            "detail": {"changes": adaptive[:8], "state": state},
+        }]
+    if proposal.payload.get("status") == "ready":
+        proposal.payload.setdefault("meta", {})["memory"] = {
+            "preferred_windows": memory.get("preferred_windows") or [],
+            "location": memory.get("location") or "",
+            "dislikes": memory.get("dislikes") or [],
+            "applied": memory_text,
+        }
 
     plan = db.scalar(
         select(Plan).where(Plan.user_id == user.id, Plan.status == "active")
@@ -217,14 +267,20 @@ def add_feedback(
         instruction = f"{instruction}\n修改意见：{text}" if instruction else f"修改意见：{text}"
 
     profile = db.get(Profile, user.id)
+    memory = load_memory_context(db, user)
+    memory_text = memory_instruction(memory)
+    if memory_text:
+        instruction = instruction + "\n长期偏好：" + memory_text
     agent = PlanningAgent(bridge or get_bridge(), client=client)
-    proposal = agent.propose(profile, instruction or "",
-                             previous_feedback=[str(item) for item in (parent.feedback or [])])
+    proposal = _propose(
+        agent, profile, instruction or "",
+        [str(item) for item in (parent.feedback or [])], memory,
+    )
 
     # 模型有时会反问"要不要这么做"，但这句反馈其实是可执行的（换食材/加动作/换动作）。
     # 这种问题我们自己能答：绕开模型，用确定性编排生成，再应用具体编辑。
     if proposal.payload.get("status") != "ready" and has_explicit_edits(text or ""):
-        retry = agent.propose_deterministic(profile, instruction or "")
+        retry = _propose_deterministic(agent, profile, instruction or "", memory)
         if retry.payload.get("status") == "ready":
             proposal = retry
             proposal.trace = list(proposal.trace) + [{
@@ -268,6 +324,14 @@ def add_feedback(
                 "可以试试更具体的说法：「把红薯换成土豆」「新增一个练背动作」「去掉臀桥」"
                 "「动作别重复」「膝盖少蹲一点」「加强度」。"
             )
+
+    preference_changes = apply_memory_adjustments(proposal.payload, profile, memory)
+    if preference_changes:
+        proposal.trace = list(proposal.trace) + [{
+            "node": "apply_memory_preferences",
+            "status": "applied",
+            "detail": {"changes": preference_changes[:10]},
+        }]
 
     child = PlanDraft(
         user_id=user.id,
@@ -389,6 +453,146 @@ def load_draft(db: Session, user: User, draft_id: str) -> PlanDraft:
     return draft
 
 
+def _dislike_tokens(dislikes: list[str]) -> list[tuple[str, str]]:
+    """把长期"不喜欢深蹲"翻译成 ref 匹配 token（复用原有动作别名表）。"""
+    from app.domain.planner import EXCLUDE_ACTION_TERMS
+
+    out: list[tuple[str, str]] = []
+    for label in dislikes:
+        config = EXCLUDE_ACTION_TERMS.get(label)
+        tokens = config[0] if config else (label,)
+        for token in tokens:
+            out.append((str(token).lower(), label))
+    return out
+
+
+def apply_memory_adjustments(payload: dict, profile: Profile, memory: dict) -> list[str]:
+    """按长期喜恶替换动作；只换动作，不改组次与安全边界。"""
+    dislikes = [str(item) for item in (memory.get("dislikes") or []) if item]
+    if not dislikes or payload.get("status") != "ready":
+        return []
+    tokens = _dislike_tokens(dislikes)
+    allowed = allowed_equipment(profile, {})
+    used = {
+        str(action.get("action_ref"))
+        for day in (payload.get("days") or [])
+        for action in (day.get("actions") or [])
+    }
+    changes: list[str] = []
+
+    def matches(action: dict) -> str:
+        ref = str(action.get("action_ref") or "").lower().replace("_", "-")
+        name = str((action.get("meta") or {}).get("name_zh") or "")
+        for token, label in tokens:
+            if token and (token in ref or token in name):
+                return label
+        return ""
+
+    for day in payload.get("days") or []:
+        actions = day.get("actions") or []
+        for index, action in enumerate(actions):
+            label = matches(action)
+            if not label:
+                continue
+            action_dict = {
+                **action,
+                "name": (action.get("meta") or {}).get("name_zh") or action.get("action_ref"),
+            }
+            replacement = None
+            for _ in range(12):
+                candidate = pick_alternative(
+                    action_dict, allowed=allowed, injured=[], used=used,
+                )
+                if candidate is None:
+                    break
+                disliked = any(
+                    str(token) in str(candidate.get("ref") or "").lower()
+                    or str(token) in candidate["name"]
+                    or label in candidate["name"]
+                    for token, label in tokens
+                )
+                if not disliked:
+                    replacement = candidate
+                    break
+                # 候选也是用户讨厌的动作（例如自重深蹲）：把它排除后继续找
+                used.add(candidate["ref"])
+            if replacement is None:
+                # 没有更合适的替代：宁可保留，也不换成另一个用户同样讨厌的动作
+                continue
+            old_name = action_dict["name"]
+            action["action_ref"] = replacement["ref"]
+            action["meta"] = {
+                **(action.get("meta") or {}),
+                "name_zh": replacement["name"],
+                "movement_mode": replacement.get("movement_mode")
+                or action.get("movement_mode"),
+                "equipment": replacement.get("equipment"),
+                "primary_muscle": replacement.get("primary_muscle"),
+                "replaced_from": action.get("action_ref"),
+                "reason": f"长期偏好：避开{label}",
+            }
+            used.add(replacement["ref"])
+            actions[index] = action
+            changes.append(
+                f"第 {day.get('day_index')} 天「{old_name}」→「{replacement['name']}」（你偏好避开{label}）"
+            )
+        day["actions"] = actions
+
+    if changes:
+        payload["revisions"] = [str(item) for item in (payload.get("revisions") or []) + changes]
+        payload.setdefault("cautions", []).append(
+            "已按你长期表达的偏好替换动作；如果换到的动作也不合适，直接说，我再调。"
+        )
+        payload.setdefault("meta", {})["memory_changes"] = changes
+    return changes
+
+
+def apply_training_state_adjustments(payload: dict, state: dict) -> list[str]:
+    """把"最近连续没完成 / 难度偏高"落到计划内容上（确定性、可解释）。
+
+    只做减量，不自动加量：用户连续两次没完成时，最该做的是降低负担，
+    而不是让模型换个说法继续排同样的量。
+    """
+    changes: list[str] = []
+    if payload.get("status") != "ready" or not state.get("load_reduced"):
+        return changes
+    days = payload.get("days") or []
+    for day in days:
+        actions = day.get("actions") or []
+        for action in actions:
+            if not action.get("sets"):
+                continue
+            current = int(action["sets"])
+            new_sets = max(1, current - 1)
+            if new_sets != current:
+                action["sets"] = new_sets
+        # 每场只保留最短版本：动作多的时候砍掉最后一个，避免"组数少了但动作没少"
+        if len(actions) > 2:
+            dropped = actions.pop()
+            changes.append(
+                f"第 {day.get('day_index')} 天去掉「{(dropped.get('meta') or {}).get('name_zh') or dropped.get('action_ref')}」"
+            )
+    if not changes:
+        changes.append("每个动作组数下调 1 组（保留最短可执行版本）")
+    payload["adaptive"] = {
+        "load_reduced": True,
+        "consecutive_incomplete": state.get("consecutive_incomplete"),
+        "reason": state.get("reason"),
+        "changes": changes,
+    }
+    payload["revisions"] = [str(item) for item in (payload.get("revisions") or [])] + [
+        "最近连续未完成训练，已主动降低训练负担：" + "；".join(changes[:3])
+    ]
+    payload["cautions"] = [str(item) for item in (payload.get("cautions") or [])] + [
+        f"你最近连续 {state.get('consecutive_incomplete')} 次完成率偏低，这一版先以完成为目标。"
+    ]
+    payload["summary"] = (
+        str(payload.get("summary") or "")
+        + " 最近连续几次没完成，这一版已把训练量降下来，先保证能坚持。"
+    )
+    return changes
+
+
 def draft_payload(draft: PlanDraft) -> dict:
     """前端要的形状：草案正文 + 轮次 + 状态 + 生成链路信息。"""
     payload = draft.payload or {}
@@ -409,6 +613,7 @@ def draft_payload(draft: PlanDraft) -> dict:
         "days": payload.get("days", []),
         "meals": payload.get("meals", []),
         "revisions": payload.get("revisions", []),
+        "adaptive": payload.get("adaptive") or {},
         "meta": payload.get("meta", {}),
         "trace": draft.trace or [],
         "created_at": draft.created_at.isoformat() if draft.created_at else None,

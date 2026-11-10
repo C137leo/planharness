@@ -437,8 +437,15 @@ export interface Profile {
   weekly_days: number
   session_minutes: number
   diet_pattern: string
+  goal: string
+  goal_note: string
+  diet_preferences: string[]
   allergies: string[]
   dislikes: string[]
+  likes: string[]
+  preferred_time_window: string
+  preferred_time_label: string
+  preferred_location: string
   timezone: string
 }
 
@@ -492,12 +499,20 @@ export interface PlanDraft {
   meals: MealPlan[]
   /** 这一轮「再改改」实际改了哪些东西（后端确定性变换的结果） */
   revisions: string[]
+  /** 近期连续未完成时，后端主动降负荷的结果 */
+  adaptive?: {
+    load_reduced?: boolean
+    consecutive_incomplete?: number
+    reason?: string
+    changes?: string[]
+  }
   meta: {
     skill_available?: boolean
     skill_version?: string
     tools_called?: string[]
     model_fallback?: boolean
     usage?: Record<string, number>
+    memory?: Record<string, unknown>
   }
   trace: Array<Record<string, unknown>>
   created_at: string | null
@@ -526,6 +541,10 @@ export interface ProfileUpdate {
   allergies?: string[]
   diet_preferences?: string[]
   dislikes?: string[]
+  likes?: string[]
+  preferred_time_window?: string
+  preferred_time_label?: string
+  preferred_location?: string
 }
 
 // ---------------- 账号 ----------------
@@ -730,6 +749,12 @@ export interface TodayAgentResult {
   nutrition_notes: AgentTip[]
   citations: AgentCitation[]
   disclaimer: string
+  next_training?: {
+    date: string
+    label: string
+    summary: string
+    actions: Array<{ name: string; action_ref: string; sets?: number | null; reps?: number | null; duration_min?: number | null; time?: string }>
+  } | null
   blocked?: boolean
   /** 麦当劳官方营养库（mcp.mcd.cn）：规划后额外查一次，失败也带 status/error */
   mcdonalds?: McdBlock | null
@@ -761,4 +786,287 @@ export interface McdBlock {
   links?: { order?: string }
   order_hint?: string
   note?: string
+}
+
+// ---------------- 统一教练 Agent / 训练执行 ----------------
+
+export interface AgentActionChip {
+  type: string
+  label: string
+  text?: string
+  date?: string
+  session_id?: string
+  draft_id?: string
+  request_id?: string
+  question?: string
+}
+
+export interface AgentDayAction {
+  id?: string
+  slot_key: string
+  day_index: number
+  slot: string
+  seq: number
+  action_ref: string
+  name: string
+  sets: number | null
+  reps: number | null
+  duration_min: number | null
+  intensity?: string | null
+  movement_mode?: string
+  primary_muscle?: string
+  equipment?: string
+  meta?: Record<string, unknown>
+  source?: string
+  reason?: string
+  original_ref?: string
+}
+
+export interface AgentDayMeal {
+  slot: string
+  title: string
+  items: MealItem[]
+  kcal: number
+  protein_g: number
+  fat_g: number
+  carb_g: number
+}
+
+export interface WorkoutItem {
+  id: string
+  position: number
+  slot_key: string
+  action_ref: string
+  name: string
+  slot: string
+  target_sets: number
+  target_reps: number | null
+  duration_min: number
+  rest_sec: number
+  completed_sets: number
+  status: 'pending' | 'active' | 'done' | 'skipped'
+  replaced_from?: string | null
+  reason?: string
+  equipment?: string
+  movement_mode?: string
+  primary_muscle?: string
+  guidance?: string
+  source?: string
+  meta?: Record<string, unknown>
+}
+
+export interface WorkoutProgress {
+  done_actions: number
+  total_actions: number
+  done_sets: number
+  total_sets: number
+  skipped_actions: number
+  percent: number
+  remaining_minutes: number
+}
+
+export interface WorkoutSession {
+  session_id: string
+  date: string
+  status: 'active' | 'paused' | 'completed' | 'finished' | 'abandoned'
+  source: string
+  plan_version: number | null
+  current_index: number | null
+  current_item: WorkoutItem | null
+  items: WorkoutItem[]
+  planned_minutes: number
+  actual_minutes: number
+  elapsed_minutes: number
+  completion_pct: number
+  difficulty: number | null
+  fatigue: number | null
+  note: string
+  progress: WorkoutProgress
+  started_at: string
+  finished_at: string
+}
+
+export interface AgentDay {
+  date: string
+  weekday: number
+  plan_id: string | null
+  plan_version: number | null
+  source: 'plan' | 'agent'
+  summary: string
+  reason: string
+  constraints: Record<string, unknown>
+  actions: AgentDayAction[]
+  base_action_count: number
+  borrowed_from: number | null
+  adjustment_id?: string | null
+  adjustment?: AgentAdjustment | null
+  temporary_context?: Record<string, Record<string, unknown>>
+  meals: AgentDayMeal[]
+  total_minutes: number
+  session: WorkoutSession | null
+  has_active_session: boolean
+  completed: boolean
+  finished: boolean
+  plan_summary?: string
+}
+
+export interface MemoryItem {
+  id: string
+  kind: 'long_term' | 'short_term'
+  category: string
+  category_label: string
+  key: string
+  value: string
+  structured: Record<string, unknown>
+  source: string
+  status: string
+  confidence: number
+  importance: number
+  last_confirmed_at: string
+  expires_at: string
+  updated_at: string
+  canonical: boolean
+}
+
+export interface AgentAdjustment {
+  adjustment_id: string
+  date: string
+  status: string
+  plan_id: string | null
+  base_version: number | null
+  summary: string
+  reason: string
+  constraints: Record<string, unknown>
+  changes: string[]
+  actions: AgentDayAction[]
+  borrowed_from: number | null
+  created_at: string
+  updated_at: string
+  expires_at: string
+}
+
+export interface TemporaryContextItem {
+  id: string
+  key: string
+  label: string
+  value: Record<string, unknown>
+  text: string
+  status: string
+  effective_date: string
+  expires_at: string
+  completed_at: string
+  source: string
+}
+
+export interface AgentMemoryList {
+  items: MemoryItem[]
+  groups: Record<string, MemoryItem[]>
+  temporary: TemporaryContextItem[]
+  labels: Record<string, string>
+}
+
+export interface ProgressFinding {
+  id: string
+  category: string
+  title: string
+  detail: string
+  evidence: string
+  suggested_prompt: string
+  tone: 'info' | 'warn' | 'good'
+}
+
+export interface ProgressInsights {
+  days: number
+  session_count: number
+  log_count: number
+  weekly: {
+    sessions: number
+    total_minutes: number
+    avg_completion_pct: number
+    avg_difficulty: number | null
+    avg_fatigue: number | null
+    consecutive_incomplete: number
+    last_training_date: string
+    gap_days: number | null
+  }
+  trend: Array<{ date: string; sessions: number; minutes: number; completion_pct: number }>
+  weight: { latest: number | null; change: number | null }
+  findings: ProgressFinding[]
+  recent_sessions: Array<{
+    session_id: string
+    date: string
+    completion_pct: number
+    actual_minutes: number
+    difficulty: number | null
+    fatigue: number | null
+    note: string
+    status: string
+  }>
+  note: string
+}
+
+export interface AgentGuidance {
+  name: string
+  cues: string[]
+  source_ids: string[]
+  sources: Array<{ id: string; title: string; source_url: string }>
+}
+
+export interface AgentChatResult {
+  intent: string
+  intent_label: string
+  scope: string
+  reason?: string
+  reply: string
+  changes: string[]
+  actions: AgentActionChip[]
+  day: AgentDay | null
+  session: WorkoutSession | null
+  plan_draft: PlanDraft | null
+  patch_request: PatchRequest | null
+  today_brief: TodayAgentResult | null
+  today_brief_run_id?: string
+  mcd_order?: { instruction: string; city?: string; store?: string; foods?: string[] } | null
+  memories: MemoryItem[] | null
+  memory_saved: MemoryItem[]
+  guidance: AgentGuidance[]
+  warnings: string[]
+  feedback?: {
+    actual_minutes: number
+    completion_pct: number
+    difficulty: number
+    fatigue: number
+    kcal: number
+    done_actions: number
+    total_actions: number
+    unfinished: Array<Record<string, unknown>>
+    items: Array<Record<string, unknown>>
+    note: string
+  }
+  training_state?: Record<string, unknown>
+  progress_insights?: ProgressInsights
+  page_context?: Record<string, unknown>
+  blocked?: boolean
+  error?: string
+  run_id?: string
+  trace?: Array<{ node: string; status: string; detail?: Record<string, unknown> }>
+}
+
+export interface AgentMessageItem {
+  id: string
+  role: 'user' | 'agent'
+  text: string
+  intent?: Record<string, unknown>
+  actions?: AgentActionChip[]
+  /** 当时可展开的完整结果；旧消息可能没有 */
+  result?: AgentChatResult | null
+  created_at: string
+}
+
+export interface AgentConversation {
+  thread: string
+  title: string
+  preview: string
+  message_count: number
+  updated_at: string
 }

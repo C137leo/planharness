@@ -103,14 +103,24 @@ scroll-view {
 
 .page {
   margin: 0 auto;
-  max-width: 760px;
+  max-width: 1120px;
   min-height: 100vh;
-  padding: 24px 18px 96px;
+  padding: 28px 24px 104px;
 }
 
 /* Console 是观测面板，需要全宽放表格与时间线 */
 .page.wide {
   max-width: 100%;
+}
+
+/* 桌面端：左侧导航占 220px，内容区用满剩余宽屏，避免右侧大片留白 */
+@media (min-width: 920px) {
+  .page.with-sidebar {
+    margin-left: 236px;
+    margin-right: 24px;
+    max-width: none;
+    padding: 26px 24px 84px;
+  }
 }
 
 .eyebrow {

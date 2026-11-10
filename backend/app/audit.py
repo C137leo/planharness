@@ -51,6 +51,16 @@ ACTIONS = (
     # 运营开关：谁在什么时候暂停/恢复了大模型调用
     "llm_paused",
     "llm_resumed",
+    # 统一教练 Agent：临时调整今天、训练执行、记忆变更都要留痕，
+    # 这样"今天为什么变成 20 分钟"能和计划版本区分开查。
+    "day_adjusted",
+    "workout_started",
+    "workout_adjusted",
+    "workout_finished",
+    "memory_updated",
+    "memory_deleted",
+    # 每日记忆生命周期维护：归档/提炼/临时上下文过期的汇总
+    "memory_lifecycle_run",
 )
 
 

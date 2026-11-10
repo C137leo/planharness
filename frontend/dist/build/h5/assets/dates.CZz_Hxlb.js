@@ -1,1 +1,0 @@
-function t(){const t=new Date,e=`${t.getMonth()+1}`.padStart(2,"0"),a=`${t.getDate()}`.padStart(2,"0");return`${t.getFullYear()}-${e}-${a}`}function e(t=new Date){const e=t.getDay();return 0===e?7:e}const a=["周一","周二","周三","周四","周五","周六","周日"];export{a as W,e as i,t};

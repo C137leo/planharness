@@ -16,6 +16,21 @@ MEAL_CATALOG = {meal["ref"]: meal for meal in MEALS}
 # skill 动作目录里有一部分动作没有中文名（只有英文），
 # 但它们会被"加个背部动作/换动作"用到，所以这里补齐常用项。
 EXTRA_ZH: dict[str, str] = {
+    # 模板 / 旧版本里用下划线的 ref，目录里找不到对应中文名
+    "goblet_squat": "高脚杯深蹲",
+    "one-arm-dumbbell-row": "单臂哑铃划船",
+    "inverted-row": "反向划船",
+    "bodyweight-squat": "自重深蹲",
+    "walking-lunge": "行走弓步",
+    "seated-row": "坐姿划船",
+    "chest-supported-row": "胸支撑划船",
+    "doorway-row": "门框划船",
+    "banded-row": "弹力带划船",
+    "dead-bug": "死虫式",
+    "dynamic_warmup": "动态热身",
+    "full_body_stretch": "全身拉伸",
+    "jump_squat": "跳跃深蹲",
+    "backpack_row": "背包划船",
     "banded-row": "弹力带划船",
     "banded-face-pull": "弹力带面拉",
     "banded-lat-pulldown": "弹力带下拉",

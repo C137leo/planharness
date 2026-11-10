@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import date, timedelta
 
@@ -16,6 +17,7 @@ from langgraph.types import Command
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from app.agent import coach_agent
 from app.audit import append_event, verify_stream
 from app.auth import get_current_user, get_db, hash_password, issue_token, verify_password
 from app.domain import calories as calorie_stats
@@ -259,6 +261,15 @@ def update_profile(
             setattr(profile, field, value)
             changed.append(field)
     if changed:
+        # Profile 是结构化事实的唯一来源：档案页的修改也要同步 canonical Memory
+        try:
+            from app.domain.profile_sync import sync_profile_change
+
+            sync_profile_change(db, user, profile, changed)
+        except Exception:  # noqa: BLE001 - 档案保存不能因镜像同步失败而回滚
+            logging.getLogger("planharness.memory").exception(
+                "profile -> memory sync failed user=%s", user.id
+            )
         append_event(
             db, f"user:{user.id}", "profile_updated",
             {"fields": changed, "goal": profile.goal},
@@ -342,6 +353,9 @@ def confirm_plan_draft(
         _, version = coach_plans.confirm_draft(db, user, draft_id, payload.comment)
     except PatchValidationError as exc:
         raise HTTPException(422, detail=exc.errors) from exc
+    coach_agent.mark_stored_plan_result(
+        db, user, draft_id=draft_id, status="confirmed", version=version.version,
+    )
     db.expire_all()
     plan = _current_plan_payload(db, user)
     return ok(
@@ -363,6 +377,9 @@ def reject_plan_draft(
         draft = coach_plans.reject_draft(db, user, draft_id, payload.comment)
     except PatchValidationError as exc:
         raise HTTPException(422, detail=exc.errors) from exc
+    coach_agent.mark_stored_plan_result(
+        db, user, draft_id=draft_id, status="rejected",
+    )
     return ok(request, coach_plans.draft_payload(draft), message="rejected")
 
 
@@ -863,6 +880,11 @@ def approve_patch_request(
         input_payload={"request_id": request_id, "comment": payload.comment},
     )
     db.commit()
+    coach_agent.mark_stored_plan_result(
+        db, user, request_id=request_id,
+        status="applied" if verification.passed else "rejected",
+        version=version.version,
+    )
     db.expire_all()
     plan = _current_plan_payload(db, user)
     return ok(
@@ -899,6 +921,9 @@ def reject_patch_request(
         input_payload={"request_id": request_id, "comment": payload.comment},
     )
     db.commit()
+    coach_agent.mark_stored_plan_result(
+        db, user, request_id=request_id, status="rejected",
+    )
     return ok(request, patch_requests.request_payload(db, req), message="rejected")
 
 

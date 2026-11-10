@@ -163,6 +163,7 @@ def parse_intent(text: str, quick_action: str = "") -> Intent:
     action = (quick_action or "").strip()
 
     # 1) 快捷项直接给出意图（UI 上点的那一下就是结构化输入）
+    excluded_tokens, excluded_labels = _find_exclusions(text)
     if action in QUICK_ACTIONS:
         kind = action
     else:
@@ -191,6 +192,9 @@ def parse_intent(text: str, quick_action: str = "") -> Intent:
             kind = "time"
         else:
             kind = "other"
+        # 只说了"不想深蹲/不要划船"：这是排除具体动作，不是整份计划停掉
+        if kind == "other" and excluded_tokens:
+            kind = "exclude_actions"
 
     parts = _find_body_parts(text)
     days = _find_days(text)
@@ -206,7 +210,6 @@ def parse_intent(text: str, quick_action: str = "") -> Intent:
     ):
         kind = "injury_swap"
 
-    excluded_tokens, excluded_labels = _find_exclusions(text)
     intent = Intent(
         kind=kind,
         body_parts=parts if kind in ("injury_stop", "injury_swap") else [],
@@ -307,6 +310,43 @@ def plan_operations(intent: Intent, actions: list[dict]) -> tuple[list[dict], li
                 }
             )
         risks.append("练停期间请留意症状变化；如出现红肿、剧痛或活动受限，请及时就医。")
+        return operations, risks
+
+    if intent.kind == "exclude_actions":
+        # 用户点名不要某个动作：只改用到该动作的槽位，保持最小修改
+        for item in exercises:
+            if not is_excluded_ref(item["action_ref"], intent.excluded_tokens):
+                continue
+            replacement = _pick_safe_replacement(
+                item, set(), used_refs, intent.excluded_tokens,
+            )
+            if replacement is None:
+                operations.append({
+                    "op": "remove_action",
+                    "slot_key": item["slot_key"],
+                    "before_action_ref": item["action_ref"],
+                    "reason": f"按你的要求避开{'、'.join(intent.excluded_labels)}",
+                })
+                continue
+            used_refs.add(replacement)
+            operations.append({
+                "op": "replace_action",
+                "slot_key": item["slot_key"],
+                "before_action_ref": item["action_ref"],
+                "after_action": {
+                    "action_ref": replacement,
+                    "duration_min": 20 if replacement == "easy_walk" else None,
+                    "sets": 3 if replacement not in ("easy_walk", "stretch") else None,
+                    "reps": 12 if replacement not in ("easy_walk", "stretch") else None,
+                    "meta": {"name": replacement, "name_zh": movement_name(replacement),
+                             "equipment": []},
+                },
+                "reason": f"按你的要求避开{'、'.join(intent.excluded_labels)}",
+            })
+        if not operations:
+            risks.append("当前计划里没有用到这些动作，不需要改。")
+        else:
+            risks.append("已避开你明确不要的动作：" + "、".join(intent.excluded_labels))
         return operations, risks
 
     if intent.kind == "injury_swap":

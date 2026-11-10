@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import re
 from dataclasses import dataclass, field
 
 from app.agent.today_schema import TodayAnswer
@@ -44,6 +45,12 @@ SYSTEM_PROMPT = """你是今日活动规划 Agent。你可以按任意顺序调�
     数字回答；那是营养数据，不是价格，不要编价格。
 11. 用户要求"分几次训练 / 早上几点 / 晚上几点 / 几点到几点"时，schedule 必须按用户给的
     时间拆成多个时段，不要在没被要求时固定写 18:30；用户没指定时间才用默认安排。
+12. 上下文里有三类记忆，不能混用：
+    - 长期记忆（memory.long_term）：训练时间/地点/器械/喜恶，排今天和以后都要遵守；
+    - 短期状态（training_state）：最近完成率与难度，连续未完成时主动降低负担；
+    - 临时上下文（temporary）：只对今天有效，绝不能写进长期建议。
+13. 今日计划有临时调整（day_source=agent、effective_actions 非空）时，按
+    effective_actions 安排，不要按原始版本重新排一遍；用户问"为什么"时说明只改今天。
 
 输出结构（**不要输出 meals**，餐食由程序用工具结果拼好）：
 {
@@ -486,13 +493,19 @@ def _session_cap_minutes(text: str) -> int | None:
     return None
 
 
-def _schedule_for(text: str, actions: list[dict]) -> list[dict]:
+def _schedule_for(text: str, actions: list[dict],
+                  preferred_times: list[str] | None = None) -> list[dict]:
     """把训练动作按用户时间偏好拆成 1-3 个时段。
 
     模型路径由 prompt 约束；这里是模型不可用/校验失败时的确定性兜底，
     不能永远写死 18:30。
+
+    preferred_times 来自长期记忆（如午休 12:00-13:00）：用户这次没给时间时，
+    默认沿用长期偏好，而不是退回写死的 18:30。
     """
     times = _preferred_times(text)
+    if not times and preferred_times:
+        times = [str(item) for item in preferred_times if item]
     count = _split_count(text, times)
     if actions:
         count = max(1, min(count, len(actions)))
@@ -508,10 +521,11 @@ def _schedule_for(text: str, actions: list[dict]) -> list[dict]:
             if value not in used:
                 times.append(value)
                 used.add(value)
-    times.sort(key=lambda value: (
-        int(value.split("-")[0].split(":")[0]) * 60
-        + int(value.split("-")[0].split(":")[1])
-    ))
+    def _start_minutes(value: str) -> int:
+        clock = re.search(r"(\d{1,2}):(\d{2})", value or "")
+        return int(clock.group(1)) * 60 + int(clock.group(2)) if clock else 18 * 60 + 30
+
+    times.sort(key=_start_minutes)
     times = times[:count]
     if not times:
         times = ["18:30"]
@@ -530,7 +544,19 @@ def _schedule_for(text: str, actions: list[dict]) -> list[dict]:
     schedule = []
     for index, group in enumerate(groups):
         names = [str(item.get("name") or item.get("action_ref") or "训练") for item in group]
-        minutes = sum(int(item.get("duration_min") or 0) for item in group) or 35
+
+        def _minutes_of(item: dict) -> int:
+            raw = int(item.get("duration_min") or 0)
+            if raw:
+                return raw
+            slot = str(item.get("slot") or "")
+            if slot == "cardio":
+                return 25
+            if slot in ("warmup", "mobility"):
+                return 5
+            return 8
+
+        minutes = sum(_minutes_of(item) for item in group) or 35
         if cap:
             minutes = min(minutes, cap)
         schedule.append({
@@ -548,19 +574,63 @@ def _enforce_schedule(final: dict, text: str, ctx: dict) -> None:
     避免"用户说了分两次，模型还是只给一个时段"。
     """
     times = _preferred_times(text)
-    if not times and _split_count(text, times) <= 1 and not _session_cap_minutes(text):
+    preferred = [str(item) for item in (ctx.get("preferred_times") or []) if item]
+    if not times and not preferred \
+            and _split_count(text, times) <= 1 and not _session_cap_minutes(text):
         return
     actions = [
-        {"name": (getattr(item, "meta", None) or {}).get("name_zh") or item.action_ref,
-         "action_ref": item.action_ref,
-         "duration_min": item.duration_min}
-        for item in (ctx.get("actions") or [])
-        if getattr(item, "action_type", "") == "exercise"
+        {"name": item.get("name") or item.get("action_ref"),
+         "action_ref": item.get("action_ref"),
+         "duration_min": item.get("duration_min")}
+        for item in (ctx.get("effective_actions") or [])
     ]
-    final["schedule"] = _schedule_for(text, actions)
+    if not actions:
+        actions = [
+            {"name": (getattr(item, "meta", None) or {}).get("name_zh") or item.action_ref,
+             "action_ref": item.action_ref,
+             "duration_min": item.duration_min}
+            for item in (ctx.get("actions") or [])
+            if getattr(item, "action_type", "") == "exercise"
+        ]
+    final["schedule"] = _schedule_for(text, actions, preferred)
 
 
 # ---------------------------------------------------------------- 确定性编排
+
+def _rag_exercise_cue(name: str) -> tuple[str, dict] | None:
+    """按动作名找 free-exercise-db 里的单动作要领，避免拿“部位清单”当指导。"""
+    from app.knowledge.rag import search as rag_search
+
+    target = str(name or "").strip()
+    if not target:
+        return None
+    try:
+        hits = rag_search(f"{target} 动作要领", limit=30)
+    except Exception:  # noqa: BLE001
+        return None
+    best: dict | None = None
+    best_len = 10**9
+    for hit in hits:
+        title = str(hit.get("title") or "")
+        main = title.split("（")[0].split("(")[0].strip()
+        if main == target or target in main or main in target:
+            if len(main) < best_len:
+                best = hit
+                best_len = len(main)
+    if best is None:
+        return None
+    content = str(best.get("content") or "")
+    body = content.split("动作要领：", 1)[1] if "动作要领：" in content else content
+    first = body.split("。", 1)[0].strip(" 。；")
+    if not first:
+        return None
+    citation = {
+        "id": str(best.get("id") or ""),
+        "title": best.get("title") or target,
+        "source_url": best.get("source_url") or "",
+    }
+    return first, citation
+
 
 def _deterministic(db, ctx: dict, text: str, on_step=None) -> TodayResult:
     trace: list[dict] = []
@@ -598,24 +668,35 @@ def _deterministic(db, ctx: dict, text: str, on_step=None) -> TodayResult:
     recovery = dispatch("get_recovery_tips", {}, ctx, db)
     _push(trace, on_step, "get_recovery_tips", str(recovery.get("status")))
 
-    actions = plan.get("data", {}).get("actions", []) if plan.get("status") == "ok" else []
+    plan_data = plan.get("data", {}) if plan.get("status") == "ok" else {}
+    actions = plan_data.get("effective_actions") or plan_data.get("actions") or []
     citations = {item["id"]: item for item in (
             (knowledge.get("citations") or []) + (recovery.get("citations") or []))}
 
-    # 动作要领：逐个动作查知识库，作为 tips 给出来（Agent 没讲时由这里兜底）
+    # 动作要领：优先用 free-exercise-db 的单动作说明（Agent 没讲时由这里兜底）
     cue_tips: list[dict] = []
     for action in actions[:3]:
+        action_name = str(action.get("name") or action.get("ref") or "")
+        rag_cue = _rag_exercise_cue(action_name)
+        if rag_cue is not None:
+            text_cue, citation = rag_cue
+            citations[citation["id"]] = citation
+            cue_tips.append({"text": f"{action_name}：{text_cue[:100]}",
+                             "source_ids": [citation["id"]]})
+            _push(trace, on_step, "exercise_cue", "ok", target=action_name)
+            continue
+
         cue = dispatch("search_knowledge",
-                       {"query": action.get("name") or action.get("ref") or "动作要领"}, ctx, db)
-        _push(trace, on_step, "search_knowledge", str(cue.get("status")), target=action.get("name"))
+                       {"query": action_name or "动作要领"}, ctx, db)
+        _push(trace, on_step, "search_knowledge", str(cue.get("status")), target=action_name)
         for item in cue.get("citations") or []:
             citations[item["id"]] = item
         data = cue.get("data") or []
         if data:
-            cue_tips.append({"text": f"{action.get('name')}：{data[0]['content'][:80]}",
+            cue_tips.append({"text": f"{action_name}：{data[0]['content'][:100]}",
                              "source_ids": [data[0]["id"]]})
 
-    schedule = _schedule_for(text, actions)
+    schedule = _schedule_for(text, actions, ctx.get("preferred_times") or [])
     split_note = f"分 {len(schedule)} 次训练；" if len(schedule) > 1 else ""
     final = {
         "summary": (
@@ -633,6 +714,8 @@ def _deterministic(db, ctx: dict, text: str, on_step=None) -> TodayResult:
         "citations": list(citations.values()),
         "disclaimer": DEFAULT_DISCLAIMER,
         "fallback": True,
+        "memory_preferences": ctx.get("preferred_times") or [],
+        "training_state": ctx.get("training_state") or {},
     }
     # 留痕：ok 给数据，失败也带 error，前端和排查都能看到
     final["mcdonalds"] = mcd
@@ -677,13 +760,16 @@ def validate(final: dict, ctx: dict, db) -> list[str]:
     if citation_ids:
         existing = {row.id for row in db.query(KnowledgeChunk).filter(
             KnowledgeChunk.id.in_(citation_ids)).all()}
-        missing = citation_ids - existing
+        missing = {
+            item for item in (citation_ids - existing)
+            if not str(item).startswith("ex:")
+        }
         if missing:
             problems.append(f"引用不存在：{sorted(missing)}")
 
     for tip in (final.get("tips") or []) + (final.get("nutrition_notes") or []):
         for source_id in tip.get("source_ids") or []:
-            if source_id and source_id not in (citation_ids | _all_knowledge_ids(db)):
+            if source_id and not str(source_id).startswith("ex:") and source_id not in (citation_ids | _all_knowledge_ids(db)):
                 problems.append(f"tip 引用不存在：{source_id}")
 
     if any(word in json.dumps(final, ensure_ascii=False) for word in MEDICAL):

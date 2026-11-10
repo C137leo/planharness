@@ -42,6 +42,12 @@ const scenarios = ref<EvalScenario[]>([])
 const replay = ref<EvalScenarioResult | null>(null)
 const replaying = ref('')
 
+function goBack() {
+  const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+  if (pages.length > 1) uni.navigateBack()
+  else uni.switchTab({ url: '/pages/today/index' })
+}
+
 const FILTERS = [
   { value: '', label: '全部' },
   { value: 'succeeded', label: '已完成' },
@@ -397,6 +403,7 @@ onShow(() => {
 
 <template>
   <view class="page wide">
+    <view class="console-back" @click="goBack">← 返回上一页</view>
     <view class="eyebrow">HARNESS CONSOLE</view>
     <view class="title">每次运行，都留得下证据。</view>
     <view class="subtitle">真实 run · trace 时间线 · diff · 上下文预算 · 独立验证</view>
@@ -910,6 +917,24 @@ onShow(() => {
 </template>
 
 <style>
+.console-back {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding: 7px 12px;
+}
+
+.console-back:hover {
+  background: var(--line-soft);
+}
+
 .console-grid {
   display: flex;
   flex-direction: column;
@@ -926,10 +951,19 @@ onShow(() => {
 /* 桌面端：左边执行/评测列表，右边详情；手机宽度仍然单列 */
 @media (min-width: 900px) {
   .console-grid {
-    align-items: start;
+    align-items: stretch;
     display: grid;
     gap: 20px;
     grid-template-columns: 360px minmax(0, 1fr);
+    height: calc(100vh - 220px);
+    min-height: 520px;
+  }
+
+  .console-col {
+    max-height: 100%;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: thin;
   }
 }
 

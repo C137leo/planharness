@@ -68,12 +68,17 @@ class PlanProposal:
     fallback: bool = False
 
 
-def skill_profile(profile: Any) -> dict:
+def skill_profile(profile: Any, memory_context: dict | None = None) -> dict:
     """把数据库画像翻译成 skill 认的字段名（athlete-state.js 白名单）。
 
     goal/skill 用的是中文枚举，这里做一次显式映射，不做模糊匹配——
     映射不上就退到"综合健康"，并在 payload 里标出来。
+
+    memory_context 是分层记忆里的长期偏好：只覆盖"稳定条件"（时间/地点/器械/喜恶），
+    不会把"今天只有 20 分钟"带进来（那是 TemporaryContext）。
     """
+    from app.domain.memory import memory_preferences
+
     goal_map = {
         "fat_loss": "减脂",
         "muscle_gain": "增肌",
@@ -89,19 +94,42 @@ def skill_profile(profile: Any) -> dict:
         "mat": "瑜伽垫",
     }
     equipment = [equipment_names.get(item, item) for item in (getattr(profile, "equipment", None) or [])]
+    memory = memory_context or {}
+    for code in memory.get("equipment") or []:
+        name = equipment_names.get(str(code), str(code))
+        if name not in equipment:
+            equipment.append(name)
     if not equipment:
         equipment = ["瑜伽垫"]
 
     goal = goal_map.get(getattr(profile, "goal", "") or "", "综合健康")
+    venue = "home" if "瑜伽垫" in equipment or "哑铃" in equipment else "gym"
+    location = str(memory.get("location_code") or memory.get("location") or "")
+    if location in ("home", "家里"):
+        venue = "home"
+    elif location in ("gym", "健身房"):
+        venue = "gym"
+    elif location in ("office", "办公室", "outdoor", "户外"):
+        venue = "home"  # skill 只认 home/gym；办公室/户外按居家条件生成，动作再按场地过滤
+    weekly = memory.get("weekly_days") or getattr(profile, "weekly_days", 3)
+    minutes = memory.get("session_minutes") or getattr(profile, "session_minutes", 40)
+    preferences = [str(item) for item in (getattr(profile, "dislikes", None) or [])]
+    for item in memory_preferences(memory):
+        if item not in preferences:
+            preferences.append(item)
     return {
         "goal": goal,
         "experience_level": getattr(profile, "training_experience", "beginner") or "beginner",
-        "training_days_per_week": int(getattr(profile, "weekly_days", 3) or 3),
-        "available_time_min": int(getattr(profile, "session_minutes", 40) or 40),
-        "training_venue": "home" if "瑜伽垫" in equipment or "哑铃" in equipment else "gym",
+        "training_days_per_week": int(weekly or 3),
+        "available_time_min": int(minutes or 40),
+        "training_venue": venue,
         "available_equipment": equipment,
+        "preferred_time_windows": [
+            str(item.get("window")) for item in (memory.get("preferred_windows") or [])
+            if item.get("window")
+        ],
         "injury_or_medical_constraints": (getattr(profile, "goal_note", "") or "").strip() or "无",
-        "long_term_preferences": [str(item) for item in (getattr(profile, "dislikes", None) or [])],
+        "long_term_preferences": preferences,
         # 营养层需要体型字段与饮食偏好
         "sex": getattr(profile, "sex", "male") or "male",
         "age": _age(profile),
@@ -126,8 +154,9 @@ class PlanningAgent:
 
     # ---- 对外入口 ----
 
-    def propose(self, profile: Any, instruction: str, *, previous_feedback: list[str] | None = None) -> PlanProposal:
-        profile_payload = skill_profile(profile)
+    def propose(self, profile: Any, instruction: str, *, previous_feedback: list[str] | None = None,
+                memory_context: dict | None = None) -> PlanProposal:
+        profile_payload = skill_profile(profile, memory_context)
         feedback = [text for text in (previous_feedback or []) if text]
         if feedback:
             instruction = instruction + "\n用户上一轮的修改意见：" + "；".join(feedback)
@@ -145,9 +174,10 @@ class PlanningAgent:
                 return proposal
         return self._deterministic_flow(profile_payload, instruction)
 
-    def propose_deterministic(self, profile: Any, instruction: str) -> PlanProposal:
+    def propose_deterministic(self, profile: Any, instruction: str,
+                              memory_context: dict | None = None) -> PlanProposal:
         """不走模型，直接按 skill 的顺序跑一遍（用于"这个我们自己能做，别问用户"）。"""
-        return self._deterministic_flow(skill_profile(profile), instruction)
+        return self._deterministic_flow(skill_profile(profile, memory_context), instruction)
 
     # ---- 模型编排 ----
 
@@ -461,6 +491,90 @@ def _build_days(program: dict, start_weekday: int | None = None) -> list[dict]:
                     "degraded_from": varied.get("degraded_from"),
                 },
             })
+        # skill 对 30 分钟的场次只给 2 个动作；补一个"拉"的动作（有哑铃就用哑铃），
+        # 让一场训练至少是"热身 + 蹲/髋 + 拉"，而不是只有两个动作。
+        slugs = {str(action.get("action_ref")) for action in actions}
+        has_pull = any("row" in slug or "pulldown" in slug or "pull-up" in slug
+                       for slug in slugs)
+        uses_dumbbell = any(
+            str((action.get("meta") or {}).get("equipment") or "").lower() == "dumbbell"
+            for action in actions
+        )
+        if len(actions) < 3 and not has_pull:
+            if uses_dumbbell:
+                accessory = {
+                    "action_ref": "one-arm-dumbbell-row",
+                    "name_zh": "单臂哑铃划船",
+                    "name_en": "One-Arm Dumbbell Row",
+                    "movement_mode": "horizontal_pull",
+                    "equipment": "Dumbbell",
+                    "primary_muscle": "Back",
+                    "sets": 3,
+                    "reps": 10,
+                    "duration_min": 10,
+                }
+            else:
+                accessory = {
+                    "action_ref": "inverted-row",
+                    "name_zh": "反向划船",
+                    "name_en": "Inverted Row",
+                    "movement_mode": "horizontal_pull",
+                    "equipment": "Bodyweight",
+                    "primary_muscle": "Back",
+                    "sets": 3,
+                    "reps": 10,
+                    "duration_min": 10,
+                }
+            actions.append({
+                "slot": "strength",
+                "seq": len(actions) + 1,
+                "action_type": "exercise",
+                "action_ref": accessory["action_ref"],
+                "sets": accessory["sets"],
+                "reps": accessory["reps"],
+                "duration_min": accessory["duration_min"],
+                "intensity": "moderate",
+                "meta": {
+                    "name_zh": accessory["name_zh"],
+                    "name_en": accessory["name_en"],
+                    "movement_mode": accessory["movement_mode"],
+                    "equipment": accessory["equipment"],
+                    "primary_muscle": accessory["primary_muscle"],
+                },
+            })
+        elif len(actions) < 3 and "dead-bug" not in slugs:
+            actions.append({
+                "slot": "strength",
+                "seq": len(actions) + 1,
+                "action_type": "exercise",
+                "action_ref": "dead-bug",
+                "sets": 2,
+                "reps": 10,
+                "duration_min": 6,
+                "intensity": "moderate",
+                "meta": {
+                    "name_zh": "死虫式",
+                    "name_en": "Dead Bug",
+                    "movement_mode": "core",
+                    "equipment": "Bodyweight",
+                    "primary_muscle": "Core",
+                },
+            })
+        # 训练顺序：蹲 → 推/拉 → 髋 → 核心。skill 的 session 只给"模式"，
+        # 这里排序不改变组次与安全边界；好处是按时间裁剪时优先留下复合动作。
+        mode_order = {
+            "knee_dominant": 1,
+            "horizontal_push": 2,
+            "vertical_push": 3,
+            "horizontal_pull": 4,
+            "vertical_pull": 5,
+            "hip_dominant": 6,
+            "core": 7,
+            "cardio": 8,
+        }
+        actions.sort(key=lambda item: mode_order.get(
+            str((item.get("meta") or {}).get("movement_mode") or ""), 9
+        ))
         days.append({
             "day_index": day_index,
             "session_id": session.get("session_id"),

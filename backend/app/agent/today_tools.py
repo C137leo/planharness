@@ -124,17 +124,38 @@ def load_context(db, user: User, day: dt.date) -> dict:
         MealPlan.plan_version_id == version.id, MealPlan.day_index == weekday
     ).all()
     profile = db.query(Profile).filter(Profile.user_id == user.id).first()
+    # 今日有效计划 = 基础版本 + 当天临时调整；工具看到的是用户真正要执行的
+    from app.domain.day_plan import effective_day
+    from app.domain.memory import load_memory_context, load_temporary, recent_training_state
+
+    day_plan = effective_day(db, user, day, fallback_next=False)
+    memory = load_memory_context(db, user)
+    temporary = load_temporary(db, user, day)
+    preferred_times = [
+        str(item.get("window")) for item in (memory.get("preferred_windows") or [])
+        if item.get("window")
+    ]
+    temporary_window = (temporary.get("time_window") or {}).get("window")
+    if temporary_window:
+        preferred_times.append(str(temporary_window))
     return {
         "plan": plan,
         "version": version,
         "day": day,
         "weekday": weekday,
         "actions": actions,
+        "effective_actions": day_plan.get("actions") or [],
+        "day_summary": day_plan.get("summary") or "",
+        "day_source": day_plan.get("source") or "plan",
         "meals": {meal.slot: meal for meal in meals},
         "profile": profile,
         "allergies": list(profile.allergies or []) if profile else [],
         "diet_preferences": list(profile.diet_preferences or []) if profile else [],
         "nutrition": plan.nutrition or {},
+        "memory": memory,
+        "temporary": temporary,
+        "preferred_times": preferred_times,
+        "training_state": recent_training_state(db, user),
     }
 
 
@@ -175,6 +196,22 @@ def get_today_plan(args: dict, ctx: dict, db) -> dict:
                 }
                 for action in ctx["actions"]
             ],
+            # 用户今天真正要执行的（可能已经被临时调整过）
+            "effective_actions": [
+                {
+                    "slot": item.get("slot"),
+                    "ref": item.get("action_ref"),
+                    "name": item.get("name"),
+                    "sets": item.get("sets"),
+                    "duration_min": item.get("duration_min"),
+                    "source": item.get("source"),
+                }
+                for item in (ctx.get("effective_actions") or [])
+            ],
+            "day_summary": ctx.get("day_summary") or "",
+            "day_source": ctx.get("day_source") or "plan",
+            "memory_preferences": ctx.get("preferred_times") or [],
+            "temporary_context": list((ctx.get("temporary") or {}).keys()),
             "meals": {
                 slot: {
                     "title": meal.title,
@@ -317,19 +354,17 @@ def mcd_nutrition(args: dict, ctx: dict, db) -> dict:
 def get_recovery_tips(args: dict, ctx: dict, db) -> dict:
     training = str(args.get("training_time") or "18:30")
     meal_time = str(args.get("meal_time") or "19:00")
-    hits = kb_search(db, "饭后 训练 时间 恢复", limit=2, min_score=1.5)
-    citations = [_citation(hit.chunk) for hit in hits]
-    # 每条建议对应它自己的来源，而不是统一指向第一条
+    # 这几条是训练时间/恢复的执行建议，知识库里没有逐条对应的原文；
+    # 不强行挂“每周练几次/酸痛区分”这种看似相关、实际不对应的引用。
     tips = [
         {"text": f"训练安排在 {training}，餐后建议休息 60-90 分钟再开始力量训练。",
-         "source_ids": [citations[0]["id"]] if citations else []},
+         "source_ids": []},
         {"text": f"如果 {meal_time} 才吃饭，优先把训练放到餐前或餐后 1.5 小时。",
-         "source_ids": [citations[1]["id"]] if len(citations) > 1 else (
-             [citations[0]["id"]] if citations else [])},
+         "source_ids": []},
         {"text": "训练后 1-2 小时内补充蛋白质和主食，恢复更稳。",
-         "source_ids": [citations[0]["id"]] if citations else []},
+         "source_ids": []},
     ]
-    return {"status": "ok", "data": {"tips": tips}, "citations": citations}
+    return {"status": "ok", "data": {"tips": tips}, "citations": []}
 
 
 DISPATCH = {

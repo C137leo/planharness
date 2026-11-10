@@ -50,6 +50,10 @@ class ProfileOut(BaseModel):
     diet_preferences: list[str] = Field(default_factory=list)
     allergies: list[str] = Field(default_factory=list)
     dislikes: list[str] = Field(default_factory=list)
+    likes: list[str] = Field(default_factory=list)
+    preferred_time_window: str = ""
+    preferred_time_label: str = ""
+    preferred_location: str = ""
     timezone: str
 
 
@@ -322,6 +326,10 @@ class ProfileUpdateIn(BaseModel):
     allergies: list[str] | None = None
     diet_preferences: list[str] | None = None
     dislikes: list[str] | None = None
+    likes: list[str] | None = None
+    preferred_time_window: str | None = Field(default=None, max_length=24)
+    preferred_time_label: str | None = Field(default=None, max_length=32)
+    preferred_location: str | None = Field(default=None, max_length=24)
 
 
 class PlanDraftIn(BaseModel):

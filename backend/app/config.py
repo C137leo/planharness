@@ -117,6 +117,17 @@ class Settings(BaseSettings):
     # 部署在 Nginx 后面时才会信任 X-Forwarded-For
     trust_proxy: bool = False
 
+    # ---- 记忆 / 临时上下文生命周期 ----
+    # 普通短期 Agent 记忆保留 30 天；真实训练历史在 WorkoutLog/WorkoutSession，
+    # 不受这里的清理影响。
+    short_term_memory_retention_days: int = 30
+    # 临时上下文默认保留 14 天（要求是 7~30 天；14 天兼顾排查与表体积）
+    temporary_context_retention_days: int = 14
+    # 每天执行一次；<0 表示关闭
+    memory_cleanup_interval_seconds: int = 86400
+    # 部署/测试时可关闭后台任务，手动调用清理函数
+    memory_cleanup_enabled: bool = True
+
     @property
     def cors_origin_list(self) -> list[str]:
         """把逗号分隔的 CORS 白名单切成列表，直接喂给 CORSMiddleware。"""

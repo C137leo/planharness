@@ -38,6 +38,12 @@
       }
     },
     {
+      "path": "pages/workout/index",
+      "style": {
+        "navigationBarTitleText": "训练中"
+      }
+    },
+    {
       "path": "pages/approval/index",
       "style": {
         "navigationBarTitleText": "待确认补丁"
@@ -52,7 +58,7 @@
   ],
   "globalStyle": {
     "navigationBarTextStyle": "black",
-    "navigationBarTitleText": "PlanHarness",
+    "navigationBarTitleText": "Workout Plan Harness",
     "navigationBarBackgroundColor": "#fdf2e9",
     "backgroundColor": "#fdf2e9"
   },

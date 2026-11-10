@@ -400,3 +400,10 @@ uni-textarea.input {
   flex: 0 0 auto;
   white-space: nowrap;
 }
+
+/* 桌面端用左侧栏承担导航，H5 原生标题栏会重复且挤占首屏高度 */
+@media (min-width: 920px) {
+  uni-page-head {
+    display: none !important;
+  }
+}

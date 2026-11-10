@@ -19,6 +19,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -87,7 +88,13 @@ class Profile(Base):
     diet_preferences: Mapped[list] = mapped_column(JSON, default=list)
     # 过敏原/忌口都会参与餐食筛选
     allergies: Mapped[list] = mapped_column(JSON, default=list)
+    # 长期喜恶：Profile 是结构化事实的唯一来源，Memory 只做语义镜像
     dislikes: Mapped[list] = mapped_column(JSON, default=list)
+    likes: Mapped[list] = mapped_column(JSON, default=list)
+    # 长期训练时间 / 地点偏好（结构化，供 skill 与 Agent 共同读取）
+    preferred_time_window: Mapped[str] = mapped_column(String(24), default="")
+    preferred_time_label: Mapped[str] = mapped_column(String(32), default="")
+    preferred_location: Mapped[str] = mapped_column(String(24), default="")
     timezone: Mapped[str] = mapped_column(String(64), default="Asia/Shanghai")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow
@@ -474,6 +481,231 @@ class AgentRun(Base):
     error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Memory(Base):
+    """Agent 的分层记忆。
+
+    - kind=long_term：稳定偏好（目标 / 训练时间 / 地点 / 器械 / 喜恶）；
+      会影响后续计划生成与今日安排。
+    - kind=short_term：近期状态（最近几次完成情况、难度反馈、疲劳）；
+      只影响最近几次调整，不写进用户画像。
+
+    临时要求（今天只有 20 分钟）不写这里，而是写 TemporaryContext。
+
+    同一个 (user_id, kind, category, key) 只保留一条 active 记录：
+    用户改主意时更新而不是无限追加，避免"既喜欢午休又喜欢晚上"的自相矛盾。
+    """
+
+    __tablename__ = "memories"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    # long_term / short_term
+    kind: Mapped[str] = mapped_column(String(16), default="long_term", index=True)
+    # goal / schedule / location / equipment / like / dislike / experience /
+    # session_minutes / weekly_days / training_state / session / note
+    category: Mapped[str] = mapped_column(String(32), index=True)
+    # 同类记忆里的稳定标识（如 dislike:深蹲、schedule:preferred_time）
+    key: Mapped[str] = mapped_column(String(64), default="value")
+    value: Mapped[str] = mapped_column(Text, default="")
+    # 结构化参数：时间段、器械列表、最近完成率等，前端与生成器都直接读
+    structured: Mapped[dict] = mapped_column(JSON, default=dict)
+    source: Mapped[str] = mapped_column(String(24), default="chat")
+    evidence: Mapped[str] = mapped_column(Text, default="")
+    # confidence = 对"这条记忆是否真实"的把握；importance = 对用户有多重要
+    confidence: Mapped[float] = mapped_column(Float, default=1.0)
+    importance: Mapped[float] = mapped_column(Float, default=0.5)
+    # 最近一次被用户明确确认/复述的时间（长期记忆不会因为时间久而失效）
+    last_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # 只有 short_term 会设置；long_term 默认 None，直到用户修改
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    # active / archived（用户删除）/ expired（生命周期到期）/ superseded（被新值取代）
+    status: Mapped[str] = mapped_column(String(16), default="active", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "kind", "category", "key", name="uq_memory_key"),
+        Index("ix_memory_user_kind_status", "user_id", "kind", "status"),
+        Index("ix_memory_expiry", "kind", "status", "expires_at"),
+    )
+
+
+class MemoryRevision(Base):
+    """记忆变更记录：改值、归档、过期、取代都留旧值，便于追溯与解释。
+
+    这不是完整审计链（链在 AuditEvent），而是"这条记忆是怎么变的"的人类可读历史。
+    """
+
+    __tablename__ = "memory_revisions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    memory_id: Mapped[str] = mapped_column(String(36), index=True)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    category: Mapped[str] = mapped_column(String(32), default="")
+    key: Mapped[str] = mapped_column(String(64), default="")
+    old_value: Mapped[str] = mapped_column(Text, default="")
+    new_value: Mapped[str] = mapped_column(Text, default="")
+    old_status: Mapped[str] = mapped_column(String(16), default="")
+    new_status: Mapped[str] = mapped_column(String(16), default="")
+    source: Mapped[str] = mapped_column(String(24), default="")
+    reason: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class TemporaryContext(Base):
+    """只对某一天有效的临时上下文。
+
+    典型内容：今天只有 20 分钟 / 不去健身房 / 器械被占用 / 今天想休息。
+    它不覆盖长期记忆，也不写 PlanVersion；一天一条 key，过期即失效。
+    """
+
+    __tablename__ = "temporary_contexts"
+    __table_args__ = (
+        UniqueConstraint("user_id", "day", "key", name="uq_temp_context_day_key"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    # day 是旧字段（保留兼容）；effective_date 是业务口径，按用户时区的本地日期
+    # 新数据以 effective_date 为准；day 保留给旧库兼容，允许为空
+    day: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    effective_date: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    key: Mapped[str] = mapped_column(String(64))
+    value: Mapped[dict] = mapped_column(JSON, default=dict)
+    text: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(24), default="chat")
+    # active / completed / reset / expired
+    status: Mapped[str] = mapped_column(String(16), default="active", index=True)
+    completed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "day", "key", name="uq_temp_context_day_key"),
+        Index("ix_temp_user_status_date", "user_id", "status", "effective_date"),
+    )
+
+
+class PlanAdjustment(Base):
+    """当天有效计划的调整记录（DailyPlan 的输入，不是长期 PlanVersion）。
+
+    - PlanVersion：长期训练周期，append-only；
+    - PlanAdjustment：某一天的临时调整，可追溯、可重置、可恢复；
+    - DailyPlan：运行时由 base PlanVersion + active PlanAdjustment 组合出的有效视图。
+
+    旧实现把 override 塞在 TemporaryContext 里；这里升级为独立实体，
+    避免"环境上下文"和"计划调整"混在一张表，也让计划页能显示调整标识。
+    """
+
+    __tablename__ = "plan_adjustments"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    plan_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    base_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    effective_date: Mapped[date] = mapped_column(Date, index=True)
+    # active / superseded / reset / expired
+    status: Mapped[str] = mapped_column(String(16), default="active", index=True)
+    reason: Mapped[str] = mapped_column(Text, default="")
+    summary: Mapped[str] = mapped_column(Text, default="")
+    constraints: Mapped[dict] = mapped_column(JSON, default=dict)
+    actions: Mapped[list] = mapped_column(JSON, default=list)
+    changes: Mapped[list] = mapped_column(JSON, default=list)
+    borrowed_from: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    restored_from_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
+
+    __table_args__ = (
+        Index("ix_adjustment_user_date_status", "user_id", "effective_date", "status"),
+    )
+
+
+class AgentMessage(Base):
+    """统一 Agent 的对话消息（短期会话记忆）。
+
+    只存"用户说了什么 + Agent 做了什么"的摘要，不存完整 trace（trace 在 AgentRun）。
+    换页面后仍能读到同一段对话，这是"同一个 Agent"的前提。
+    """
+
+    __tablename__ = "agent_messages"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    # 目前只有一个线程；留字段方便以后拆"计划教练 / 营养教练"
+    thread: Mapped[str] = mapped_column(String(32), default="coach", index=True)
+    # user / agent
+    role: Mapped[str] = mapped_column(String(8), default="user")
+    text: Mapped[str] = mapped_column(Text, default="")
+    intent: Mapped[dict] = mapped_column(JSON, default=dict)
+    actions: Mapped[list] = mapped_column(JSON, default=list)
+    # 这条回复当时可展开的完整结果（计划草案/今日安排/动作指导/训练会话等）。
+    # 切页面或重新加载后，历史附件还能点开查看，不只保留一行文字。
+    result: Mapped[dict] = mapped_column(JSON, default=dict)
+    run_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class WorkoutSession(Base):
+    """一次训练的执行状态（从点「开始训练」到提交反馈）。
+
+    为什么不复用 WorkoutLog：WorkoutLog 是"练完的事实"，一条一个动作；
+    这里要保存"练到哪一组了 / 哪些动作被替换过"，是执行过程，生命周期不同。
+    只有 finish 时才把已完成的部分写成 WorkoutLog。
+
+    items 是 JSON 列表，每个元素：
+    {id, slot_key, action_ref, name, slot, target_sets, target_reps,
+     duration_min, rest_sec, completed_sets, status, replaced_from, reason,
+     guidance, meta}
+    """
+
+    __tablename__ = "workout_sessions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    plan_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    plan_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # active / paused / completed / finished / abandoned
+    status: Mapped[str] = mapped_column(String(16), default="active", index=True)
+    # plan / agent / feedback
+    source: Mapped[str] = mapped_column(String(16), default="plan")
+    current_index: Mapped[int] = mapped_column(Integer, default=0)
+    items: Mapped[list] = mapped_column(JSON, default=list)
+    planned_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    actual_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    completion_pct: Mapped[float] = mapped_column(Float, default=0.0)
+    difficulty: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    fatigue: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    note: Mapped[str] = mapped_column(Text, default="")
+    agent_log: Mapped[list] = mapped_column(JSON, default=list)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, onupdate=utcnow
+    )
 
 
 class TodayAgentPlan(Base):

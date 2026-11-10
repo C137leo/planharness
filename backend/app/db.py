@@ -5,7 +5,7 @@ P0 阶段不引入 Alembic，启动时用 create_all 建表，减少初始化步
 
 from __future__ import annotations
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
@@ -21,8 +21,20 @@ def make_engine(database_url: str):
     - SQLite 默认禁止跨线程复用连接，而 FastAPI 会把同步接口丢进线程池，所以关闭该检查；
     - pool_pre_ping：取连接前先探活，长驻进程遇到网络抖动/服务端断连时可自动重连。
     """
-    connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-    return create_engine(database_url, pool_pre_ping=True, connect_args=connect_args)
+    is_sqlite = database_url.startswith("sqlite")
+    connect_args = {"check_same_thread": False, "timeout": 30} if is_sqlite else {}
+    engine = create_engine(database_url, pool_pre_ping=True, connect_args=connect_args)
+    if is_sqlite:
+        @event.listens_for(engine, "connect")
+        def _set_sqlite_pragmas(dbapi_connection, _connection_record):  # type: ignore[no-untyped-def]
+            # 模型调用可能持续十几秒；WAL 让读请求不被写事务挡住，
+            # busy_timeout 则避免并发写入直接抛 "database is locked"。
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.close()
+    return engine
 
 
 def make_session_factory(engine):

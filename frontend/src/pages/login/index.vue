@@ -10,6 +10,7 @@
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { api, ApiError, setStoredToken, type AuthChallenge } from '../../api'
+import { resetCoachWorkspace } from '../../composables/coachWorkspace'
 
 const mode = ref<'login' | 'register'>('login')
 const busy = ref(false)
@@ -188,6 +189,7 @@ async function submit() {
         : await api.login({ ...base, ...ticket })
 
       setStoredToken(token.access_token)
+      resetCoachWorkspace()
       uni.showToast({ title: isRegister.value ? '注册成功' : '欢迎回来', icon: 'success' })
       setTimeout(() => uni.switchTab({ url: '/pages/today/index' }), 400)
     })
@@ -205,6 +207,7 @@ async function useDemo() {
   try {
     const token = await api.demoLogin()
     setStoredToken(token.access_token)
+    resetCoachWorkspace()
     uni.showToast({ title: '已进入演示账号', icon: 'success' })
     setTimeout(() => uni.switchTab({ url: '/pages/today/index' }), 400)
   } catch (err) {
@@ -236,7 +239,7 @@ onMounted(() => {
 
 <template>
   <view class="page">
-    <view class="eyebrow">PLANHARNESS</view>
+    <view class="eyebrow">WORKOUT PLAN HARNESS</view>
     <view class="title">{{ isRegister ? '开一个账号，开始练。' : '欢迎回来。' }}</view>
     <view class="subtitle">
       {{ isRegister ? '注册后填画像，教练会按你的目标和限制排计划。' : '登录后继续你的计划与打卡。' }}

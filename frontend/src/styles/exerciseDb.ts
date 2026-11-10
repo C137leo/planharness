@@ -9,6 +9,12 @@ export const EXERCISE_DB_URL = 'https://yuhonas.github.io/free-exercise-db/'
 // 顺序不重要：匹配时取文本里最早出现的动作，同位置取更长的词。
 // 这样「高脚杯深蹲」不会被「深蹲」抢先，「如果深蹲…改成臀桥」会匹配深蹲。
 export const EXERCISE_DB_TERMS: Array<[string, string]> = [
+  ['全身拉伸', 'Full Body Stretch'],
+  ['动态拉伸', 'Dynamic Stretch'],
+  ['静态拉伸', 'Static Stretch'],
+  ['泡沫轴放松', 'Foam Roll'],
+  ['猫牛式', 'Cat-Cow Stretch'],
+  ['拉伸', 'Stretch'],
   ['高脚杯深蹲', 'Goblet Squat'],
   ['罗马尼亚硬拉', 'Romanian Deadlift'],
   ['单臂哑铃划船', 'One-Arm Dumbbell Row'],
@@ -95,7 +101,7 @@ export function openExerciseDbTerm(term: string): void {
     location.href = EXERCISE_DB_URL
   }
   uni.showToast({
-    title: copied ? `已复制 ${term}` : `搜索：${term}`,
+    title: copied ? `已复制 ${term}，去动作库粘贴` : `搜索：${term}`,
     icon: 'none',
     duration: 2500,
   })

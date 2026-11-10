@@ -71,6 +71,13 @@ curl -X POST http://127.0.0.1:8000/api/v1/auth/demo -H 'Content-Type: applicatio
 - `POST /api/v1/patch-requests/{id}/feedback|approve|reject`（再改改 ≤3 轮 / 确认应用 / 拒绝）
 - `POST /api/v1/plans/{id}/undo`（撤销上一次提交，仍生成新版本）
 - `POST/GET /api/v1/workout-logs`、`GET /api/v1/stats/calories`（训练记录 → 热量，只算消耗）
+- `POST /api/v1/agent/chat`（**统一健身教练 Agent**：今天 / 计划 / 我的 / 训练页共用；自动判断建计划、改今天、改长期、调当前训练、记反馈、管记忆）
+- `GET /api/v1/agent/day`（今日有效计划：基础版本 + 当天临时调整；`POST /agent/day/reset` 恢复）
+- `GET/POST/PUT/DELETE /api/v1/agent/memories`（长期 / 短期记忆的查看、新增、编辑、删除；读取自动过滤过期）
+- `GET /api/v1/agent/adjustments` / `POST /api/v1/agent/adjustments/{id}/restore`（计划页临时调整标识、原因与恢复）
+- `GET /api/v1/agent/memory/status`（记忆保留策略 + 最近一次清理日志）
+- `GET /api/v1/agent/progress-insights`（进展页教练发现：真实训练数据生成）
+- `POST /api/v1/workout-sessions`（开始训练）/ `sets`（完成一组）/ `skip` / `replace` / `pause` / `finish`
 - `POST /api/v1/plans/{id}/patches`（膝痛补丁，3/12，churn 25%，返回 `validation.explanation`）
 - `POST /api/v1/patches/{id}/approve|reject`（审批前不写库；验证失败→409 并自动回滚）
 - `POST /api/v1/plans/{id}/rollback`（回滚生成新版本）
@@ -106,8 +113,10 @@ npm run dev:h5
 
 当前页面（TabBar：今天 / 计划 / 进展 / 我的）：
 
-- 今天：今天练什么（动作/组次/肌群）、今天吃什么（食材克数/热量）、推荐摄入、六个改动预设 + 「自己说一句」
-- 计划：整周明细、今日餐食、待确认改动、撤销上一次改动、换一份计划
+- 今天：**最显眼的统一 Agent 输入框**（自然语言改今天/改长期/调当前训练）、今日有效计划、训练进度、开始训练、今天吃什么（食材克数/热量）、推荐摄入、快捷指令
+- 训练中：当前动作 / 第几组 / 休息倒计时 / 剩余动作 / 换动作 / 跳过 / 力量训练内 Agent（`pages/workout`）
+- 我的：目标 / 基本身体 / 器械 / 饮食 + **我的健身记忆**（长期偏好与近期状态可查看、编辑、删除）
+- 计划：整周明细、今日餐食、待确认改动、撤销上一次改动、换一份计划；「改计划 / 换一份计划」统一进同一个 Agent
 - 进展：近 7 天消耗、体重、训练记录（附热量公式与口径）
 - 登录 / 注册：手机号 + 密码、密码强度提示、429 倒计时；防刷细节见 [docs/22](docs/22-auth-and-abuse.md)
 - 我的：账号信息与退出登录；目标 / 体型 / 器械 / 过敏原 / 饮食偏好可编辑，保存后直接生成计划
@@ -116,6 +125,11 @@ npm run dev:h5
 - 待确认补丁：旧的独立审批页保留，作为抽屉之外的兜底入口
 
 「改计划」是底部抽屉而不是独立 tab：审批是动作的一部分，不该让用户再去找页面。
+
+统一 Agent 的架构、三层记忆、训练执行与验收场景见 [docs/38-unified-coach-agent.md](docs/38-unified-coach-agent.md)；
+记忆生命周期、临时上下文 TTL、计划展示口径与 Profile/Memory 单一事实来源见
+[docs/39-memory-lifecycle-and-consistency.md](docs/39-memory-lifecycle-and-consistency.md)；
+全站统一教练工作区与页面改版见 [docs/40-global-coach-workspace.md](docs/40-global-coach-workspace.md)。
 交互上有一条硬规则：**审批动作绝不自动跳转**（曾因自动切 tab + 按钮同位置导致连点两次直接提交）。
 
 > Uni-app 当前安装包提示 Node >=22；本机 Node 20 也能 build，但建议升级到 Node 22。

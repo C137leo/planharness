@@ -7,27 +7,32 @@
  */
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { api, ApiError, getStoredMcdToken, type CurrentPlan, type PatchPreset, type TodayAgentResult, type TodayPlanSnapshot } from '../../api'
-import PatchComposer from '../../components/PatchComposer.vue'
-import PlanDraftSheet from '../../components/PlanDraftSheet.vue'
+import { api, ApiError, getStoredMcdToken, type AgentDay, type CurrentPlan, type AgentDayAction, type PlanAction, type TodayAgentResult, type TodayPlanSnapshot, type WorkoutSession } from '../../api'
+import GlobalCoachWorkspace from '../../components/GlobalCoachWorkspace.vue'
+import DesktopSidebar from '../../components/DesktopSidebar.vue'
+import { syncDesktopChrome } from '../../composables/desktopChrome'
+import { coachWorkspaceLastMcdOrder, isMcdOrderExpired } from '../../composables/coachWorkspace'
 import FoodOptionsSheet from '../../components/FoodOptionsSheet.vue'
 import KnowledgeSheet from '../../components/KnowledgeSheet.vue'
 import McdOrderSheet from '../../components/McdOrderSheet.vue'
-import { QUICK_ACTIONS, actionLabel, slotLabel } from '../../styles/copy'
+import { actionLabel, slotLabel } from '../../styles/copy'
 import { THUMBS, thumbOf } from '../../styles/thumbs'
 import { exerciseSearchTerm, openExerciseDbTerm } from '../../styles/exerciseDb'
 import { WEEKDAY_LABELS, isoWeekday, todayStr } from '../../styles/dates'
 
 const plan = ref<CurrentPlan | null>(null)
-const presets = ref<PatchPreset[]>([])
 const loading = ref(true)
 const error = ref('')
 const hasPlan = ref(true)
+const dayPlan = ref<AgentDay | null>(null)
+const startingWorkout = ref(false)
+const coachRef = ref<{
+  sendText: (text: string) => void
+  focusInput: () => void
+  scrollToLatest: () => void
+  showTodayBrief: (output: TodayAgentResult, runId?: string) => void
+} | null>(null)
 
-const composerOpen = ref(false)
-const presetText = ref('')
-const presetQuick = ref('')
-const draftOpen = ref(false)
 
 // 订餐推荐 & 知识卡片
 const foodOpen = ref(false)
@@ -238,9 +243,28 @@ async function loadSavedPlan() {
 }
 
 /** 打开抽屉看已保存的那一份（不再重新生成，但过程还能从 run 里读回来） */
+function regenerateSavedBrief() {
+  openCoach('生成今天的训练计划', true)
+}
+
+function openSavedBrief() {
+  if (!savedPlan.value) return
+  if (savedPlanStale.value) {
+    regenerateSavedBrief()
+    return
+  }
+  const brief = currentBrief()
+  if (brief) coachRef.value?.showTodayBrief(brief, savedPlan.value.run_id || '')
+}
+
 async function viewSavedPlan() {
   if (!savedPlan.value) return
-  agentResult.value = savedPlan.value.output
+  if (savedPlanStale.value) {
+    regenerateSavedBrief()
+    return
+  }
+  const brief = currentBrief()
+  if (brief) agentResult.value = brief
   const nextRunId = savedPlan.value.run_id || ''
   if (agentRunId.value !== nextRunId) selectedMeals.value = {}
   agentRunId.value = nextRunId
@@ -389,6 +413,10 @@ function openMcdOrder(name: string) {
   }
 }
 
+function openLiveMcdPay() {
+  if (liveMcdOrder.value?.pay_url) openAgentLink(liveMcdOrder.value.pay_url)
+}
+
 function openKnowledge(question: string, bodyPart = '') {
   knowledgeQuestion.value = question
   knowledgeBodyPart.value = bodyPart
@@ -406,9 +434,12 @@ function actionBodyPart(action: { meta?: Record<string, unknown> }): string {
 
 const weekday = isoWeekday()
 const today = computed(() => plan.value?.today || null)
-const training = computed(() =>
-  (today.value?.actions || []).filter((action) => action.action_type === 'exercise'),
-)
+type TodayAction = PlanAction | AgentDayAction
+/** 今天页展示的是"有效计划"：基础版本 + 当天临时调整（后端已合并） */
+const training = computed<TodayAction[]>(() => {
+  if (dayPlan.value && dayPlan.value.actions.length) return dayPlan.value.actions
+  return (today.value?.actions || []).filter((action) => action.action_type === 'exercise')
+})
 const meals = computed(() => today.value?.meals || [])
 const macro = computed(() => {
   const macros = plan.value?.nutrition?.macros || {}
@@ -454,26 +485,93 @@ const restMode = computed(
 )
 
 const totalMinutes = computed(() =>
-  training.value.reduce((sum, action) => sum + (action.duration_min || 0), 0),
+  dayPlan.value?.total_minutes
+  || training.value.reduce((sum, action) => sum + (action.duration_min || 0), 0),
+)
+const effectiveSession = computed<WorkoutSession | null>(() => dayPlan.value?.session || null)
+const sessionProgress = computed(() => effectiveSession.value?.progress || null)
+const dayAdjusted = computed(() => dayPlan.value?.source === 'agent')
+const savedPlanStale = computed(() => Boolean(
+  savedPlan.value && plan.value && savedPlan.value.plan_version !== plan.value.version,
+))
+const liveMcdOrder = computed(() =>
+  coachWorkspaceLastMcdOrder.value && !isMcdOrderExpired(coachWorkspaceLastMcdOrder.value)
+    ? coachWorkspaceLastMcdOrder.value
+    : null,
 )
 
-/** 接口拿不到预设时退回内置列表，页面不会空一块。 */
-const presetCards = computed(() => {
-  if (presets.value.length) {
-    return presets.value.map((item) => ({
-      key: item.key,
-      label: item.label,
-      example: item.example,
-      hint: item.hint,
-    }))
+function currentSchedule() {
+  const base = savedPlan.value?.output.schedule || []
+  const firstTime = base.find((item) => /^\d{1,2}:\d{2}$/.test(item.time))?.time || '18:30'
+  const [hour, minute] = firstTime.split(':').map((part) => Number(part) || 0)
+  let cursor = hour * 60 + minute
+  const rows: TodayAgentResult['schedule'] = []
+  for (const action of training.value) {
+    const duration = Math.max(3, Number(action.duration_min) || 8)
+    const detail = action.sets && action.reps
+      ? `${action.sets}×${action.reps}`
+      : action.duration_min ? `${action.duration_min} 分钟` : ''
+    rows.push({
+      time: `${String(Math.floor(cursor / 60) % 24).padStart(2, '0')}:${String(cursor % 60).padStart(2, '0')}`,
+      activity: `${actionLabel(action)}${detail ? ` · ${detail}` : ''}`,
+      why: dayAdjusted.value ? '按今天当前临时安排执行' : '按当前计划执行',
+    })
+    cursor += duration
   }
-  return QUICK_ACTIONS.map((item) => ({
-    key: item.key,
-    label: item.label,
-    example: item.text,
-    hint: item.hint || '',
-  }))
-})
+  if (rows.length) {
+    rows.push({
+      time: `${String(Math.floor(cursor / 60) % 24).padStart(2, '0')}:${String(cursor % 60).padStart(2, '0')}`,
+      activity: '冷身与拉伸',
+      why: '训练后放松，约 5 分钟',
+    })
+  }
+  return rows
+}
+
+function currentBrief(): TodayAgentResult | null {
+  if (!savedPlan.value) return null
+  const base = savedPlan.value.output
+  const order = liveMcdOrder.value
+  const currentMeals = meals.value || []
+  const mergedMeals = currentMeals.length
+    ? currentMeals.map((meal) => {
+      const previous = (base.meals || []).find((item) => item.slot === meal.slot)
+      const options = previous?.options?.length
+        ? [...previous.options]
+        : [{
+          title: meal.title,
+          kcal: meal.kcal,
+          protein_g: meal.protein_g,
+          reason: '当前计划',
+          items: meal.items,
+          links: {},
+        }]
+      if (!options.some((item) => item.title === meal.title)) {
+        options.unshift({
+          title: meal.title,
+          kcal: meal.kcal,
+          protein_g: meal.protein_g,
+          reason: '当前计划',
+          items: meal.items,
+          links: {},
+        })
+      }
+      return { slot: meal.slot, target_kcal: meal.kcal, options }
+    })
+    : base.meals
+  const summary = [
+    dayPlan.value?.summary || base.summary,
+    order ? `麦当劳订单 ${order.status || '已生成'} · ¥${Number(order.total || 0).toFixed(2)}` : '',
+  ].filter(Boolean).join('；')
+  return {
+    ...base,
+    summary,
+    schedule: currentSchedule(),
+    meals: mergedMeals,
+  }
+}
+
+
 
 /** 今天没安排时，指出下一次是哪天、练什么。 */
 const nextSession = computed(() => {
@@ -529,12 +627,82 @@ async function retarget() {
   }
 }
 
-async function load() {
-  loading.value = true
+async function loadDayPlan() {
+  try {
+    dayPlan.value = await api.getAgentDay(todayStr())
+  } catch {
+    dayPlan.value = null // 读不到就退回 plan.today，页面不空
+  }
+}
+
+function openCoach(text = '', _auto = false) {
+  if (text.trim()) {
+    coachRef.value?.sendText(text)
+    return
+  }
+  coachRef.value?.focusInput()
+}
+
+async function onAgentChanged() {
+  // 后台刷新不能把内嵌的教练工作区从 v-if 里卸载，否则计划草案/改动预览会丢
+  await Promise.all([load(true), loadDayPlan(), loadSavedPlan()])
+}
+
+async function startWorkout() {
+  if (startingWorkout.value) return
+  startingWorkout.value = true
+  try {
+    const current = effectiveSession.value
+    if (current && (current.status === 'active' || current.status === 'paused'
+        || current.status === 'completed')) {
+      uni.navigateTo({
+        url: `/pages/workout/index?date=${todayStr()}&session_id=${current.session_id}`,
+      })
+      return
+    }
+    const started = await api.startWorkout(todayStr())
+    uni.navigateTo({
+      url: `/pages/workout/index?date=${todayStr()}&session_id=${started.session.session_id}`,
+    })
+  } catch (err) {
+    uni.showToast({ title: err instanceof Error ? err.message : '开始失败', icon: 'none' })
+  } finally {
+    startingWorkout.value = false
+  }
+}
+
+function onOpenWorkout(payload: { sessionId?: string; date?: string }) {
+  const date = payload.date || todayStr()
+  const suffix = payload.sessionId ? `&session_id=${payload.sessionId}` : ''
+  uni.navigateTo({ url: `/pages/workout/index?date=${date}${suffix}` })
+}
+
+function onOpenTodayBrief(output: TodayAgentResult) {
+  agentResult.value = output
+  agentRunId.value = ''
+  agentTrace.value = []
+  agentElapsed.value = 0
+  selectedMeals.value = {}
+  agentOpen.value = true
+}
+
+async function resetTodayPlan() {
+  try {
+    dayPlan.value = await api.resetAgentDay(todayStr())
+    uni.showToast({ title: '已恢复原计划', icon: 'none' })
+    await load()
+  } catch (err) {
+    uni.showToast({ title: err instanceof Error ? err.message : '恢复失败', icon: 'none' })
+  }
+}
+
+async function load(silent = false) {
+  if (!silent) loading.value = true
   error.value = ''
   try {
     plan.value = await api.getCurrentPlan()
     hasPlan.value = true
+    await loadDayPlan()
   } catch (err) {
     if (err instanceof ApiError && err.statusCode === 404) {
       hasPlan.value = false
@@ -543,32 +711,8 @@ async function load() {
       error.value = err instanceof Error ? err.message : '加载失败'
     }
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
-}
-
-async function loadPresets() {
-  try {
-    presets.value = await api.listPatchPresets()
-  } catch {
-    // 预设拿不到就用内置兜底列表
-  }
-}
-
-function openComposer(text = '', quick = '') {
-  presetText.value = text
-  presetQuick.value = quick
-  composerOpen.value = true
-}
-
-async function onPatchApplied() {
-  composerOpen.value = false
-  await load()
-}
-
-async function onPlanConfirmed() {
-  draftOpen.value = false
-  await load()
 }
 
 function openProfile() {
@@ -579,19 +723,41 @@ function openCheckin() {
   uni.navigateTo({ url: '/pages/checkin/index' })
 }
 
+function openProgress() {
+  uni.switchTab({ url: '/pages/progress/index' })
+}
+
 onShow(() => {
-  load()
-  loadPresets()
+  syncDesktopChrome()
+  // 从其他页面切回来时静默刷新，避免 loading 让教练工作区整块卸载，
+  // 触发 uni scroll-view / resize-sensor 的 activated 空 ref 报错。
+  load(Boolean(plan.value))
   loadSavedPlan()
+  // 从其他页面切回来时也回到最新消息
+  void coachRef.value?.scrollToLatest()
 })
 </script>
 
 <template>
-  <view class="page">
-    <view class="eyebrow">PLANHARNESS · {{ WEEKDAY_LABELS[weekday - 1] }}</view>
-    <view class="title">{{ hasPlan ? '今天这样练，这样吃。' : '先告诉我你是谁。' }}</view>
-    <view class="subtitle">
-      {{ hasPlan ? '你想要的改变，藏在今天的每一次训练里。' : '填完基础信息和目标，我让教练生成计划给你确认。' }}
+  <view class="page today-page with-sidebar">
+    <DesktopSidebar active="today" />
+    <view class="today-top">
+      <view>
+        <view class="eyebrow">WORKOUT PLAN HARNESS · {{ todayStr() }} · {{ WEEKDAY_LABELS[weekday - 1] }}</view>
+        <view class="title">{{ hasPlan ? '今天，想怎么练？' : '先告诉我你是谁。' }}</view>
+        <view class="subtitle">
+          {{ hasPlan ? '不用研究去哪个页面改。告诉我时间、身体状态和训练环境，我来安排。' : '填完基础信息和目标，我让教练生成计划给你确认。' }}
+        </view>
+      </view>
+      <view class="today-status">
+        <view class="today-status-metric">
+          <text class="today-status-value">{{ training.length }}</text>
+          <text class="today-status-label">个动作</text>
+        </view>
+        <view v-if="hasPlan && training.length" class="btn-sm primary today-start" @click="startWorkout">
+          {{ startingWorkout ? '准备中…' : '开始训练' }}
+        </view>
+      </view>
     </view>
 
     <view v-if="loading" class="card muted">正在加载…</view>
@@ -628,8 +794,29 @@ onShow(() => {
     </template>
 
     <template v-else-if="plan">
-      <!-- 主卡片：今天最重要的一句话 -->
-      <view class="hero">
+      <!-- 今天页的核心：直接嵌入全局教练工作区，而不是小输入框 -->
+      <GlobalCoachWorkspace
+        ref="coachRef"
+        mode="inline"
+        :visible="true"
+        page="today"
+        :date="todayStr()"
+        :context="{
+          planVersion: plan?.version,
+          planSummary: plan?.summary,
+          todaySummary: dayPlan?.summary || '',
+          todayMinutes: dayPlan?.total_minutes || totalMinutes,
+          sessionProgress: effectiveSession ? `${effectiveSession.progress.percent}%` : '',
+        }"
+        @changed="onAgentChanged"
+        @open-workout="onOpenWorkout"
+        @open-today-brief="onOpenTodayBrief"
+        @open-memory="openProfile"
+        @open-progress="openProgress"
+      />
+
+      <!-- 今日状态 -->
+      <view class="hero compact-hero">
         <view class="row">
           <text class="badge">{{ WEEKDAY_LABELS[weekday - 1] }} · v{{ plan.version }}</text>
           <text v-if="training.length && !restMode" class="badge">约 {{ totalMinutes }} 分钟</text>
@@ -644,32 +831,76 @@ onShow(() => {
         </view>
       </view>
 
-      <!-- 今日规划 Agent -->
-      <view class="card">
+      <!-- 今日规划（餐食 / 外卖详情）：入口统一走上面的 Agent，这里只保留已保存结果 -->
+      <view v-if="savedPlan" class="card">
         <view class="row">
-          <view class="section-title">今日规划</view>
-          <text class="link" @click="openAgent('帮我规划今天')">让 Agent 规划 →</text>
+          <view class="section-title">今日餐食建议</view>
+          <view v-if="savedPlanStale" class="saved-actions">
+            <text class="link" @click="regenerateSavedBrief">查看当前计划 →</text>
+          </view>
+          <view v-else class="saved-actions">
+            <text class="link" @click="viewSavedPlan">直接查看 →</text>
+            <text class="link" @click="openSavedBrief">在对话里查看 →</text>
+          </view>
         </view>
-        <view v-if="savedPlan" class="saved-row">
+        <view class="saved-row">
           <view class="saved-bits">
             <text class="saved-chip">今天已保存</text>
             <text class="list-meta">
               v{{ savedPlan.plan_version ?? '—' }} · {{ savedAtLabel() }} 生成
               <text v-if="savedPlan.has_mcdonalds"> · 含麦当劳推荐</text>
             </text>
+            <text v-if="dayAdjusted" class="saved-current">
+              今日已按最新调整：{{ training.length }} 个动作 · 约 {{ totalMinutes }} 分钟
+            </text>
+            <text v-if="liveMcdOrder" class="saved-current">
+              麦当劳订单：{{ liveMcdOrder.status || '已生成' }} · ¥{{ Number(liveMcdOrder.total || 0).toFixed(2) }}
+            </text>
+            <text v-if="savedPlanStale" class="saved-stale">
+              计划已更新到 v{{ plan?.version }}；点「查看当前计划」会按最新版本刷新今日安排。
+            </text>
           </view>
-          <text class="link" @click="viewSavedPlan">查看 →</text>
-        </view>
-        <view v-else class="muted" style="margin-top: 6px">
-          它会自己决定先查知识、查计划，还是先找外卖；每一步都能看到。
         </view>
       </view>
 
+      <view class="today-grid">
       <!-- 今天练 -->
       <view class="card">
         <view class="row">
           <view class="section-title">今天练</view>
           <text v-if="training.length" class="link" @click="openCheckin">记录 →</text>
+        </view>
+
+        <view v-if="dayAdjusted" class="adjust-banner">
+          <view class="adjust-banner-main">
+            <text class="adjust-banner-title">Agent 已按今天的情况调整</text>
+            <text class="list-meta">{{ dayPlan?.summary }}</text>
+            <text class="list-meta">只改今天，不改变长期计划版本；调整记录可在计划页查看。</text>
+          </view>
+          <text class="link" @click="resetTodayPlan">恢复原计划</text>
+        </view>
+
+        <view v-if="effectiveSession" class="session-strip">
+          <view class="session-strip-main">
+            <text class="session-strip-title">
+              {{ effectiveSession.status === 'finished' ? '今天已完成' : '训练进行中' }}
+              · {{ effectiveSession.progress.percent }}%
+            </text>
+            <text class="list-meta">
+              已完成 {{ effectiveSession.progress.done_sets }}/{{ effectiveSession.progress.total_sets }} 组
+              · 剩余约 {{ effectiveSession.progress.remaining_minutes }} 分钟
+            </text>
+          </view>
+          <view class="session-strip-bar">
+            <view class="session-strip-fill" :style="{ width: `${effectiveSession.progress.percent}%` }" />
+          </view>
+        </view>
+
+        <view v-if="training.length" class="btn-row">
+          <view class="btn-sm primary" @click="startWorkout">
+            {{ startingWorkout ? '准备中…' : (effectiveSession?.status === 'active' || effectiveSession?.status === 'paused'
+              ? '继续训练' : effectiveSession?.status === 'finished' ? '再练一场' : '开始训练') }}
+          </view>
         </view>
 
         <view v-if="!training.length" class="muted" style="margin-top: 10px">
@@ -723,10 +954,9 @@ onShow(() => {
           </view>
         </view>
 
-        <view class="chip-scroll">
-          <view class="pill" @click="openComposer('今天想休息', 'rest')">今天想休息</view>
-          <view class="pill" @click="openComposer('', 'injury_swap')">受伤换动作</view>
-          <view class="pill" @click="openComposer('想加点强度', 'increase')">加强度</view>
+        <view v-if="training.length" class="today-train-note">
+          <text class="today-train-note-title">训练提示</text>
+          <text class="today-train-note-text">按顺序完成；状态不对直接在上面的对话里告诉教练，当前动作会跟着改。</text>
         </view>
       </view>
 
@@ -775,6 +1005,15 @@ onShow(() => {
             <text class="stat-label">餐次</text>
           </view>
         </view>
+        <view v-if="savedPlan" class="meal-saved-actions">
+          <text v-if="savedPlanStale" class="link meal-saved-link" @click="regenerateSavedBrief">
+            查看当前计划 →
+          </text>
+          <template v-else>
+            <text class="link meal-saved-link" @click="viewSavedPlan">直接查看 →</text>
+            <text class="link meal-saved-link" @click="openSavedBrief">在对话里查看 →</text>
+          </template>
+        </view>
         <view v-if="plan.nutrition?.targets_stale" class="stale-notice">
           <text class="stale-text">{{ plan.nutrition?.stale_hint }}</text>
           <view class="btn-sm primary" @click="retarget">
@@ -786,42 +1025,10 @@ onShow(() => {
         </view>
       </view>
 
-      <!-- 改计划 -->
-      <view class="card">
-        <view class="row">
-          <view class="section-title">改计划</view>
-          <text class="link" @click="openComposer()">自己说 →</text>
-        </view>
-        <view class="muted" style="margin-top: 6px">
-          点一个方向，或者自己说一句。模型理解你的意思，安全门决定能不能执行。
-        </view>
-        <view class="chip-scroll">
-          <view
-            v-for="preset in presetCards"
-            :key="preset.key"
-            class="pill"
-            @click="openComposer(preset.example, preset.key)"
-          >
-            {{ preset.label }}
-          </view>
-        </view>
-        <view class="btn-row">
-          <view class="btn-sm primary" @click="openComposer()">自己说一句</view>
-          <view class="btn-sm" @click="draftOpen = true">重新生成整份计划</view>
-          <view class="btn-sm" @click="openCheckin">去打卡</view>
-        </view>
       </view>
     </template>
 
-    <PatchComposer
-      :visible="composerOpen"
-      :plan-id="plan?.plan_id || ''"
-      :preset-text="presetText"
-      :preset-quick="presetQuick"
-      @close="composerOpen = false"
-      @applied="onPatchApplied"
-    />
-    <!-- 今日规划抽屉 -->
+    <!-- 今日规划详情（餐食 / 外卖） -->
     <view v-if="agentOpen">
       <view class="sheet-mask" @click="agentOpen = false" />
       <view class="sheet">
@@ -894,6 +1101,28 @@ onShow(() => {
           </view>
 
           <view class="draft-summary">{{ agentResult.summary }}</view>
+
+          <view v-if="liveMcdOrder" class="agent-card mcd-order-sheet-card">
+            <view class="card-head">
+              <view>
+                <text class="section-title">麦当劳订单已生成</text>
+                <text class="list-meta">{{ liveMcdOrder.store_name }}</text>
+              </view>
+              <text class="card-badge">{{ liveMcdOrder.status }}</text>
+            </view>
+            <text class="list-meta">
+              ¥{{ Number(liveMcdOrder.total || 0).toFixed(2) }} · 订单号 {{ liveMcdOrder.order_id }}
+              <text v-if="liveMcdOrder.expire_at"> · {{ liveMcdOrder.expire_at }} 前有效</text>
+            </text>
+            <view v-for="item in liveMcdOrder.items" :key="item.name" class="mcd-order-item">
+              <text class="list-title">{{ item.name }} × {{ item.quantity }}</text>
+              <text class="list-value">¥{{ Number(item.price || 0).toFixed(1) }}</text>
+            </view>
+            <view class="btn-row">
+              <view class="btn-sm primary" @click="openLiveMcdPay">去麦当劳付款 →</view>
+            </view>
+            <text class="list-meta">付款在麦当劳自己的页面完成；我们只建单到付款前，不代付。</text>
+          </view>
 
           <view v-if="agentResult.schedule.length" class="agent-card schedule-card">
             <view class="card-head">
@@ -1089,7 +1318,7 @@ onShow(() => {
             <view class="btn-sm primary" @click="applySelections">
               {{ applying ? '保存中…' : '应用选中的餐食' }}
             </view>
-            <view class="btn-sm" @click="agentResult = null; agentTrace = []; selectedMeals = {}">
+            <view class="btn-sm" @click="agentOpen = false; openCoach('帮我重新规划今天', true)">
               重新规划
             </view>
           </view>
@@ -1118,21 +1347,151 @@ onShow(() => {
       @close="knowledgeOpen = false"
     />
 
-    <PlanDraftSheet
-      :visible="draftOpen"
-      :has-plan="hasPlan"
-      @close="draftOpen = false"
-      @confirmed="onPlanConfirmed"
-    />
   </view>
 </template>
 
 <style>
+.today-page {
+  max-width: none;
+}
+.today-top {
+  align-items: center;
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+}
+.today-status {
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 10px;
+  padding: 7px 8px 7px 14px;
+}
+.today-status-metric {
+  align-items: baseline;
+  display: flex;
+  gap: 4px;
+  white-space: nowrap;
+}
+.today-status-value {
+  color: var(--primary);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+.today-status-label {
+  color: var(--muted);
+  font-size: 10px;
+}
+.today-start {
+  margin-top: 0;
+  white-space: nowrap;
+}
+.compact-hero {
+  margin-top: 16px;
+  padding: 16px 18px;
+}
+.workspace-inline {
+  margin-top: 16px;
+}
+.today-grid {
+  align-items: stretch;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  margin-top: 14px;
+}
+.today-grid > .card {
+  display: flex;
+  flex-direction: column;
+  margin-top: 0;
+  max-height: 600px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.today-train-note {
+  background: var(--line-soft);
+  border-radius: 10px;
+  margin-top: auto;
+  padding: 10px 12px;
+}
+.today-train-note-title {
+  color: var(--ink);
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+}
+.today-train-note-text {
+  color: var(--muted);
+  display: block;
+  font-size: 10px;
+  line-height: 1.5;
+  margin-top: 3px;
+}
+@media (max-width: 820px) {
+  .today-top,
+  .today-grid {
+    display: block;
+  }
+  .today-status {
+    margin-top: 12px;
+    width: fit-content;
+  }
+  .today-grid > .card {
+    margin-top: 14px;
+  }
+}
 .next {
   background: var(--line-soft);
   border-radius: var(--radius-md);
   margin-top: 12px;
   padding: 12px 14px;
+}
+
+.meal-saved-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 10px;
+}
+
+.meal-saved-link {
+  font-size: 11px;
+}
+
+.saved-actions {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.mcd-order-sheet-card {
+  margin-top: 12px;
+}
+
+.mcd-order-item {
+  align-items: center;
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.saved-current {
+  color: var(--primary-deep);
+  display: block;
+  font-size: 11px;
+  margin-top: 5px;
+}
+
+.saved-stale {
+  color: var(--primary-deep);
+  display: block;
+  font-size: 10px;
+  margin-top: 4px;
 }
 
 .meal-row {
@@ -1146,6 +1505,96 @@ onShow(() => {
   border-top: none;
 }
 
+.coach-entry {
+  border: 1px solid var(--primary-soft);
+  box-shadow: 0 10px 24px rgba(226, 85, 43, 0.12);
+}
+.coach-entry-head {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+.coach-entry-avatar {
+  align-items: center;
+  background: var(--primary);
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  flex: 0 0 auto;
+  font-size: 16px;
+  font-weight: 700;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+.coach-entry-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.coach-entry-title {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.coach-entry-sub {
+  color: var(--muted);
+  font-size: 12px;
+}
+.coach-entry-input {
+  height: 72px;
+  margin-top: 12px;
+}
+.adjust-banner {
+  align-items: flex-start;
+  background: #fff7ef;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 10px;
+  padding: 10px 12px;
+}
+.adjust-banner-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.adjust-banner-title {
+  color: var(--primary-deep);
+  font-size: 13px;
+  font-weight: 700;
+}
+.session-strip {
+  background: var(--line-soft);
+  border-radius: 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+}
+.session-strip-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.session-strip-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+.session-strip-bar {
+  background: #fff;
+  border-radius: 999px;
+  height: 6px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.session-strip-fill {
+  background: var(--primary);
+  border-radius: 999px;
+  height: 100%;
+}
 .intake {
   background: var(--primary-soft);
   border-radius: var(--radius-md);
