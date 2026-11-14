@@ -1,0 +1,699 @@
+[
+  {
+    "template": ".env.example",
+    "key": "ENV",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/skill/bridge.py",
+      "backend/app/agent/checkpointer.py",
+      "deploy/create-db.sh",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "ENV",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/skill/bridge.py",
+      "backend/app/agent/checkpointer.py",
+      "deploy/create-db.sh",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "DATABASE_URL",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/config.py",
+      "backend/app/agent/checkpointer.py",
+      "deploy/create-db.sh",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "SECRET_KEY",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/audit.py",
+      "backend/app/api/routes.py",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "CORS_ORIGINS",
+    "settings_field": true,
+    "other_source_references": [
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "MAX_TOKENS_PER_RUN",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "MAX_COST_CNY_PER_RUN",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "LLM_PRICE_IN_CNY_PER_MTOK",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "LLM_PRICE_OUT_CNY_PER_MTOK",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "CHECKPOINTER_BACKEND",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/config.py",
+      "backend/app/agent/checkpointer.py",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "CHECKPOINTER_DSN",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "CHECKPOINTER_POOL_SIZE",
+    "settings_field": true,
+    "other_source_references": [
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "LANGGRAPH_STRICT_MSGPACK",
+    "settings_field": false,
+    "other_source_references": [
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "DEEPSEEK_API_KEY",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/config.py",
+      "backend/app/skill/bridge.py",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "DEEPSEEK_BASE_URL",
+    "settings_field": true,
+    "other_source_references": [
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "DEEPSEEK_MODEL",
+    "settings_field": true,
+    "other_source_references": [
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "DEEPSEEK_TIMEOUT_S",
+    "settings_field": true,
+    "other_source_references": [
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "ENV",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/skill/bridge.py",
+      "backend/app/agent/checkpointer.py",
+      "deploy/create-db.sh",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "DATABASE_URL",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/config.py",
+      "backend/app/agent/checkpointer.py",
+      "deploy/create-db.sh",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "SECRET_KEY",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/audit.py",
+      "backend/app/api/routes.py",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "CORS_ORIGINS",
+    "settings_field": true,
+    "other_source_references": [
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "DEEPSEEK_API_KEY",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/config.py",
+      "backend/app/skill/bridge.py",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "POSTGRES_PASSWORD",
+    "settings_field": false,
+    "other_source_references": [
+      "docker-compose.example.yml"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "compose变量插值；另一部署入口，非当前systemd模板的数据库密码来源"
+  },
+  {
+    "template": ".env.example",
+    "key": "SHORT_TERM_MEMORY_RETENTION_DAYS",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "TEMPORARY_CONTEXT_RETENTION_DAYS",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "MEMORY_CLEANUP_INTERVAL_SECONDS",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": ".env.example",
+    "key": "MEMORY_CLEANUP_ENABLED",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "frontend/.env.example",
+    "key": "VITE_API_BASE",
+    "settings_field": false,
+    "other_source_references": [
+      "frontend/src/main.ts",
+      "frontend/src/api/client.ts"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "frontend/.env.example",
+    "key": "VITE_API_BASE",
+    "settings_field": false,
+    "other_source_references": [
+      "frontend/src/main.ts",
+      "frontend/src/api/client.ts"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "ENV",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/skill/bridge.py",
+      "backend/app/agent/checkpointer.py",
+      "deploy/create-db.sh",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "DATABASE_URL",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/config.py",
+      "backend/app/agent/checkpointer.py",
+      "deploy/create-db.sh",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "SECRET_KEY",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/audit.py",
+      "backend/app/api/routes.py",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "CORS_ORIGINS",
+    "settings_field": true,
+    "other_source_references": [
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "DEEPSEEK_API_KEY_FILE",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/config.py"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "DEEPSEEK_API_KEY",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/config.py",
+      "backend/app/skill/bridge.py",
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "DEEPSEEK_BASE_URL",
+    "settings_field": true,
+    "other_source_references": [
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "DEEPSEEK_MODEL",
+    "settings_field": true,
+    "other_source_references": [
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "LLM_ADMIN_PHONE",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "DEEPSEEK_TIMEOUT_S",
+    "settings_field": true,
+    "other_source_references": [
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "DEEPSEEK_REASONING_EFFORT",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "MAX_TOKENS_PER_RUN",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "MAX_COST_CNY_PER_RUN",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "LLM_PRICE_IN_CNY_PER_MTOK",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "LLM_PRICE_OUT_CNY_PER_MTOK",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "SKILL_DIR",
+    "settings_field": false,
+    "other_source_references": [
+      "backend/app/skill/runner.js",
+      "backend/app/skill/bridge.py",
+      "deploy/vendor-skill.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "SKILL_NODE",
+    "settings_field": false,
+    "other_source_references": [
+      "backend/app/skill/bridge.py"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "SKILL_TIMEOUT",
+    "settings_field": false,
+    "other_source_references": [
+      "backend/app/skill/bridge.py"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "CONTEXT_TOKEN_BUDGET",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/config.py",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "CHECKPOINTER_BACKEND",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/config.py",
+      "backend/app/agent/checkpointer.py",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "CHECKPOINTER_POOL_SIZE",
+    "settings_field": true,
+    "other_source_references": [
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "LANGGRAPH_STRICT_MSGPACK",
+    "settings_field": false,
+    "other_source_references": [
+      "deploy/preflight.sh",
+      "deploy/make-prod-env.sh"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "MCD_MCP_URL",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/food/mcd_mcp.py",
+      "backend/app/api/mcd_routes.py"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "MCD_MCP_TOKEN",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/food/mcd_mcp.py",
+      "backend/app/api/mcd_routes.py",
+      "frontend/src/pages/today/index.vue"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "MCD_MCP_TOKEN_ALIAS",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/food/mcd_mcp.py"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "MCD_MCP_TOOL",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/food/mcd_mcp.py"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "MCD_MCP_TIMEOUT",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/food/mcd_mcp.py"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "MCD_MCP_ALLOW_ORDER",
+    "settings_field": true,
+    "other_source_references": [
+      "backend/app/config.py",
+      "backend/app/api/mcd_routes.py"
+    ],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "SHORT_TERM_MEMORY_RETENTION_DAYS",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "TEMPORARY_CONTEXT_RETENTION_DAYS",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "MEMORY_CLEANUP_INTERVAL_SECONDS",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  },
+  {
+    "template": "deploy/planharness.env.example",
+    "key": "MEMORY_CLEANUP_ENABLED",
+    "settings_field": true,
+    "other_source_references": [],
+    "action": "keep",
+    "status": "reader_found",
+    "evidence": "Settings environment name / bridge, frontend or deploy literal reader; no environment values copied"
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "branch": "feature/make_project_more_like_agent",
+  "baseline_head": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+  "baseline_status_counts": {
+    " M": 38,
+    " D": 3,
+    "??": 1009
+  },
+  "remaining_preexisting_status_counts": {
+    " M": 38,
+    " D": 3,
+    "??": 1002
+  },
+  "cleanup_commits": [
+    "2876761f3c41b4a89357529ef46c917102d811e4",
+    "469381bf1ebfc362b19d1d614456c083f403cb50"
+  ],
+  "push_performed": false,
+  "generated_files_retained_locally": 42,
+  "recovery_hashes_verified": 29,
+  "business_files_missing_after_cleanup": []
+}

@@ -2678,44 +2678,44 @@
   },
   {
     "path": "backend/app/static/swagger/LICENSE",
-    "category": "C",
-    "reason": "未逐项证实运行用途；保留，静态无引用不作为删除证据",
+    "category": "A",
+    "reason": "openapi_docs.py模板及StaticFiles实际加载；LICENSE/NOTICE随Swagger本地包保留，不审计第三方打包内部逻辑",
     "references": []
   },
   {
     "path": "backend/app/static/swagger/swagger-ui.css",
-    "category": "C",
-    "reason": "未逐项证实运行用途；保留，静态无引用不作为删除证据",
+    "category": "A",
+    "reason": "openapi_docs.py模板及StaticFiles实际加载；LICENSE/NOTICE随Swagger本地包保留，不审计第三方打包内部逻辑",
     "references": []
   },
   {
     "path": "backend/app/static/swagger/swagger-ui-bundle.js",
-    "category": "C",
-    "reason": "未逐项证实运行用途；保留，静态无引用不作为删除证据",
+    "category": "A",
+    "reason": "openapi_docs.py模板及StaticFiles实际加载；LICENSE/NOTICE随Swagger本地包保留，不审计第三方打包内部逻辑",
     "references": []
   },
   {
     "path": "backend/app/static/swagger/NOTICE",
-    "category": "C",
-    "reason": "未逐项证实运行用途；保留，静态无引用不作为删除证据",
+    "category": "A",
+    "reason": "openapi_docs.py模板及StaticFiles实际加载；LICENSE/NOTICE随Swagger本地包保留，不审计第三方打包内部逻辑",
     "references": []
   },
   {
     "path": "backend/app/static/swagger/README.md",
     "category": "A",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "reason": "openapi_docs.py模板及StaticFiles实际加载；LICENSE/NOTICE随Swagger本地包保留，不审计第三方打包内部逻辑",
     "references": []
   },
   {
     "path": "backend/app/static/swagger/swagger-ui-standalone-preset.js",
-    "category": "C",
-    "reason": "未逐项证实运行用途；保留，静态无引用不作为删除证据",
+    "category": "A",
+    "reason": "openapi_docs.py模板及StaticFiles实际加载；LICENSE/NOTICE随Swagger本地包保留，不审计第三方打包内部逻辑",
     "references": []
   },
   {
     "path": "backend/app/static/swagger/favicon-32x32.png",
     "category": "A",
-    "reason": "源码引用或测试证据；未证无用不删除",
+    "reason": "openapi_docs.py模板及StaticFiles实际加载；LICENSE/NOTICE随Swagger本地包保留，不审计第三方打包内部逻辑",
     "references": []
   },
   {
@@ -3679,8 +3679,8 @@
   },
   {
     "path": "docs/32-deploy-skill.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
@@ -3691,8 +3691,8 @@
   },
   {
     "path": "docs/coach_agent_architecture_refactor.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
@@ -3703,32 +3703,32 @@
   },
   {
     "path": "docs/coach_agent_capability_migration.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/13-langgraph-integration.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/06-full-scope-sprint.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/coach_agent_semantic_binding_refactor.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/coach_agent_semantic_rule_inventory.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
@@ -3739,20 +3739,20 @@
   },
   {
     "path": "docs/21-agentic-today-planner.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/05-one-week-sprint.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/coach_agent_mixed_confirmation_fix.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
@@ -3763,14 +3763,14 @@
   },
   {
     "path": "docs/07-environment-and-deploy.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/19-final-priorities.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
@@ -3781,20 +3781,20 @@
   },
   {
     "path": "docs/20-food-ordering-and-rag.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/03-domain-and-protocol.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/coach_agent_full_refactor_report.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
@@ -3805,8 +3805,8 @@
   },
   {
     "path": "docs/20-flexible-patch-flow.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
@@ -3829,8 +3829,8 @@
   },
   {
     "path": "docs/40-global-coach-workspace.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
@@ -3841,8 +3841,8 @@
   },
   {
     "path": "docs/CONSOLE_RUNTIME_ARCHITECTURE.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
@@ -3871,8 +3871,8 @@
   },
   {
     "path": "docs/38-unified-coach-agent.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
@@ -3889,14 +3889,14 @@
   },
   {
     "path": "docs/16-graph-wiring-template.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/10-code-map-and-flows.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
@@ -3925,14 +3925,14 @@
   },
   {
     "path": "docs/30-observability-and-targets.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/18-remaining-work.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
@@ -3943,38 +3943,38 @@
   },
   {
     "path": "docs/24-mcd-order.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/39-memory-lifecycle-and-consistency.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/11-progress-review.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/21-skill-driven-plan.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/17-run-lifecycle-and-verifier.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {
     "path": "docs/02-ux-wireframes.md",
-    "category": "B",
-    "reason": "文档单独按MD-A至MD-F审计，见markdown-inventory.json",
+    "category": "D",
+    "reason": "文档已核对源码、合并/废弃并验证Git恢复hash；详见deletions.json，不涉及业务源码删除",
     "references": []
   },
   {

@@ -6,7 +6,8 @@
     "MD-F": 56,
     "MD-A": 4,
     "MD-D": 20,
-    "MD-C": 14
+    "MD-C": 14,
+    "MD-E": 0
   },
   "deleted": 29,
   "merged": 14,
@@ -56,5 +57,20 @@
     "mp-weixin": "passed"
   },
   "current_verified_or_maintenance_documents": 13,
-  "doc_checker_fixtures_passed": 3
+  "doc_checker_fixtures_passed": 3,
+  "file_classification_after_review": {
+    "C": 128,
+    "A": 296,
+    "E": 49,
+    "B": 878,
+    "D": 29
+  },
+  "asset_classification": {
+    "C": 70,
+    "A": 19,
+    "B": 76
+  },
+  "assets": 165,
+  "configuration_declarations": 61,
+  "independent_user_documents_unchanged": 35
 }

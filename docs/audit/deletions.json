@@ -7,7 +7,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "ccc737be3f001a6506ec3b0979416058d3dd3255220ebc69e6a5eb77cb5f2ddf",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/03-domain-and-protocol.md",
@@ -17,7 +17,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "99efba5cd98ea32417887dca0d3d1d5336a0f1f45bf0967586ec981bbaced044",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/05-one-week-sprint.md",
@@ -27,7 +27,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "6559b7ac2520836d44f4a1cfd526659339d074bc1fff89d1d8e06f611ae810b6",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/06-full-scope-sprint.md",
@@ -37,7 +37,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "0aaa943d55f5062a630602595fdec1f765a59990da64136d0226142f6af405e1",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/07-environment-and-deploy.md",
@@ -47,7 +47,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "2f10d8d856b14a1b6a6f1733dc798bcb3de7a409e4d25ca72cca171872c6a7f7",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/10-code-map-and-flows.md",
@@ -57,7 +57,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "87cfe00148868c4a3d01ef5ecf367e07cd9e176f51425bfebd517fd1f8ffa084",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/11-progress-review.md",
@@ -67,7 +67,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "01cbda29a1d95cfc3cecbe941e0cb06d1c1e7d06c2f3e6a6f3150b70c6f9fb8a",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/13-langgraph-integration.md",
@@ -77,7 +77,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "c0a69cacd43ee6936ccd5e938091d5d90f52a9fae3770e6a2afceda8236289de",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/16-graph-wiring-template.md",
@@ -87,7 +87,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "edfd7c2f1394f618f6b2ee462b8a296b6b89e928ab62626d9eb6deed5adbd604",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/17-run-lifecycle-and-verifier.md",
@@ -97,7 +97,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "bdf864668cf8bbab58f557d4eab1bf85098cc3cc6010958c0bc2f7ab1a1e4d6c",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/18-remaining-work.md",
@@ -107,7 +107,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "3a877064f0a96a68800145dd8415fa8492157e2649d43dd3c4c9b03fa8ecb75e",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/19-final-priorities.md",
@@ -117,7 +117,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "6449a61e4a9e9a5ef8f7d86b459ee4d01623a843cef2a1ed67cbe98e63852d45",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/20-flexible-patch-flow.md",
@@ -127,7 +127,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "a4d52e5ee66daa70948f4bb429e95cedb61378a11beef4065c89115e2c82e79a",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/20-food-ordering-and-rag.md",
@@ -137,7 +137,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "16772e3605c98035d1c69902576556a00ce70762783c93d78f1699d7810265e2",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/21-agentic-today-planner.md",
@@ -147,7 +147,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "9bcfd05fe88324357fc9d838bc2263e6703108cbf32712e1426eb139a707ea17",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/21-skill-driven-plan.md",
@@ -157,7 +157,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "4994e1b6b38c1113e6099376a2576f5cdf6678f2a7a16fcbc6f3117be47ccc06",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/24-mcd-order.md",
@@ -167,7 +167,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "c519b8c7de1e0b590660438b113fc6258248ffe31c7a0919d979e79b8f6dea50",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/30-observability-and-targets.md",
@@ -177,7 +177,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "8a6a7f4801e8623cf37946f7b0bb3248b30d351b302096322e78a4dd015cf84a",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/32-deploy-skill.md",
@@ -187,7 +187,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "5ca432707568d7d56391b27972632ddae9fe214124fa3f747aaa21df41c5c996",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/38-unified-coach-agent.md",
@@ -197,7 +197,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "14a35336e66f40bd61572402d451e4f42ed3b7170ecb900b53e681ac730f80a3",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/39-memory-lifecycle-and-consistency.md",
@@ -207,7 +207,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "d77c466c846a82ebffd63103b80716f4f14b272847b1e752fb2006923870dbd3",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/40-global-coach-workspace.md",
@@ -217,7 +217,7 @@
     "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
     "sha256": "369492d71f75d4b58f60e68654094b58e4b118fb5c655a6544b06e90ab10459e",
     "tracked_before": true,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/CONSOLE_RUNTIME_ARCHITECTURE.md",
@@ -227,7 +227,7 @@
     "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
     "sha256": "9c6c4c4c4888a6fd97d8a8a302ec1575536ac52fa041f32f599ed58280767892",
     "tracked_before": false,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/coach_agent_architecture_refactor.md",
@@ -237,7 +237,7 @@
     "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
     "sha256": "3e9da7d107180c005d681d9d881564c03df7db4dd4719e289d2980a4c6c65162",
     "tracked_before": false,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/coach_agent_capability_migration.md",
@@ -247,7 +247,7 @@
     "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
     "sha256": "7ba3ce8f764ba70ed3fe6966b4e92fc0fd24ea95c38c731cedf1dbbaf192293d",
     "tracked_before": false,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/coach_agent_full_refactor_report.md",
@@ -257,7 +257,7 @@
     "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
     "sha256": "0eeea978f19750a1e215582ab87617ce1f9b8ecb6f89d52f646bb2104633718b",
     "tracked_before": false,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/coach_agent_mixed_confirmation_fix.md",
@@ -267,7 +267,7 @@
     "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
     "sha256": "02574b245d44aeae363c53e7883f3aca1ccb58423819cff08c65fe3ce2ee26ec",
     "tracked_before": false,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/coach_agent_semantic_binding_refactor.md",
@@ -277,7 +277,7 @@
     "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
     "sha256": "75e8377792895447a1abc181828219637cf2fafb875f1319bac4d3346299e42a",
     "tracked_before": false,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   },
   {
     "path": "docs/coach_agent_semantic_rule_inventory.md",
@@ -287,6 +287,6 @@
     "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
     "sha256": "42125be7a858fb6e0dbb229b579940e88e7c24b57f6f2f232899fc355c9b3c93",
     "tracked_before": false,
-    "cleanup_commit": null
+    "cleanup_commit": "2876761f3c41b4a89357529ef46c917102d811e4"
   }
 ]
