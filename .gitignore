@@ -12,7 +12,7 @@ backend/*.db-wal
 backend/*.db-shm
 backend/dist/
 frontend/node_modules/
-frontend/dist/assets/
+frontend/dist/
 .DS_Store
 # 外部语料原始文件（可用 scripts/fetch_rag_data.py 重新拉取）
 backend/data/rag/free_exercise_db.json
@@ -23,3 +23,6 @@ backend/data/rag/foundation_food_raw.json
 
 # 动作图原始 PNG：本地留档，不进仓库/镜像；运行时用 frontend/src/static/ex/*.jpg
 docs/assets/exercise-sources/*.png
+
+# 本地IDE配置，不作为项目运行入口
+.idea/
