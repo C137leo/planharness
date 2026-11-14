@@ -1,6 +1,6 @@
 """ORM 模型（SQLAlchemy 2.0 Mapped 声明式风格）。
 
-表结构对应 docs/03-domain-and-protocol.md：用户与画像、目标/约束账本、
+表结构对应 docs/ARCHITECTURE.md：用户与画像、目标/约束账本、
 计划与版本化动作、补丁与审批、打卡与周复盘、Agent 运行记录。
 
 状态字段目前都用约定字符串（如 active / superseded / pending_approval），

@@ -1,0 +1,60 @@
+{
+  "before_markdown": 96,
+  "after_markdown": 74,
+  "categories_before": {
+    "MD-B": 2,
+    "MD-F": 56,
+    "MD-A": 4,
+    "MD-D": 20,
+    "MD-C": 14
+  },
+  "deleted": 29,
+  "merged": 14,
+  "updated_existing": 24,
+  "updated_paths": [
+    "README.md",
+    "deploy/README.md",
+    "docs/01-product-and-mvp.md",
+    "docs/04-evals-and-delivery.md",
+    "docs/08-ai-gateway-security.md",
+    "docs/09-simple-gateway-walkthrough.md",
+    "docs/12-architecture.md",
+    "docs/14-harness-control-plane.md",
+    "docs/15-prelaunch-checklist.md",
+    "docs/22-auth-and-abuse.md",
+    "docs/22-interview-and-architecture.md",
+    "docs/23-exercise-icons.md",
+    "docs/23-industrial-gap-and-interview-strategy.md",
+    "docs/25-minimal-patch.md",
+    "docs/26-safety-gate.md",
+    "docs/27-body-part-safety.md",
+    "docs/28-hitl-and-versioning.md",
+    "docs/29-audit-chain.md",
+    "docs/31-knowledge-provenance.md",
+    "docs/33-knowledge-sources.md",
+    "docs/34-rag-demo.md",
+    "docs/35-keyword-retrieval-and-rag.md",
+    "docs/36-why-not-embedding.md",
+    "docs/37-knowledge-search-eval.md"
+  ],
+  "new": 7,
+  "new_paths": [
+    "AGENTS.md",
+    "docs/ARCHITECTURE.md",
+    "docs/AGENT_RUNTIME.md",
+    "docs/API_REFERENCE.md",
+    "docs/DEVELOPMENT.md",
+    "docs/CODEBASE_AUDIT_REPORT.md",
+    "docs/UNUSED_CODE_REVIEW.md"
+  ],
+  "preserved_unknown": 56,
+  "missing_links": 0,
+  "backend_selected_tests": 30,
+  "frontend_tests": 56,
+  "builds": {
+    "h5": "passed",
+    "mp-weixin": "passed"
+  },
+  "current_verified_or_maintenance_documents": 13,
+  "doc_checker_fixtures_passed": 3
+}

@@ -1,0 +1,1158 @@
+{
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/api/v1/mcd/status",
+      "handler": "mcd_status",
+      "source": "backend/app/api/mcd_routes.py",
+      "line": 90,
+      "signature": "request: Request, user: User=Depends(get_current_user), token: str=Depends(_mcd_token)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/mcd/stores",
+      "handler": "mcd_stores",
+      "source": "backend/app/api/mcd_routes.py",
+      "line": 103,
+      "signature": "request: Request, city: str, keyword: str, user: User=Depends(get_current_user), token: str=Depends(_mcd_token)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/mcd/menu",
+      "handler": "mcd_menu",
+      "source": "backend/app/api/mcd_routes.py",
+      "line": 118,
+      "signature": "request: Request, store_code: str, names: str='', user: User=Depends(get_current_user), token: str=Depends(_mcd_token)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/mcd/quote",
+      "handler": "mcd_quote",
+      "source": "backend/app/api/mcd_routes.py",
+      "line": 138,
+      "signature": "request: Request, body: QuoteIn, user: User=Depends(get_current_user), token: str=Depends(_mcd_token)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/mcd/orders",
+      "handler": "mcd_create_order",
+      "source": "backend/app/api/mcd_routes.py",
+      "line": 154,
+      "signature": "request: Request, body: OrderIn, user: User=Depends(get_current_user), db: Session=Depends(get_db), token: str=Depends(_mcd_token)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/mcd/orders/{order_id}",
+      "handler": "mcd_get_order",
+      "source": "backend/app/api/mcd_routes.py",
+      "line": 185,
+      "signature": "request: Request, order_id: str, db: Session=Depends(get_db), user: User=Depends(get_current_user), token: str=Depends(_mcd_token)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/mcd/orders/{order_id}/cancel",
+      "handler": "mcd_cancel_order",
+      "source": "backend/app/api/mcd_routes.py",
+      "line": 201,
+      "signature": "request: Request, order_id: str, user: User=Depends(get_current_user), db: Session=Depends(get_db), token: str=Depends(_mcd_token)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/system/status",
+      "handler": "system_status",
+      "source": "backend/app/api/system_routes.py",
+      "line": 36,
+      "signature": "request: Request, db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/llm-switch",
+      "handler": "get_llm_switch",
+      "source": "backend/app/api/system_routes.py",
+      "line": 46,
+      "signature": "request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/admin/llm-switch",
+      "handler": "set_llm_switch",
+      "source": "backend/app/api/system_routes.py",
+      "line": 59,
+      "signature": "payload: LlmSwitchIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/challenge",
+      "handler": "auth_challenge",
+      "source": "backend/app/api/auth_routes.py",
+      "line": 78,
+      "signature": "request: Request, response: Response, purpose: str='register'"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "handler": "register",
+      "source": "backend/app/api/auth_routes.py",
+      "line": 105,
+      "signature": "payload: RegisterIn, request: Request, db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "handler": "login",
+      "source": "backend/app/api/auth_routes.py",
+      "line": 194,
+      "signature": "payload: LoginIn, request: Request, db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/_debug/client-error",
+      "handler": "report_client_error",
+      "source": "backend/app/api/auth_routes.py",
+      "line": 223,
+      "signature": "request: Request"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/auth/me",
+      "handler": "whoami",
+      "source": "backend/app/api/auth_routes.py",
+      "line": 248,
+      "signature": "request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/today-plan",
+      "handler": "create_today_plan",
+      "source": "backend/app/api/agent_routes.py",
+      "line": 135,
+      "signature": "payload: TodayPlanIn, request: Request, background: BackgroundTasks, user: User=Depends(get_current_user), db: Session=Depends(get_db), _llm_ready: None=Depends(require_llm_enabled)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/today-plan",
+      "handler": "get_today_plan",
+      "source": "backend/app/api/agent_routes.py",
+      "line": 154,
+      "signature": "request: Request, date: str='', user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/today-plan/{run_id}/apply",
+      "handler": "apply_today_plan",
+      "source": "backend/app/api/agent_routes.py",
+      "line": 172,
+      "signature": "run_id: str, payload: ApplyIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/today-plan/{run_id}/feedback",
+      "handler": "today_plan_feedback",
+      "source": "backend/app/api/agent_routes.py",
+      "line": 200,
+      "signature": "run_id: str, payload: FeedbackIn, request: Request, background: BackgroundTasks, user: User=Depends(get_current_user), db: Session=Depends(get_db), _llm_ready: None=Depends(require_llm_enabled)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/food/options",
+      "handler": "food_options",
+      "source": "backend/app/api/food_routes.py",
+      "line": 30,
+      "signature": "request: Request, plan_id: str, date: str, meal_slot: str, refresh: bool=False, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/commerce/status",
+      "handler": "commerce_status",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 202,
+      "signature": "request: Request, user: User=Depends(get_current_user), p=Depends(coach_commerce_dependency)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/commerce/orders",
+      "handler": "commerce_orders",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 216,
+      "signature": "request: Request, group: Literal['active', 'paid', 'inactive', 'unknown']='active', cursor: str='', limit: int=20, user: User=Depends(get_current_user), db: Session=Depends(get_db), p=Depends(coach_commerce_dependency)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/commerce/orders/sync",
+      "handler": "commerce_orders_sync",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 225,
+      "signature": "request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db), p=Depends(coach_commerce_dependency)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/commerce/orders/{record_id}",
+      "handler": "commerce_order_detail",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 232,
+      "signature": "record_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db), p=Depends(coach_commerce_dependency)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/commerce/orders/{record_id}/refresh",
+      "handler": "commerce_order_refresh",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 242,
+      "signature": "record_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db), p=Depends(coach_commerce_dependency)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/commerce/preferences",
+      "handler": "pickup_preferences",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 259,
+      "signature": "request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/agent/commerce/preferences",
+      "handler": "save_pickup_preferences",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 265,
+      "signature": "payload: PickupPreferencesIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/chat",
+      "handler": "agent_chat",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 274,
+      "signature": "payload: ChatIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db), client=Depends(coach_client_dependency), commerce_provider=Depends(coach_commerce_dependency)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/messages",
+      "handler": "agent_messages",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 301,
+      "signature": "request: Request, limit: int=20, thread: str='coach', user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/conversations",
+      "handler": "agent_conversations",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 312,
+      "signature": "request: Request, limit: int=30, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/agent/conversations/{thread}",
+      "handler": "delete_agent_conversation",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 322,
+      "signature": "thread: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/day",
+      "handler": "agent_day",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 338,
+      "signature": "request: Request, date: str='', fallback_next: bool=True, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/workout-replans/{authorization_id}",
+      "handler": "workout_replan_read",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 350,
+      "signature": "authorization_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/day-revisions/{revision_id}",
+      "handler": "day_revision_read",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 360,
+      "signature": "revision_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/day/reset",
+      "handler": "agent_day_reset",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 373,
+      "signature": "request: Request, payload: DayQuery, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/adjustments",
+      "handler": "agent_adjustments",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 386,
+      "signature": "request: Request, start: str='', end: str='', limit: int=60, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/adjustments/{adjustment_id}/restore",
+      "handler": "agent_adjustment_restore",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 410,
+      "signature": "adjustment_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/progress-insights",
+      "handler": "agent_progress_insights",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 428,
+      "signature": "request: Request, days: int=14, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/memory/status",
+      "handler": "agent_memory_status",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 439,
+      "signature": "request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/memories",
+      "handler": "agent_memories",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 465,
+      "signature": "request: Request, kind: str='', user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/memories",
+      "handler": "agent_memory_create",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 491,
+      "signature": "payload: MemoryIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/agent/memories/{memory_id}",
+      "handler": "agent_memory_update",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 519,
+      "signature": "memory_id: str, payload: MemoryPatchIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/agent/memories/{memory_id}",
+      "handler": "agent_memory_delete",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 539,
+      "signature": "memory_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/workout-sessions",
+      "handler": "workout_start",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 557,
+      "signature": "payload: SessionIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workout-sessions/active",
+      "handler": "workout_active",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 575,
+      "signature": "request: Request, date: str='', user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workout-sessions/{session_id}",
+      "handler": "workout_get",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 592,
+      "signature": "session_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/workout-sessions/{session_id}/sets",
+      "handler": "workout_complete_set",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 605,
+      "signature": "session_id: str, request: Request, body: WorkoutSetIn | None=None, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/workout-sessions/{session_id}/skip",
+      "handler": "workout_skip",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 625,
+      "signature": "session_id: str, payload: SessionEventIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/workout-sessions/{session_id}/replace",
+      "handler": "workout_replace",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 640,
+      "signature": "session_id: str, payload: SessionEventIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/workout-sessions/{session_id}/pause",
+      "handler": "workout_pause",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 663,
+      "signature": "session_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/workout-sessions/{session_id}/finish",
+      "handler": "workout_finish",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 677,
+      "signature": "session_id: str, payload: FinishIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/workout-sessions/{session_id}/feedback",
+      "handler": "workout_feedback",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 706,
+      "signature": "session_id: str, payload: FinishIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/runtime/conversations",
+      "handler": "runtime_conversations",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 718,
+      "signature": "request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/runtime/conversations/{thread}",
+      "handler": "runtime_messages",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 724,
+      "signature": "thread: str, request: Request, before: str='', limit: int=50, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/agent/runtime/turns/{turn_id}",
+      "handler": "runtime_turn",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 733,
+      "signature": "turn_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/agent/runtime/conversations",
+      "handler": "runtime_create_conversation",
+      "source": "backend/app/api/coach_routes.py",
+      "line": 740,
+      "signature": "request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/search",
+      "handler": "knowledge_search",
+      "source": "backend/app/api/knowledge_routes.py",
+      "line": 23,
+      "signature": "request: Request, q: str, body_part: str | None=None, limit: int=3, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/knowledge/ask",
+      "handler": "knowledge_ask",
+      "source": "backend/app/api/knowledge_routes.py",
+      "line": 48,
+      "signature": "payload: AskIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/knowledge/rag",
+      "handler": "knowledge_rag",
+      "source": "backend/app/api/knowledge_routes.py",
+      "line": 57,
+      "signature": "request: Request, q: str, engine: str='hybrid', limit: int=5, user: User=Depends(get_current_user)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/health",
+      "handler": "health",
+      "source": "backend/app/api/routes.py",
+      "line": 99,
+      "signature": "request: Request, db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/demo",
+      "handler": "demo_login",
+      "source": "backend/app/api/routes.py",
+      "line": 128,
+      "signature": "payload: DemoLoginIn, request: Request, db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/wechat",
+      "handler": "wechat_login",
+      "source": "backend/app/api/routes.py",
+      "line": 152,
+      "signature": "payload: WeChatLoginIn"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me/profile",
+      "handler": "my_profile",
+      "source": "backend/app/api/routes.py",
+      "line": 164,
+      "signature": "request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/v1/me/profile",
+      "handler": "update_profile",
+      "source": "backend/app/api/routes.py",
+      "line": 248,
+      "signature": "payload: ProfileUpdateIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plans/drafts",
+      "handler": "create_plan_draft",
+      "source": "backend/app/api/routes.py",
+      "line": 296,
+      "signature": "payload: PlanDraftIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db), _llm_ready: None=Depends(require_llm_enabled)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/plans/drafts/{draft_id}",
+      "handler": "get_plan_draft",
+      "source": "backend/app/api/routes.py",
+      "line": 314,
+      "signature": "draft_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plans/drafts/{draft_id}/feedback",
+      "handler": "feedback_plan_draft",
+      "source": "backend/app/api/routes.py",
+      "line": 328,
+      "signature": "draft_id: str, payload: DraftFeedbackIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db), _llm_ready: None=Depends(require_llm_enabled)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plans/drafts/{draft_id}/confirm",
+      "handler": "confirm_plan_draft",
+      "source": "backend/app/api/routes.py",
+      "line": 347,
+      "signature": "draft_id: str, payload: ApprovalIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plans/drafts/{draft_id}/reject",
+      "handler": "reject_plan_draft",
+      "source": "backend/app/api/routes.py",
+      "line": 372,
+      "signature": "draft_id: str, payload: ApprovalIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/patch-presets",
+      "handler": "patch_presets",
+      "source": "backend/app/api/routes.py",
+      "line": 390,
+      "signature": "request: Request"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/plans/current",
+      "handler": "current_plan",
+      "source": "backend/app/api/routes.py",
+      "line": 418,
+      "signature": "request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/plans/{plan_id}/versions",
+      "handler": "plan_versions",
+      "source": "backend/app/api/routes.py",
+      "line": 441,
+      "signature": "plan_id: str, request: Request, limit: int=20, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plans/generate",
+      "handler": "generate_plan",
+      "source": "backend/app/api/routes.py",
+      "line": 514,
+      "signature": "request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plans/{plan_id}/patches",
+      "handler": "create_patch",
+      "source": "backend/app/api/routes.py",
+      "line": 550,
+      "signature": "plan_id: str, payload: PatchCreateIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/audit/{stream_id}",
+      "handler": "get_audit_stream",
+      "source": "backend/app/api/routes.py",
+      "line": 617,
+      "signature": "stream_id: str, request: Request, limit: int=200, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/audit/{stream_id}/verify",
+      "handler": "verify_audit_stream",
+      "source": "backend/app/api/routes.py",
+      "line": 657,
+      "signature": "stream_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/compare/knee-patch",
+      "handler": "compare_knee_patch_modes",
+      "source": "backend/app/api/routes.py",
+      "line": 682,
+      "signature": "request: Request, user: User=Depends(get_current_user)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/evals/scenarios",
+      "handler": "list_eval_scenarios",
+      "source": "backend/app/api/routes.py",
+      "line": 698,
+      "signature": "request: Request, user: User=Depends(get_current_user)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/evals/scenarios/{scenario_id}/run",
+      "handler": "run_eval_scenario",
+      "source": "backend/app/api/routes.py",
+      "line": 715,
+      "signature": "scenario_id: str, request: Request, user: User=Depends(get_current_user)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plans/{plan_id}/patch-requests",
+      "handler": "create_patch_request",
+      "source": "backend/app/api/routes.py",
+      "line": 762,
+      "signature": "plan_id: str, payload: PatchRequestIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db), _llm_ready: None=Depends(require_llm_enabled)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/patch-requests/{request_id}",
+      "handler": "get_patch_request",
+      "source": "backend/app/api/routes.py",
+      "line": 790,
+      "signature": "request_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/patch-requests/{request_id}/feedback",
+      "handler": "feedback_patch_request",
+      "source": "backend/app/api/routes.py",
+      "line": 804,
+      "signature": "request_id: str, payload: PatchFeedbackIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db), _llm_ready: None=Depends(require_llm_enabled)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/patch-requests/{request_id}/approve",
+      "handler": "approve_patch_request",
+      "source": "backend/app/api/routes.py",
+      "line": 823,
+      "signature": "request_id: str, payload: ApprovalIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/patch-requests/{request_id}/reject",
+      "handler": "reject_patch_request",
+      "source": "backend/app/api/routes.py",
+      "line": 907,
+      "signature": "request_id: str, payload: ApprovalIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plans/{plan_id}/undo",
+      "handler": "undo_plan_change",
+      "source": "backend/app/api/routes.py",
+      "line": 934,
+      "signature": "plan_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/patches",
+      "handler": "list_patches",
+      "source": "backend/app/api/routes.py",
+      "line": 962,
+      "signature": "request: Request, limit: int=20, status_filter: str | None=Query(default=None, alias='status'), user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/patches/{patch_id}",
+      "handler": "get_patch",
+      "source": "backend/app/api/routes.py",
+      "line": 1000,
+      "signature": "patch_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/patches/{patch_id}/approve",
+      "handler": "approve",
+      "source": "backend/app/api/routes.py",
+      "line": 1011,
+      "signature": "patch_id: str, payload: ApprovalIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/patches/{patch_id}/reject",
+      "handler": "reject",
+      "source": "backend/app/api/routes.py",
+      "line": 1082,
+      "signature": "patch_id: str, payload: ApprovalIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs",
+      "handler": "list_runs",
+      "source": "backend/app/api/routes.py",
+      "line": 1156,
+      "signature": "request: Request, limit: int=20, status_filter: str | None=Query(default=None, alias='status'), user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/runs/{run_id}",
+      "handler": "get_run",
+      "source": "backend/app/api/routes.py",
+      "line": 1178,
+      "signature": "run_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plans/{plan_id}/retarget",
+      "handler": "retarget",
+      "source": "backend/app/api/routes.py",
+      "line": 1240,
+      "signature": "plan_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/plans/{plan_id}/rollback",
+      "handler": "rollback",
+      "source": "backend/app/api/routes.py",
+      "line": 1260,
+      "signature": "plan_id: str, payload: RollbackIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/workout-logs",
+      "handler": "create_workout_log",
+      "source": "backend/app/api/routes.py",
+      "line": 1299,
+      "signature": "payload: WorkoutLogIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/workout-logs",
+      "handler": "list_workout_logs",
+      "source": "backend/app/api/routes.py",
+      "line": 1328,
+      "signature": "request: Request, days: int=14, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/workout-logs/{log_id}",
+      "handler": "delete_workout_log",
+      "source": "backend/app/api/routes.py",
+      "line": 1347,
+      "signature": "log_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/stats/calories",
+      "handler": "calorie_stats_endpoint",
+      "source": "backend/app/api/routes.py",
+      "line": 1362,
+      "signature": "request: Request, days: int=7, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/checkins",
+      "handler": "create_checkin",
+      "source": "backend/app/api/routes.py",
+      "line": 1386,
+      "signature": "payload: CheckinIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/checkins",
+      "handler": "list_checkins",
+      "source": "backend/app/api/routes.py",
+      "line": 1411,
+      "signature": "request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/meal-logs",
+      "handler": "create_meal_log",
+      "source": "backend/app/api/routes.py",
+      "line": 1425,
+      "signature": "payload: MealLogIn, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/meal-logs",
+      "handler": "list_meal_logs",
+      "source": "backend/app/api/routes.py",
+      "line": 1446,
+      "signature": "request: Request, day: str='', user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/meal-logs/{log_id}",
+      "handler": "delete_meal_log",
+      "source": "backend/app/api/routes.py",
+      "line": 1462,
+      "signature": "log_id: str, request: Request, user: User=Depends(get_current_user), db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/register",
+      "handler": "register",
+      "source": "backend/app/api/routes.py",
+      "line": 1477,
+      "signature": "payload: RegisterIn, request: Request, db: Session=Depends(get_db)"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "handler": "login",
+      "source": "backend/app/api/routes.py",
+      "line": 1491,
+      "signature": "payload: LoginIn, request: Request, db: Session=Depends(get_db)"
+    }
+  ],
+  "local_request_models": {
+    "QuoteIn": {
+      "source": "backend/app/api/mcd_routes.py",
+      "fields": [
+        {
+          "name": "store_code",
+          "annotation": "str",
+          "default": "Field(min_length=1, max_length=32)"
+        },
+        {
+          "name": "items",
+          "annotation": "list[dict]",
+          "default": "Field(default_factory=list)"
+        }
+      ]
+    },
+    "OrderIn": {
+      "source": "backend/app/api/mcd_routes.py",
+      "fields": [
+        {
+          "name": "take_way_code",
+          "annotation": "str",
+          "default": "Field(default='', max_length=32)"
+        }
+      ]
+    },
+    "LlmSwitchIn": {
+      "source": "backend/app/api/system_routes.py",
+      "fields": [
+        {
+          "name": "paused",
+          "annotation": "bool",
+          "default": null
+        }
+      ]
+    },
+    "TodayPlanIn": {
+      "source": "backend/app/api/agent_routes.py",
+      "fields": [
+        {
+          "name": "text",
+          "annotation": "str",
+          "default": "Field(min_length=1, max_length=500)"
+        },
+        {
+          "name": "date",
+          "annotation": "str | None",
+          "default": "None"
+        },
+        {
+          "name": "mcd_token",
+          "annotation": "str | None",
+          "default": "Field(default=None, max_length=512)"
+        }
+      ]
+    },
+    "FeedbackIn": {
+      "source": "backend/app/api/agent_routes.py",
+      "fields": [
+        {
+          "name": "text",
+          "annotation": "str",
+          "default": "Field(min_length=1, max_length=300)"
+        },
+        {
+          "name": "mcd_token",
+          "annotation": "str | None",
+          "default": "Field(default=None, max_length=512)"
+        }
+      ]
+    },
+    "ApplyIn": {
+      "source": "backend/app/api/agent_routes.py",
+      "fields": [
+        {
+          "name": "selections",
+          "annotation": "list[dict]",
+          "default": "Field(default_factory=list)"
+        },
+        {
+          "name": "date",
+          "annotation": "str | None",
+          "default": "None"
+        }
+      ]
+    },
+    "ChatIn": {
+      "source": "backend/app/api/coach_routes.py",
+      "fields": [
+        {
+          "name": "request_id",
+          "annotation": "str | None",
+          "default": "Field(default=None, min_length=1, max_length=128)"
+        },
+        {
+          "name": "confirmation",
+          "annotation": "PendingControl | None",
+          "default": "None"
+        },
+        {
+          "name": "checkout_action",
+          "annotation": "CheckoutAction | None",
+          "default": "None"
+        },
+        {
+          "name": "commerce_action",
+          "annotation": "CommerceAction | None",
+          "default": "None"
+        },
+        {
+          "name": "text",
+          "annotation": "str",
+          "default": "Field(min_length=1, max_length=1000)"
+        },
+        {
+          "name": "page",
+          "annotation": "str",
+          "default": "Field(default='today', max_length=24)"
+        },
+        {
+          "name": "date",
+          "annotation": "str | None",
+          "default": "None"
+        },
+        {
+          "name": "session_id",
+          "annotation": "str | None",
+          "default": "None"
+        },
+        {
+          "name": "thread",
+          "annotation": "str | None",
+          "default": "Field(default=None, max_length=32)"
+        },
+        {
+          "name": "context",
+          "annotation": "dict",
+          "default": "Field(default_factory=dict)"
+        }
+      ]
+    },
+    "DayQuery": {
+      "source": "backend/app/api/coach_routes.py",
+      "fields": [
+        {
+          "name": "date",
+          "annotation": "str | None",
+          "default": "None"
+        }
+      ]
+    },
+    "MemoryIn": {
+      "source": "backend/app/api/coach_routes.py",
+      "fields": [
+        {
+          "name": "kind",
+          "annotation": "str",
+          "default": "Field(default=LONG_TERM, max_length=16)"
+        },
+        {
+          "name": "category",
+          "annotation": "str",
+          "default": "Field(min_length=1, max_length=32)"
+        },
+        {
+          "name": "key",
+          "annotation": "str",
+          "default": "Field(default='manual', max_length=64)"
+        },
+        {
+          "name": "value",
+          "annotation": "str",
+          "default": "Field(min_length=1, max_length=2000)"
+        },
+        {
+          "name": "structured",
+          "annotation": "dict",
+          "default": "Field(default_factory=dict)"
+        }
+      ]
+    },
+    "MemoryPatchIn": {
+      "source": "backend/app/api/coach_routes.py",
+      "fields": [
+        {
+          "name": "value",
+          "annotation": "str | None",
+          "default": "Field(default=None, max_length=2000)"
+        },
+        {
+          "name": "structured",
+          "annotation": "dict | None",
+          "default": "None"
+        }
+      ]
+    },
+    "SessionIn": {
+      "source": "backend/app/api/coach_routes.py",
+      "fields": [
+        {
+          "name": "date",
+          "annotation": "str | None",
+          "default": "None"
+        },
+        {
+          "name": "source",
+          "annotation": "str",
+          "default": "Field(default='agent', max_length=16)"
+        }
+      ]
+    },
+    "SessionEventIn": {
+      "source": "backend/app/api/coach_routes.py",
+      "fields": [
+        {
+          "name": "reason",
+          "annotation": "str",
+          "default": "''"
+        },
+        {
+          "name": "action_ref",
+          "annotation": "str",
+          "default": "''"
+        },
+        {
+          "name": "equipment_busy",
+          "annotation": "bool",
+          "default": "False"
+        },
+        {
+          "name": "injured_regions",
+          "annotation": "list[str]",
+          "default": "Field(default_factory=list)"
+        },
+        {
+          "name": "easier",
+          "annotation": "bool",
+          "default": "False"
+        },
+        {
+          "name": "minutes_remaining",
+          "annotation": "int | None",
+          "default": "Field(default=None, ge=1, le=240)"
+        }
+      ]
+    },
+    "FinishIn": {
+      "source": "backend/app/api/coach_routes.py",
+      "fields": [
+        {
+          "name": "completion_basis",
+          "annotation": "Literal['recorded_only', 'confirm_current_plan']",
+          "default": "'recorded_only'"
+        },
+        {
+          "name": "expected_revision",
+          "annotation": "str | None",
+          "default": "Field(default=None, min_length=64, max_length=64)"
+        },
+        {
+          "name": "completed",
+          "annotation": "bool",
+          "default": "True"
+        },
+        {
+          "name": "completion_pct",
+          "annotation": "int | None",
+          "default": "Field(default=None, ge=0, le=100)"
+        },
+        {
+          "name": "difficulty",
+          "annotation": "int | None",
+          "default": "Field(default=None, ge=1, le=5)"
+        },
+        {
+          "name": "fatigue",
+          "annotation": "int | None",
+          "default": "Field(default=None, ge=1, le=5)"
+        },
+        {
+          "name": "actual_minutes",
+          "annotation": "int | None",
+          "default": "Field(default=None, ge=0, le=600)"
+        },
+        {
+          "name": "note",
+          "annotation": "str",
+          "default": "Field(default='', max_length=1000)"
+        }
+      ]
+    },
+    "PickupPreferencesIn": {
+      "source": "backend/app/api/coach_routes.py",
+      "fields": [
+        {
+          "name": "city",
+          "annotation": "str",
+          "default": "Field(default='', max_length=80)"
+        },
+        {
+          "name": "keyword",
+          "annotation": "str",
+          "default": "Field(default='', max_length=120)"
+        }
+      ]
+    },
+    "AskIn": {
+      "source": "backend/app/api/knowledge_routes.py",
+      "fields": [
+        {
+          "name": "question",
+          "annotation": "str",
+          "default": "Field(min_length=1, max_length=300)"
+        },
+        {
+          "name": "body_part",
+          "annotation": "str | None",
+          "default": "None"
+        }
+      ]
+    }
+  }
+}

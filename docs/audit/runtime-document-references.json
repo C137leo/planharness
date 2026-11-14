@@ -1,0 +1,8 @@
+{
+  "files_checked": 253,
+  "references_to_removed_documents": [],
+  "fixed_comment_references": [
+    "backend/Dockerfile",
+    "backend/app/models.py"
+  ]
+}

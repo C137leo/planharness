@@ -1,226 +1,45 @@
-# PlanHarness
+# Coach Agent / PlanHarness
 
-> **面向计划类 Agent 的 Harness 工程，以 4 周减脂计划为测试床。**
+面向训练、饮食和日常执行的教练应用。用户通过统一对话调整安排、记录训练、管理档案与记忆；计划与订单修改按对应能力的确认、版本和验证规则执行。
 
-状态：**全量 P0 一周冲刺进行中（2026-10-31 起，全职）。** 版本 v0.3 / 2026-10-31。旧的 ClaimGuard 审批项目仍保留在仓库根目录，两者不要混用。
+前端使用 Vue 3 + TypeScript + uni-app（H5 / 微信小程序）；后端使用 Python 3.12+、FastAPI、SQLAlchemy。开发可用 SQLite，部署模板使用 PostgreSQL。模型通过结构化输出理解目标，服务端绑定真实业务对象并执行能力；前端不负责意图识别。
 
----
+## 当前功能与边界
 
-## 一句话
+- 今天、计划、进展、档案、打卡与训练执行页面共享同一教练入口。
+- 聊天主链为 `coach_agent → semantic_runtime → semantic_planner / capability registry → 领域执行边界`。旧规则意图路由不进入生产聊天。
+- 支持训练/食物局部修改、档案与记忆、训练会话生命周期、整日草案预览/应用和商务点餐。具体可用能力取决于上下文、凭证、配置及注册表，不能只按页面文案判断。
+- Agent 运行工作台复用聊天接口，展示真实会话、任务、事件、快照与已关联执行日志。全局目标验证、逐工具事务证据、实时事件流尚未完整实现。
+- 独立计划生成、LangGraph 补丁审批、知识检索与旧评测接口仍存在；它们不是聊天的语义 fallback，也不应因“不在聊天中”而删除。
+- 商务能力依赖官方 MCP、凭证和下单开关。外部未知结果需核实；不能靠重复请求解决，也不会自动完成支付。
 
-用户第 2 周说“膝盖疼，这周只能练 2 天”。普通 Agent 会重新生成整份计划，可能塞回跑步/深蹲；PlanHarness 只做**最小安全补丁**，经过**确定性安全门**和**人工审批**后提交新版本，并可回滚。
+## 快速启动
 
-## 这不是什么
-
-- 不是“又一个生成健身计划的 Agent”
-- 不是多 Agent 编排
-- 不是 GraphRAG
-- 不是医疗诊断/治疗工具
-- P0 不做自由聊天、拍照识食、穿戴设备、自动点餐、支付
-
-## 三个对比模式
-
-| 模式 | 生成方式 | 安全门 | 审批 | 证明什么 |
-| --- | --- | --- | --- | --- |
-| A 裸奔 | 全量重新生成 | 无 | 无 | 计划漂移、越权写库、风险动作放行 |
-| B 只加安全门 | 全量重新生成 | 有 | 有 | 安全了，但计划仍被大改 |
-| C 补丁模式 | 最小补丁 | 有 | 有 | 安全 + 低 churn + 可回滚 |
-
-## 三个展示面
-
-| 面 | 作用 |
-| --- | --- |
-| Web Console | 面试主展示：场景、Trace、Diff、审批、指标。1 周版合并为 1 页 |
-| Web 用户端 | 引导、计划、今天、打卡、进展、审批 |
-| 微信小程序 | 今天、打卡、审批 3 页，证明同一后端多端可用 |
-
-## Backend quickstart
-
-```bash
-cd planharness/backend
-uv sync
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
-
-接口文档：<http://127.0.0.1:8000/docs>（已内置 Swagger UI 静态资源，**不依赖外网 CDN**，
-断网也能打开；默认的 CDN 方案在国内会白屏，见 `backend/app/static/swagger/README.md`）
-
-验证：
-
-```bash
-curl http://127.0.0.1:8000/api/v1/health
-curl -X POST http://127.0.0.1:8000/api/v1/auth/demo -H 'Content-Type: application/json' -d '{}'
-```
-
-当前已实现：
-
-- `GET /api/v1/health`
-- `GET /api/v1/auth/challenge`（一次性票据：服务端签名 + 最短填表耗时）
-- `POST /api/v1/auth/register` / `POST /api/v1/auth/login`（手机号 + 密码，带分层限流与登录锁定）
-- `GET /api/v1/auth/me`（当前账号）
-- `POST /api/v1/auth/demo`（demo JWT，同样按 IP 限流）
-- `POST /api/v1/auth/wechat`（无 AppID，返回 501）
-- `GET /api/v1/me/profile`
-- `GET /api/v1/plans/current`（seed 的 v1，12 个 action）
-- `POST /api/v1/plans/generate`（模板生成 + 热量/蛋白质计算 + validator，生成 v2）
-- `PUT /api/v1/me/profile`（目标 / 体型 / 器械 / 过敏原 / 饮食偏好，直接喂给生成与安全门）
-- `POST /api/v1/plans/drafts`（**生成计划草案**：模型调用 healthy-fitness-coach skill → 训练 + 食谱 + 摄入目标）
-- `POST /api/v1/plans/drafts/{id}/feedback|confirm|reject`（再改改 ≤3 轮 / 确认落版本 / 不要了）
-- `GET /api/v1/patch-presets`（预设改动入口：休息 / 受伤停练 / 换部位 / 加强度 / 调饮食 / 没时间）
-- `POST /api/v1/plans/{plan_id}/patch-requests`（**一句话改计划**：模型定向修改 → 草案 / 追问 / 被安全门拦下）
-- `POST /api/v1/patch-requests/{id}/feedback|approve|reject`（再改改 ≤3 轮 / 确认应用 / 拒绝）
-- `POST /api/v1/plans/{id}/undo`（撤销上一次提交，仍生成新版本）
-- `POST/GET /api/v1/workout-logs`、`GET /api/v1/stats/calories`（训练记录 → 热量，只算消耗）
-- `POST /api/v1/agent/chat`（**统一健身教练 Agent**：今天 / 计划 / 我的 / 训练页共用；自动判断建计划、改今天、改长期、调当前训练、记反馈、管记忆）
-- `GET /api/v1/agent/day`（今日有效计划：基础版本 + 当天临时调整；`POST /agent/day/reset` 恢复）
-- `GET/POST/PUT/DELETE /api/v1/agent/memories`（长期 / 短期记忆的查看、新增、编辑、删除；读取自动过滤过期）
-- `GET /api/v1/agent/adjustments` / `POST /api/v1/agent/adjustments/{id}/restore`（计划页临时调整标识、原因与恢复）
-- `GET /api/v1/agent/memory/status`（记忆保留策略 + 最近一次清理日志）
-- `GET /api/v1/agent/progress-insights`（进展页教练发现：真实训练数据生成）
-- `POST /api/v1/workout-sessions`（开始训练）/ `sets`（完成一组）/ `skip` / `replace` / `pause` / `finish`
-- `POST /api/v1/plans/{id}/patches`（膝痛补丁，3/12，churn 25%，返回 `validation.explanation`）
-- `POST /api/v1/patches/{id}/approve|reject`（审批前不写库；验证失败→409 并自动回滚）
-- `POST /api/v1/plans/{id}/rollback`（回滚生成新版本）
-- `POST/GET /api/v1/checkins`（打卡 upsert / 列表）
-- `GET /api/v1/patches?status=`（补丁历史，审批页据此判断有没有待审批）
-- `GET /api/v1/runs?status=`（最近的 Agent 运行列表，Console 用）
-- `POST /api/v1/compare/knee-patch`（A/B/C 三模式对比，返回真实指标）
-- `GET /api/v1/audit/{plan_id}`（审计哈希链：每条事件带 prev_hash/hash）
-- `GET /api/v1/audit/{plan_id}/verify`（重算整条链，返回 valid / broken_at）
-- `GET /api/v1/runs/{id}`（trace 时间线 + patch diff + 上下文快照 + 验证结论）
-
-服务器部署（当前实际方案）：
-
-- API：宿主机 systemd + venv，监听 `127.0.0.1:9200`
-- Postgres：已有 `pg` 容器，映射 `127.0.0.1:5432`
-- Nginx：对外 80/443，反代到 9200
-- **不使用** `docker-compose.example.yml`（会重复起 Postgres/Caddy）
-
-见 [deploy/README.md](deploy/README.md)。
-
-## Frontend quickstart
-
-```bash
-cd planharness/frontend
-npm install --registry=https://registry.npmmirror.com
-npm run dev:h5
-```
-
-- H5：`http://localhost:5173`，Vite 把 `/api` 代理到 `127.0.0.1:8000`
-- 构建：`npm run build:h5`，产物在 `frontend/dist/`
-- 小程序：`npm run dev:mp-weixin`（需要 AppID；当前用开发者工具模拟器）
-- 小程序请求域名必须是绝对地址：`VITE_API_BASE=https://www.agentworkout.online/api/v1`
-
-当前页面（TabBar：今天 / 计划 / 进展 / 我的）：
-
-- 今天：**最显眼的统一 Agent 输入框**（自然语言改今天/改长期/调当前训练）、今日有效计划、训练进度、开始训练、今天吃什么（食材克数/热量）、推荐摄入、快捷指令
-- 训练中：当前动作 / 第几组 / 休息倒计时 / 剩余动作 / 换动作 / 跳过 / 力量训练内 Agent（`pages/workout`）
-- 我的：目标 / 基本身体 / 器械 / 饮食 + **我的健身记忆**（长期偏好与近期状态可查看、编辑、删除）
-- 计划：整周明细、今日餐食、待确认改动、撤销上一次改动、换一份计划；「改计划 / 换一份计划」统一进同一个 Agent
-- 进展：近 7 天消耗、体重、训练记录（附热量公式与口径）
-- 登录 / 注册：手机号 + 密码、密码强度提示、429 倒计时；防刷细节见 [docs/22](docs/22-auth-and-abuse.md)
-- 我的：账号信息与退出登录；目标 / 体型 / 器械 / 过敏原 / 饮食偏好可编辑，保存后直接生成计划
-- 打卡：体重/睡眠/饥饿/酸痛/执行率 + 记一条训练（实时算 kcal）
-- Console（H5）：场景回放、Trace、Diff、上下文、成本、审计链、A/B/C 对比
-- 待确认补丁：旧的独立审批页保留，作为抽屉之外的兜底入口
-
-「改计划」是底部抽屉而不是独立 tab：审批是动作的一部分，不该让用户再去找页面。
-
-统一 Agent 的架构、三层记忆、训练执行与验收场景见 [docs/38-unified-coach-agent.md](docs/38-unified-coach-agent.md)；
-记忆生命周期、临时上下文 TTL、计划展示口径与 Profile/Memory 单一事实来源见
-[docs/39-memory-lifecycle-and-consistency.md](docs/39-memory-lifecycle-and-consistency.md)；
-全站统一教练工作区与页面改版见 [docs/40-global-coach-workspace.md](docs/40-global-coach-workspace.md)。
-交互上有一条硬规则：**审批动作绝不自动跳转**（曾因自动切 tab + 按钮同位置导致连点两次直接提交）。
-
-> Uni-app 当前安装包提示 Node >=22；本机 Node 20 也能 build，但建议升级到 Node 22。
-
-## 评测（Evals）
-
-不是"我写了测试"，而是**任务级回归 + 指标 + 失败归因 + 变异测试**：
-
-| 产物 | 内容 |
-| --- | --- |
-| [evals/reports/latest.md](evals/reports/latest.md) | 11 个场景 × 10 个指标的实测报告（含与上次的趋势对比） |
-| [evals/reports/mutations.md](evals/reports/mutations.md) | 变异测试：弄坏 6 个护栏，评测必须全抓住 |
-| [evals/reports/latest.json](evals/reports/latest.json) | 机器可读版，给 CI / 趋势图用 |
-
-Console 里可以一键跑 A/B/C 对比（数字来自实测），点开任意一个 run，能看到：**trace 时间线 → diff → 上下文 → 成本 → 审计链（可一键验证）→ 独立验证**。
-审计链断了会直接显示 `断裂 @ #N` 和原因。
+后端（仓库根目录）：
 
 ```bash
 cd backend
-python -m app.evals            # 跑 11 场景 → latest.{json,md}，并追加一行历史
-python -m app.evals --mutants  # 跑变异测试 → mutations.{json,md}
-python -m app.evals --only E04,E07   # 只跑子集（写 partial-*，不覆盖 latest）
+uv sync --group dev
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-指标：`safety_violation_rate` / `verification_pass_rate` / `approval_coverage` /
-`plan_churn` / `context_dropped_required` / `fallback_success` /
-`duplicate_commit_rate` / `avg_cost_cny_per_run` / `fallback_rate` / `p95_latency_ms`。
+前端（另一个终端，Node >= 22.12）：
 
-Console 里还有「场景回放」：点 E01–E08 任一个，服务端跑一次评测并当场展示断言与成本
-（用临时库 + mock 模型，不写你的数据）。
+```bash
+cd frontend
+npm ci
+npm run dev:h5
+```
 
-设计说明见 [04 评测与交付 §8.5](docs/04-evals-and-delivery.md)。
+前端默认 5173，开发代理指向 8000；健康检查 `/api/v1/health`，本地 Swagger `/docs`。环境模板见 [.env.example](.env.example)。启动后端会初始化所配置的数据库、种子数据及加法迁移；测试请使用临时数据库，勿指向生产库。
 
-## 文档索引
+## 文档入口
 
-- [01 产品与 MVP](docs/01-product-and-mvp.md)：定位、范围、用户旅程、演示脚本、验收
-- [02 页面线框](docs/02-ux-wireframes.md)：Console 3 页、Web 用户端、小程序 3 页
-- [03 领域模型与协议](docs/03-domain-and-protocol.md)：表结构、PlanPatch、Agent 图、API、权限
-- [04 评测与交付](docs/04-evals-and-delivery.md)：完整版：20 场景、三档矩阵、变异测试、3 周计划（backlog）
-- [05 一周冲刺（裁剪版）](docs/05-one-week-sprint.md)：8 场景、1 页 Console、3 变异；作为进度失控时的回退方案
-- [06 全量 P0 冲刺](docs/06-full-scope-sprint.md)：**当前执行版**：20 场景、3 页 Console、周复盘、餐食库、真实 LLM/微信/Postgres
-- [07 环境与部署](docs/07-environment-and-deploy.md)：域名、DeepSeek、Docker、HTTPS、无 AppID 的小程序策略
-- [08 AI Key 安全与网关](docs/08-ai-gateway-security.md)：用 Worker/SCF 隔离 DeepSeek Key，服务器只持可撤销 token
-- [09 最简单网关操作](docs/09-simple-gateway-walkthrough.md)：Cloudflare Worker 逐步操作 + 最小代码 + 验证命令
-- [10 代码地图与流程图](docs/10-code-map-and-flows.md)：**给不熟 Python 的人**：目录结构、Python↔Java 对照、架构图、膝痛补丁全流程图
-- [11 进度复盘](docs/11-progress-review.md)：这两天做了什么、完整链路图、LangGraph 缺口与下一步
-- [13 LangGraph 接入](docs/13-langgraph-integration.md)：状态设计、节点包装、interrupt/checkpoint、API 改法与测试
-- [14 Harness 控制平面](docs/14-harness-control-plane.md)：生命周期、上下文、状态、验证、工具治理、审计、成本的差距与路线
-- [16 Graph API 接入模板](docs/16-graph-wiring-template.md)：patch_id/thread_id、路由改写、resume、测试模板
-- [17 Run 生命周期与 Verifier](docs/17-run-lifecycle-and-verifier.md)：AgentRun 状态机、独立验收、测试模板
-- [18 剩余工作清单](docs/18-remaining-work.md)：Evals、Console Trace、token/cost、audit、生产收口与优先级
-- [19 当前阶段与最终优先级](docs/19-final-priorities.md)：90 tests/8 Evals/6 变异已完成，剩余前端账号、CI、部署、演示
-- [20 订餐与知识 RAG](docs/20-food-ordering-and-rag.md)：3 个推荐 + 平台深链、知识库检索/引用、分阶段落地
-- [37 知识库检索评测](docs/37-knowledge-search-eval.md)：84 条评测、旧加权 vs BM25（82%/96% → 92%/100%）、剩余缺口与面试讲法
-- [21 今日规划 Agent](docs/21-agentic-today-planner.md)：工具清单、agent loop、输出契约、UI 与 Evals
-- [22 面试总结与架构](docs/22-interview-and-architecture.md)：架构图、代码地图、Agent/Workflow 定位、30 秒/2 分钟/15 分钟讲法、高频追问
-- [23 工业级差距与面试策略](docs/23-industrial-gap-and-interview-strategy.md)：差距矩阵、一周补强、定位话术、目标岗位
-- [12 架构总结](docs/12-architecture.md)：**架构风格判定**（分层单体/贫血模型，不是 DDD）、分层与依赖规则、聚合边界、状态机、9 条 ADR、技术债与演进路线、面试讲稿
-- [15 上线前修改清单](docs/15-prelaunch-checklist.md)：**上线前逐条过**：10 个阻断项 + 8 个建议项 + 验证/回滚；配套 `deploy/preflight.sh` 自检
-- [22 注册登录与防刷](docs/22-auth-and-abuse.md)：**本轮**：威胁模型、四道闸口（总量上限/熔断/分层限流/一次性票据）、密码策略、实测结果与没做的部分
-- [21 skill 驱动的计划生成](docs/21-skill-driven-plan.md)：**本轮**：Node 桥接 healthy-fitness-coach、模型编排 + 本地安全门、生成草案 → 确认 → 落版本、补丁改为用户自定义
-- [20 一句话改计划](docs/20-flexible-patch-flow.md)：**本轮改版**：可协商草案、新增 3 张表与 7 个接口、热量口径、TabBar 与抽屉交互、已验证/未验证
-- [生产部署模板](deploy/README.md)：systemd + Nginx + 现有 Postgres 容器（当前实际方案）
+- [当前架构](docs/ARCHITECTURE.md)
+- [Agent 运行、确认与验证边界](docs/AGENT_RUNTIME.md)
+- [主要 API 与完整路由清单](docs/API_REFERENCE.md)
+- [开发、测试与维护](docs/DEVELOPMENT.md)
+- [部署操作](deploy/README.md)
+- [审计结果和删除依据](docs/CODEBASE_AUDIT_REPORT.md)、[保留待确认项](docs/UNUSED_CODE_REVIEW.md)
 
-## 已锁定决策
-
-1. **P0 只做“4 周减脂 + 计划修复”**，不做增肌/康复/医疗解读。
-2. 核心场景：第 2 周膝痛 + 只能练 2 天 → 最小补丁 → 安全门 → 审批 → v2 → 可回滚。
-3. 只做“计划 + 打卡 + 审批 + 简单餐食建议”，不做自动点餐/买菜。
-4. Console 3 页，小程序 3 页；Console 只在 Web。
-5. **P1 才做上下文 Harness**（Goal/Constraint 账本、Context Pack、压缩评测）；P0 只记录 `ContextSnapshot` 口子。
-6. **P2 才做 RAG/健身计划扩展**；P0 只留 `KnowledgeProvider`、`Evidence`、`PolicyPack` 接口。
-7. 演示数据使用合成数据，不爬电商/不做真实医疗数据。
-8. 默认后端 Python + FastAPI + LangGraph，前端 Vue3 + uni-app；Java 经验用于契约、状态机、权限、测试。
-9. **1 周全量冲刺**：Postgres、真实 LLM + 模板兜底、真实微信登录 + demo 兜底、20 场景、3 页 Console、5 变异。
-
-## 待确认
-
-- 小程序 AppID：**暂无**。H5 主演示；小程序代码/模拟器并行；AppID 下来后接真实登录。
-- 域名：`www.agentworkout.online`，备案完成；待配 DNS A 记录 + Caddy HTTPS。
-- LLM：DeepSeek；Key 写服务器 `.env`，不要发聊天。
-- 服务器：无 Docker，今天安装；失败走原生 systemd。
-- 后端是否坚持 Java；若坚持，Spring Boot BFF + Python Agent 服务，工期增加。
-- 已确认：全职 1 周（2026-10-31 ～ 2026-11-06），11/07 缓冲。
-
-## 下一步
-
-已完成：注册登录 + 防刷（分层限流 / 全站熔断 / 一次性票据 / 账号上限）、教练 skill 桥接（训练 + 食谱 + 摄入）、画像录入、计划草案多轮确认、
-用户自定义补丁（预设 + 自由文本，模型定向修改 + 确定性校验）、训练记录与热量统计、
-TabBar 四页、Console 观测面、11 场景 Evals + 6 变异体、审计链。
-
-1. 浏览器里过一遍五页与两个抽屉（当前环境没有浏览器，只做了构建期检查）。
-2. 用真实 `DEEPSEEK_API_KEY` 跑一次生成，统计模型 tool-calling 的成功率与成本。
-4. `docs/15` 的服务器侧阻断项：备份定时器、Postgres 超级用户收敛、端口核验。
+编号文档、学习笔记、产品评审和历史评测只作各自用途的参考，不代表当前架构或本次验证结果。维护规则见 [AGENTS.md](AGENTS.md)。

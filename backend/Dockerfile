@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir .
 # 镜像自检：打印 node 版本；skill 没 vendor 时只告警（运行时会走本地兜底）
 RUN node --version \
  && test -f /app/vendor/healthy-fitness-coach-skill/agent-integration/coach.js \
- || echo "WARN: skill 未 vendor，运行时会走本地兜底（见 docs/32）"
+ || echo "WARN: skill 未 vendor，运行时会走本地兜底（见 docs/DEVELOPMENT.md）"
 
 EXPOSE 8000
 

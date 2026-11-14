@@ -1,0 +1,26 @@
+{
+  "6d2022025ad292394ffe823339d1536460f626a797c2561ce20dcad83efd9afc": [
+    "docs/evidence/plan-display/plan-separated-meals-desktop.png",
+    "docs/evidence/workout-progress/plan-separated-meals-desktop.png"
+  ],
+  "cc4b5f02c83f40735b8880decb53c893b0608f060758f3aabd2969c435be4f1c": [
+    "docs/evidence/plan-display/plan-rest-day-desktop.png",
+    "docs/evidence/workout-progress/plan-rest-day-desktop.png"
+  ],
+  "b526be390171ba0ffbd7515c04627f8f2ce91f3562c7087a711dd2d13ce81798": [
+    "docs/evidence/plan-display/plan-separated-meals-mobile.png",
+    "docs/evidence/workout-progress/plan-separated-meals-mobile.png"
+  ],
+  "96b890754e84492f0c877f4ae45998ad2759ca59976e668a92ac4ad3739f37ad": [
+    "docs/evidence/scroll-replan-fix/new-cycle-progress-mobile.png",
+    "docs/evidence/workout-replan/new-cycle-progress-mobile.png"
+  ],
+  "f37ba5df4a8287085097033bc92a45944a2ca2baa99d902bb5b0e422b6ed4778": [
+    "docs/evidence/scroll-replan-fix/replacement-preview-mobile.png",
+    "docs/evidence/workout-replan/replacement-preview-mobile.png"
+  ],
+  "e525c81f8c33ff30e68f5e828e6835600ccb7e618a838483c467a8eefb5a76e8": [
+    "product-review/evidence/23-all-done.png",
+    "product-review/evidence/24-feedback.png"
+  ]
+}

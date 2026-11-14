@@ -1,11 +1,11 @@
 # PlanHarness 生产部署：systemd + Nginx + 现有 Postgres 容器
 
-> 适用当前服务器：Ubuntu 24.04，2C2G，已有 Nginx，已有 `pg` 容器，API 不跑容器。  
+> 部署目标模板：Ubuntu 24.04，2C2G，已有 Nginx，已有 `pg` 容器，API 不跑容器。
 > **不要运行 `docker-compose.example.yml`**：它会再起 Postgres/Caddy，和现有 Nginx/端口冲突。
 
 ## 1. 结论
 
-你的架构是合理的：
+此模板的请求路径：
 
 ```text
 浏览器 → Nginx :80/:443 → uvicorn 127.0.0.1:9200 → Postgres 127.0.0.1:5432
@@ -25,17 +25,17 @@
 5. Nginx 加 `X-Forwarded-*`、120s 读超时、限流。
 6. uvicorn 只开 **1 worker**，2C2G 不要开多 worker。
 
-## 2. 先别动：过 22:00 Gate
+## 2. 发布前核验
 
-今晚先保证现有服务能跑：
+先备份业务数据库、checkpoint 和现有环境配置，记录当前服务单元与版本，并在隔离环境验证目标版本。下列步骤是部署模板，不是本次已执行的生产变更；域名、数据库角色、目录和服务名必须按实际环境核对。
 
 ```bash
 systemctl status <当前服务名> --no-pager
 journalctl -u <当前服务名> -n 100 --no-pager
-curl -sS https://www.agentworkout.online/api/v1/health
+curl -sS http://127.0.0.1:9200/api/v1/health
 ```
 
-Gate 过了，明天上午再做非 root 迁移，避免今晚把可用服务弄挂。
+先完成 3.4.1 的专用数据库角色/建库，保存同一份密码，再按 3.4 生成环境文件；不要先生成配置后又随机创建另一个密码。已有数据库先核对，不重复覆盖。应用启动包含加法建表、schema 补齐和种子/回填，需核验日志；启动成功不能代替迁移成功。
 
 ## 3. 迁移步骤
 

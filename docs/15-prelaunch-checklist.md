@@ -1,5 +1,7 @@
 # 15 上线前修改清单
 
+> 参考资料，非当前实现说明。保留原设计、教程或决策供查阅；其中历史排期、数量、旧链路与目标值未逐项确认为当前事实。当前入口见 [架构](ARCHITECTURE.md) 与 [运行契约](AGENT_RUNTIME.md)。
+
 > 用途：上线（或对外演示）前逐条过一遍。**A 类全绿才允许上线**，B 类可延后。
 > A 类已经脚本化：`sudo ENV_FILE=/etc/planharness/planharness.env deploy/preflight.sh`
 > 本地预演：`ENV_FILE=backend/.env deploy/preflight.sh --soft`

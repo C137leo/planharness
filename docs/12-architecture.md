@@ -1,8 +1,10 @@
 # 12 架构总结（Architecture Summary）
 
+> 参考资料，非当前实现说明。保留原设计、教程或决策供查阅；其中历史排期、数量、旧链路与目标值未逐项确认为当前事实。当前入口见 [架构](ARCHITECTURE.md) 与 [运行契约](AGENT_RUNTIME.md)。
+
 > 对应代码：`backend/` 工作区（20+ 个接口 / 14 张表 / 约 5000 行 / 90 个测试全绿）
 > 用途：面试讲解、新人接手、以及「这个改动该放哪一层」的判断依据。
-> 配套阅读：[10 代码地图与流程图](10-code-map-and-flows.md)（看代码怎么跑）、[03 领域模型与协议](03-domain-and-protocol.md)（看表结构与契约）。
+> 配套阅读：[10 代码地图与流程图](ARCHITECTURE.md)（看代码怎么跑）、[03 领域模型与协议](ARCHITECTURE.md)（看表结构与契约）。
 
 ---
 
@@ -488,4 +490,4 @@ JWT 的卖点是服务端不存会话，代价是**签出去的 token 收不回�
 
 ---
 
-*相关文档：[10 代码地图与流程图](10-code-map-and-flows.md) · [03 领域模型与协议](03-domain-and-protocol.md) · [06 全量 P0 冲刺](06-full-scope-sprint.md) · [生产部署模板](../deploy/README.md)*
+*相关文档：[10 代码地图与流程图](ARCHITECTURE.md) · [03 领域模型与协议](ARCHITECTURE.md) · [06 全量 P0 冲刺](CODEBASE_AUDIT_REPORT.md) · [生产部署模板](../deploy/README.md)*

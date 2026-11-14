@@ -1,0 +1,380 @@
+[
+  {
+    "path": "frontend/dist/build/h5/assets/DesktopSidebar-Dpipnv0i.css",
+    "sha256": "c6a885d78d2ac694fd0c5d8652e57d7cb3e75661a6ef404de3c099e03dc06423",
+    "size": 26863,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/DesktopSidebar.qdhUqwAl.js",
+    "sha256": "0723b3a02bcdcd2165f82d63a961402f2aefa2be992308ade30eb82fabb7caa4",
+    "size": 65934,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/_plugin-vue_export-helper.BCo6x5W8.js",
+    "sha256": "a7dbb0eaed9de79041d555c4563be4bb0514099b8d169a2b548ab2d07102cb55",
+    "size": 91,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/dates.PkUS0sqI.js",
+    "sha256": "ab8aef269cc3d94aa511d130902a1ecbcac68f7a96d19fc64b6e9b78bf2a6015",
+    "size": 2742,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/index-Ac6tPq5O.css",
+    "sha256": "a98e8cbb1cd20861c669befe80b631bc87a349907cef2d94f84bcda8ce34bf59",
+    "size": 983,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/index-BZcyEmvm.css",
+    "sha256": "d8b953a41cfd97b5bc7578224e7cd0b1b3d3cc811df48f816fc475fed25b1e3c",
+    "size": 2095,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/index-BbIRrql8.css",
+    "sha256": "44a9801726e2cf56eb5516ee602250f2c09ffdc7411f5bfa2340f4aee0fc0af5",
+    "size": 13599,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/index-BgwmH_eh.css",
+    "sha256": "db370488c29e4012ef51f135f2d45515d114bfe8ffb018b18e1b98c5a8a2ceb7",
+    "size": 1485,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/index-CSNwiNYP.css",
+    "sha256": "639f2f737f16d5db65f9b7d289f002634fb6b65777f6794e31b86cbe478d3c8e",
+    "size": 5137,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/index-C_Ux6XYU.css",
+    "sha256": "c606bbac34b8c9a683f16c97b2c1b7817159360c63c83791c63a9667ecb7f019",
+    "size": 18379,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/index-Cs8kfBnI.css",
+    "sha256": "77ac122b7b460c625c2236d09b03918d72ad06515eb6430255b9af55cda98193",
+    "size": 5275,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/index-DZ5w0MhV.css",
+    "sha256": "cea6cb3b191986064a864abe4fb7f31336683d38b8195ca51fc2cb329addc946",
+    "size": 3908,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/index-DceqMidJ.css",
+    "sha256": "f931af23aab24ad9d4d3fe9b956fc92d52ec9e5cd5dd582b941ca6973f3a07af",
+    "size": 7464,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/index-Dh18g590.js",
+    "sha256": "ca1e45788df2e9ba91d06f16ec65b5574c6fae267adcd384bb309fa5ced08023",
+    "size": 317104,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/index-ZaARCk3F.css",
+    "sha256": "2cb29f0656216bf18bc2e1d242f4e02f5c913e4e721d4ced8b63dcc578bda065",
+    "size": 847,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/pages-approval-index.3nXWSmsP.js",
+    "sha256": "c00c1bde75f4ea4b82502b90dc2011202ba23c9a3e3f98c7570280a203761c1c",
+    "size": 7302,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/pages-checkin-index.D-O8TPDo.js",
+    "sha256": "1b29ca0674efd319e3c03de26bc62ea1611ed271872855d79d26f4ca093f6efb",
+    "size": 7268,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/pages-console-index.ifGcbgxR.js",
+    "sha256": "767a344156ea0453edae59f0752420614834233bc10ef53d7138aa5796791790",
+    "size": 29760,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/pages-login-index.B8lTMY8T.js",
+    "sha256": "add0b8b8e3ecacada562e5b374875c36f51113c3b05c29513d3ef0c0ac6ef451",
+    "size": 6389,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/pages-plan-index.DM2hB06I.js",
+    "sha256": "379b41aa496efe2eaf3d42cf128d31d6c239a90177d49566fe86368fc4100fb4",
+    "size": 20144,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/pages-profile-index.BfWI2mVE.js",
+    "sha256": "0f6c02152a594c83cb60018dbe54f4742b0c08450dce4969c87e291f392a4ad5",
+    "size": 18851,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/pages-progress-index.C4mXrrGF.js",
+    "sha256": "6580d2b5ccaf0663d22ba41aa120eb70a3f0ada3998fbd31312f814b1201b30c",
+    "size": 12052,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/pages-today-index.CI8Pbk24.js",
+    "sha256": "4f593bf54254e9fe54a4172e51098121722bd388e75afa594cde7d65678ffc9e",
+    "size": 41048,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/pages-workout-index.tYJhah3U.js",
+    "sha256": "7f8ef0a1ed17a9b085615570c4fb86bafec40c7f31ad5204ee47d6f7ea295030",
+    "size": 15078,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/thumbs.B7X76LXr.js",
+    "sha256": "ab2a727503b2ce26e8bb40eb05f48af02f9d2a615e43bb0ef4ba90cee16240df",
+    "size": 2363,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/assets/uni.192b9c7b.css",
+    "sha256": "192b9c7bf28faaee91c636fb9a7eacba52fe7e4e21b5719ac0601fa67c43959a",
+    "size": 15599,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/index.html",
+    "sha256": "b2010f5a5fe77e012e641347c61533540fafed50bd2585a000f70e6c6f6b4fb9",
+    "size": 468,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/bg.jpg",
+    "sha256": "fe6f61aebb60fa193b52f64103261bd0bc774dd38602594b9f5375d9a2002d1b",
+    "size": 297873,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/back.jpg",
+    "sha256": "f70131c5129611f33451bb9e3265138e4dc7c2aae28344b82ca46563b06b87c4",
+    "size": 12103,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/chest.jpg",
+    "sha256": "8e96273eaa9ab5e41c16c68b93555d7ce1a1c13a0dfd6eec7eba0184952f6e00",
+    "size": 10122,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/core.jpg",
+    "sha256": "9a025ea2a701826aac631b4cdd741597fab4e500d9a05d06bfa84e8f6962134e",
+    "size": 9815,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/dead-bug.jpg",
+    "sha256": "43d6c62abae2a897b09457473a45a130f282c6ed640935650a603aa60b8f98db",
+    "size": 21473,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/deadlift.jpg",
+    "sha256": "ea97572431f28732381c7dcc04aef48caa7b45805243040489b7bce477e16158",
+    "size": 21067,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/dumbbell-bench-press.jpg",
+    "sha256": "a5770c5b8a048d7a07bac98f272f3322e1299992ae07d17d3c71c23f181426b1",
+    "size": 23504,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/hip.jpg",
+    "sha256": "d90cdda0ff218902c17a88c49bad9379c6e27f11aa31401fb050396c55f1d380",
+    "size": 8651,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/leg-press.jpg",
+    "sha256": "c77af9fda03fc35e4b15e85fd603f5955378a3892eb2f787341fa4ba55cbaff9",
+    "size": 35664,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/legs.jpg",
+    "sha256": "250e05fb66992aca2ef0a6e962ccd484b3f02f88eac79792cc067398bb16f3e2",
+    "size": 9636,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/pull-up.jpg",
+    "sha256": "139c4eb3a73f149a518dffe1a8500cf4b8840b81892fc13ed766ac6b9915b608",
+    "size": 24112,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/seated-row.jpg",
+    "sha256": "5373833a64e607c4040954817d7701b5914324cc6a78c3ddd9acedca5e7ca97c",
+    "size": 26721,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/stretch.jpg",
+    "sha256": "069f823c763da4af8cd9707a5a6f89f80f30002d63316ac284c90760dff01b90",
+    "size": 10054,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/build/h5/static/ex/walking-lunge.jpg",
+    "sha256": "740367b3c505d8a653c3bd3593b61dabcdff62e58d512ab05420be56d08630e8",
+    "size": 22543,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  },
+  {
+    "path": "frontend/dist/index.html",
+    "sha256": "9a42533f5db00ff2b04c1b1c9a22b3e761e0067f7f15273d4c14907900da5afd",
+    "size": 763,
+    "action": "remove_from_git_index_keep_local",
+    "reason": "uni build generates frontend/dist/build/h5 from src; deploy/nginx-planharness.conf serves build output but does not need tracked bundles",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "cleanup_commit": null
+  }
+]

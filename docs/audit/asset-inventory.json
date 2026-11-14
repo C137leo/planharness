@@ -1,0 +1,1349 @@
+[
+  {
+    "path": "PlanHappiness-Vue-UI-Reference/design-reference.png",
+    "sha256": "81b67f7f8b296a9cce3e42d2379ab16b2443ce653d59e94eff2232d7b4032261",
+    "size": 1895687,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "PlanHappiness-Vue-UI-Reference/public/assets/fitness-equipment.svg",
+    "sha256": "ab1dd81a907545d0a843da15bc2bb0915c24520b8c48901b9aa9fa74c7cdd909",
+    "size": 683,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "PlanHappiness-Vue-UI-Reference/public/assets/exercise-pushup.svg",
+    "sha256": "3d598c95d10467538815fbd0b390d60a0a5ffe124440a00533c784edec753fc9",
+    "size": 591,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "PlanHappiness-Vue-UI-Reference/public/assets/city-fitness.svg",
+    "sha256": "88c3591eebe874c51da55fc4b6d78d27922c5185ee8b0ed78da16a14ff620a6c",
+    "size": 1295,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "PlanHappiness-Vue-UI-Reference/public/assets/exercise-plank.svg",
+    "sha256": "db4e1772e7a0eebd2a27ab48d28af59da8f87355191dd8c24efef62f8dfbb536",
+    "size": 543,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "PlanHappiness-Vue-UI-Reference/public/assets/avatar.svg",
+    "sha256": "91bf688eac9fdb40f8e08154110de12394e7c1d12784bb471af9fbe724bbd53a",
+    "size": 630,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "backend/背部锻炼.png",
+    "sha256": "e7eef815b871d50dd7a8b1b9dd2b5fd5a9441ff6122266d40e115f3ad6374df5",
+    "size": 2653063,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "backend/核心锻炼.png",
+    "sha256": "c3d0bc6973ae0d640fdbacd7d6dd1b0fb35e3ae0abaa1b3d0b069be2510d0b1c",
+    "size": 2498915,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "backend/拉伸.png",
+    "sha256": "ede56f218a330c9aa7f2e465c8c468d2f1166bd241780bad60bc661cc7bfd711",
+    "size": 2426070,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "backend/胸部锻炼.png",
+    "sha256": "f6f40d439258ee6724e7faaae16ba044e325dab892e11e8b13df0196fd71340b",
+    "size": 2638966,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "backend/臀部锻炼.png",
+    "sha256": "13934e4cf94059a7d2ed3a469f77e5b4def6803063a0a1f38eed9bea540befa4",
+    "size": 2353163,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "backend/腿部锻炼.png",
+    "sha256": "a5604c641232f791b8aeccc3bdff99c1f7f0222a13593dc91878271a0db81a04",
+    "size": 2327638,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "backend/app/static/swagger/favicon-32x32.png",
+    "sha256": "3ed612f41e050ca5e7000cad6f1cbe7e7da39f65fca99c02e99e6591056e5837",
+    "size": 628,
+    "references": [
+      "backend/app/openapi_docs.py"
+    ],
+    "category": "A",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/assets/exercise-sources/腿举.png",
+    "sha256": "bbb4aed6358d7e497a5df045ab1dba8d1a5ac9f29a1f0888247f0a178922eaf9",
+    "size": 2703190,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/assets/exercise-sources/硬拉.png",
+    "sha256": "f1394a6afa01db23ada5472df8c4c72c3e71193c734062313c57be36872bb92c",
+    "size": 3266224,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/assets/exercise-sources/哑铃卧推.png",
+    "sha256": "b62bcd3dac273cff192f4de1c6e1ac71fc66904e205cdd25c7871c8e0c4a503d",
+    "size": 3455254,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/assets/exercise-sources/划船.png",
+    "sha256": "77393043a1ab895e6484b040968f10d053dafe637fde7868c4dc38c10b000adf",
+    "size": 3598959,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/assets/exercise-sources/死虫式.png",
+    "sha256": "8e4f09fc4cabcc1d440103d48fac535bf2e848a5b703828aa89f1ca153ab6739",
+    "size": 3355838,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/assets/exercise-sources/弓步行走.png",
+    "sha256": "48bd0a1fa02799a44c0a98522a2c452f4f068dffc730917c09ac95636de28812",
+    "size": 3361573,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/assets/exercise-sources/引体向上.png",
+    "sha256": "c9ac4628fcf49333c5ae483186fc6d868972d732401ea4e6e5d327c8ba7837e0",
+    "size": 3427085,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/capability-migration/commerce-chat-browser-preview.png",
+    "sha256": "6e20250d9bad56d91c4301bb38945ad89fa50a2adc3464d2ddd6e94b6122b1d1",
+    "size": 454094,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/capability-migration/commerce-chat-browser-submitted.png",
+    "sha256": "40866314a40aeb155ddd12150b3a7e708420a89e12883960eebe352c0ef94669",
+    "size": 456161,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-availability/switch-consent-desktop.png",
+    "sha256": "f7eab0bb34b38089d6acbd599e48a3db6abf71caa624d230a4eb10530de91e00",
+    "size": 398453,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-availability/stock-recovery-mobile.png",
+    "sha256": "8d077cc3fd68b45867e089892c285232eacb8d400d1a6213099b0f20a4b2a3bd",
+    "size": 153532,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-order-experience/selected-wings-desktop.png",
+    "sha256": "029f7d3caa6c82385c9786d5d2597151b7f12c653cbea34254848904bc85d173",
+    "size": 410265,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-order-experience/selected-wings-mobile.png",
+    "sha256": "8160756143e04aceb9fad06e28a80e40527822ed0d9811ae68728ef1ee6f84c5",
+    "size": 131582,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-order-experience/long-menu-desktop.png",
+    "sha256": "ede919bc6f52bf105e1602004abd7e93857a0a465e9f09e09cbce8b5b4e8a6d7",
+    "size": 417981,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-order-experience/initial-wheel-inspection.png",
+    "sha256": "52f41b148b85b8cb5b7928a0a493fc8c8568c85b3d293605cadff5e2225f40a5",
+    "size": 310255,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-order-history/history-desktop.png",
+    "sha256": "2ffd645bab0948feda00ddceaf07abc32375297d1637a1040ddaa71beef7b0ee",
+    "size": 283485,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-order-history/history-mobile-detail.png",
+    "sha256": "a93925d5c24d4f5994648ac16f8b964697d79bef6fb8ee2c620fdc7e60d1bce6",
+    "size": 96111,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-order-lifecycle/existing-unpaid-desktop.png",
+    "sha256": "34db8f6747283a87ed264a816b945f540165b76dc553136c52980034718a2c00",
+    "size": 444569,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-order-lifecycle/existing-unpaid-mobile.png",
+    "sha256": "e6a0b50d4b08296512614b26d32e8ccd94799d865c8e6eb8404cacff9c3d60fd",
+    "size": 133556,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-selection/selection-quote-desktop.png",
+    "sha256": "c9cd47ad6cf0338fd57f85b92b23fcd06b2f59097ebad855edac57d3b5c9c8cf",
+    "size": 475448,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-selection/selection-quote-mobile.png",
+    "sha256": "28eb36ae4a867084e245455be5f9b6889113b9e344ed96f4efbe6021460a0a19",
+    "size": 157433,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-selection/selection-before-confirm.png",
+    "sha256": "0e2fac8d34d391e3cb6fa8b6c36d370ffdd760b4f9ecb6efbab1afb85a012cd3",
+    "size": 463549,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-selection/selection-detail-desktop.png",
+    "sha256": "136f370f0eb7985d7ba7cd148c8948ead43b7ed31c0c0fe46da10371a0f0ce98",
+    "size": 431245,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-selection/selection-detail-mobile.png",
+    "sha256": "a699d6efb508105c2d7605cb1353fa474fc4dc5c99dfeae1ace73906aac54db2",
+    "size": 141455,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-ui/nutrition-desktop.png",
+    "sha256": "e42a2ade3bfbd48c24241e5ba91bbee6b9dbf2eec51fb139ce80cb3770a8b77e",
+    "size": 457636,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-ui/token-desktop.png",
+    "sha256": "3a0929f124c8885611d2cfb591843f20e7be87e1d0ad873efa1200c69c9b0e6f",
+    "size": 429640,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-ui/checkout-desktop.png",
+    "sha256": "3ee2a31fa7dffe5056e968186cf9f248b6194b8541f744da5074ded2e6a9819b",
+    "size": 443807,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-ui/checkout-mobile.png",
+    "sha256": "d043017961c77f0d7498eccfe1d704d55d9395d46bccdfd4a58ecded40d05a83",
+    "size": 153596,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-ui/stores-desktop.png",
+    "sha256": "3a7f9b5764b8337b35753775a0c4832fb65c029f6e5905e69823f18dd4c8e7e5",
+    "size": 455849,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/commerce-ui/payment-mobile.png",
+    "sha256": "a5e70d6d8d587f3230bd3b82e8f96639ea80d5d9fa0dcb236187a822797a9e5a",
+    "size": 131852,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/console-runtime/console-changes-desktop.png",
+    "sha256": "ec3c83f82d3e8f3f8030c0686af96ff72d79d9b06a8c7721885a255b4b7efbc3",
+    "size": 146759,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/console-runtime/console-mobile-details.png",
+    "sha256": "ae99bf12fcdf597770a9152f57d083e3c4066fd55f200839e16d2a2068cd36a7",
+    "size": 63705,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/console-runtime/console-pending-desktop.png",
+    "sha256": "01d9d46a6d31ea3152b13b24e814257823595c1b328796c5efee406d98082737",
+    "size": 147931,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/day-revision-chat/rollback-remaining-sets-mobile.png",
+    "sha256": "58233dc8af1bffdcb97a1ee5e9efc3346428471eb771dcb46a1e5a41a31f4433",
+    "size": 151762,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/day-revision-chat/rollback-remaining-sets-desktop.png",
+    "sha256": "c7297b8ec87a00ba0b15d0e1f1a2d980e083befb1c85e34473f3cfc2eefc0692",
+    "size": 397694,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/day-revision-chat/draft-before-confirmation-desktop.png",
+    "sha256": "a8013a084d1c584ab885ed70c95cf59041f6b5b5b84c1e0aa298762f2207fbf0",
+    "size": 437884,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/day-revision-chat/draft-diff-mobile.png",
+    "sha256": "b3a327a0f0d1f4aeaa414a43c8d65b54ab9631d7ecf8a248c22b361c0d3b1c1e",
+    "size": 161617,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/day-revision-chat/draft-edited-desktop.png",
+    "sha256": "d4b89784797a3b5a908b1342a0a928a321edc1eff5a2525813873772cbddff40",
+    "size": 439998,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/day-revision-chat/draft-controls-desktop.png",
+    "sha256": "d3ed971885e32039678869b942e038914814e63b4e1156113148a9ca77275e70",
+    "size": 476893,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/plan-display/plan-separated-meals-desktop.png",
+    "sha256": "6d2022025ad292394ffe823339d1536460f626a797c2561ce20dcad83efd9afc",
+    "size": 307716,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/plan-display/plan-rest-day-desktop.png",
+    "sha256": "cc4b5f02c83f40735b8880decb53c893b0608f060758f3aabd2969c435be4f1c",
+    "size": 338526,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/plan-display/plan-separated-meals-mobile.png",
+    "sha256": "b526be390171ba0ffbd7515c04627f8f2ce91f3562c7087a711dd2d13ce81798",
+    "size": 126941,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/progress-scroll/independent-plan-scrollers-desktop.png",
+    "sha256": "3b89c95629631a8ed8929dec2755d99f8f301948f39fb29ea725bc52f4be1ba7",
+    "size": 362599,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/progress-scroll/independent-plan-scrollers-mobile.png",
+    "sha256": "2b62ef7ca9228a9532218698f817b0c824b39da24a227f84c856ae9e43a3027d",
+    "size": 139149,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/progress-scroll/finished-seven-of-seven.png",
+    "sha256": "c1fbd8a1d52b258f7a1a583e03ca5f9a661a35020ee2cd1f2831a966d21cba1a",
+    "size": 374675,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/replan-state-recovery/natural-confirmation-preview-mobile.png",
+    "sha256": "ab3574e5914debcdaa013fd1be2c948ef371f9c940f61f62f975ea26b4521c4b",
+    "size": 159662,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/replan-state-recovery/expired-consent-recovered-desktop.png",
+    "sha256": "870507991c32153a1b7426be2fd8f37c3ebeed16a56b487cad669a179835890c",
+    "size": 423313,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/replan-state-recovery/natural-confirmation-preview-desktop.png",
+    "sha256": "a27516923b8454747cd0ab6176766a28dbc7902c3ed92297990f1fb4e2e0b72b",
+    "size": 447683,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/scroll-replan-fix/replacement-preview-desktop.png",
+    "sha256": "a473e3ef8e1b7431e1deea6c981c39ccb14b9357c691dde11d910c9de47ea0a3",
+    "size": 492623,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/scroll-replan-fix/new-cycle-zero-and-history.png",
+    "sha256": "cd88892d8825ee5d567249de82531faa31f097665e915d8a7180efe0232c14bb",
+    "size": 415022,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/scroll-replan-fix/chat-bottom-scrolls-page.png",
+    "sha256": "4efccc00745a580f5f2c68a1a588a80152370f4edf571c1e891876b3023e0ca8",
+    "size": 403340,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/scroll-replan-fix/new-cycle-progress-mobile.png",
+    "sha256": "96b890754e84492f0c877f4ae45998ad2759ca59976e668a92ac4ad3739f37ad",
+    "size": 136216,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/scroll-replan-fix/abandonment-consent-desktop.png",
+    "sha256": "62d10b5fcde76013edbc9792ff7e59bfffa7335cc7022a1d74c0168c8abd2dee",
+    "size": 447087,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/scroll-replan-fix/replacement-preview-mobile.png",
+    "sha256": "f37ba5df4a8287085097033bc92a45944a2ca2baa99d902bb5b0e422b6ed4778",
+    "size": 159485,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/token-workout/training-records-mobile.png",
+    "sha256": "1e5bdc195b0920a5af488d7f796d6028d66f25d62ba3fa4d8b14afdc8c951e1d",
+    "size": 145597,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/token-workout/token-configured-desktop.png",
+    "sha256": "832355f22bedff17307c5e4317de32df450122449dc763a261c83a8deb09d02b",
+    "size": 398670,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/token-workout/training-records-desktop.png",
+    "sha256": "cc65dc500a6b493e4698b710db1c60a9dbcc683bc96af1378e9d79b5937e0363",
+    "size": 454217,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/token-workout/token-missing-desktop.png",
+    "sha256": "fe0d2f3fe517e74bf74e523590a7ad541f63b1475cf0766189e03622c0f94672",
+    "size": 409142,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workout-progress/plan-separated-meals-desktop.png",
+    "sha256": "6d2022025ad292394ffe823339d1536460f626a797c2561ce20dcad83efd9afc",
+    "size": 307716,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workout-progress/completion-records-mobile.png",
+    "sha256": "77965ef3898ce604c1fdeb69144612377aa1fe8b6ba04da8d79b5f40f1366279",
+    "size": 153453,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workout-progress/plan-rest-day-desktop.png",
+    "sha256": "cc4b5f02c83f40735b8880decb53c893b0608f060758f3aabd2969c435be4f1c",
+    "size": 338526,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workout-progress/progress-adjusted-desktop.png",
+    "sha256": "2c36898c09f729ee5b225e4afa3c727a9ef1e8e8a762bb0dd28d112ac1808429",
+    "size": 388468,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workout-progress/plan-separated-meals-mobile.png",
+    "sha256": "b526be390171ba0ffbd7515c04627f8f2ce91f3562c7087a711dd2d13ce81798",
+    "size": 126941,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workout-progress/calories-two-decimals-desktop.png",
+    "sha256": "bf7328d75b863c8bc1f4b15a33d467439c3ed0ee17da3db8aaad48ba3dcd1005",
+    "size": 318071,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workout-progress/completion-preview-desktop.png",
+    "sha256": "fd6a156303f863ac23f5f2c51958e5b4261ea6951b802bc5a4dd654816c9309c",
+    "size": 422258,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workout-replan/replacement-preview-desktop.png",
+    "sha256": "78ca78d3ba2a811e0810c710cb2b4621f7388d898d172798d1a46574a72fc851",
+    "size": 498718,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workout-replan/new-cycle-zero-and-history.png",
+    "sha256": "d469c2173df3d3c28457e3ca11a9e3b2642a5241c3154b9b736728e0eaa44730",
+    "size": 399142,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workout-replan/new-cycle-progress-mobile.png",
+    "sha256": "96b890754e84492f0c877f4ae45998ad2759ca59976e668a92ac4ad3739f37ad",
+    "size": 136216,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workout-replan/abandonment-consent-desktop.png",
+    "sha256": "374c59e654fe8b015d78e347cda0a2ba8fc3a92f1a7a02a55de6e363d90736b6",
+    "size": 419375,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workout-replan/replacement-preview-mobile.png",
+    "sha256": "f37ba5df4a8287085097033bc92a45944a2ca2baa99d902bb5b0e422b6ed4778",
+    "size": 159485,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workspace-ui-polish/workout-mobile.png",
+    "sha256": "41fa14c6cd1dcf91eee35b61310837790b224c0a8dc8031b49b3ee70d979a744",
+    "size": 135959,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workspace-ui-polish/progress-mobile.png",
+    "sha256": "7d9f6d68cee473edbf76fcd0fb6d1de0677847c25ba1955679e488b60fd4974a",
+    "size": 139388,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workspace-ui-polish/profile-desktop.png",
+    "sha256": "3e340a3290169ad81680ee5e2d69f2d01626f695bc7fc16e52ea3e71b0bfc88e",
+    "size": 395696,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workspace-ui-polish/profile-mobile.png",
+    "sha256": "67fa37fccbaa70b24461d93d0be2147fe70c81e5c71c30054a74e86d1e2cbea7",
+    "size": 136293,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workspace-ui-polish/workout-desktop.png",
+    "sha256": "8111913f6609c39c40fcadb2ebc823b120bf6baef6f60c59bfa186b75f355b6b",
+    "size": 492704,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "docs/evidence/workspace-ui-polish/progress-desktop.png",
+    "sha256": "a8914cd702434552ebe05f7b061b9087e9516b633696a7d2da5d64468b993288",
+    "size": 359816,
+    "references": [],
+    "category": "B",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "frontend/src/static/mcd-official.png",
+    "sha256": "d959167c86611e32b79bf840ea00efd9929950211ddd3249baef55d678255b0d",
+    "size": 4582,
+    "references": [
+      "docs/coach_agent_capability_migration.md",
+      "docs/evidence/commerce-ui/logo-source.json",
+      "frontend/src/components/McdCommerceCard.vue",
+      "frontend/src/components/GlobalCoachWorkspace.vue",
+      "frontend/src/components/McdOrderHistory.vue",
+      "frontend/src/pages/today/index.vue"
+    ],
+    "category": "A",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "frontend/src/static/bg.jpg",
+    "sha256": "fe6f61aebb60fa193b52f64103261bd0bc774dd38602594b9f5375d9a2002d1b",
+    "size": 297873,
+    "references": [
+      "docs/coach_agent_capability_migration.md",
+      "docs/coach_agent_semantic_binding_refactor.md",
+      "docs/coach_agent_full_refactor_report.md",
+      "docs/evidence/coach-dialogues/frontend-build.json",
+      "docs/evidence/coach-dialogues/final_summary.json",
+      "docs/evidence/commerce-selection/verification-summary.json",
+      "docs/evidence/token-workout/verification-summary.json",
+      "frontend/src/App.vue"
+    ],
+    "category": "A",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "frontend/src/static/ex/walking-lunge.jpg",
+    "sha256": "740367b3c505d8a653c3bd3593b61dabcdff62e58d512ab05420be56d08630e8",
+    "size": 22543,
+    "references": [
+      "docs/assets/exercise-sources/README.md",
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "frontend/src/static/ex/chest.jpg",
+    "sha256": "8e96273eaa9ab5e41c16c68b93555d7ce1a1c13a0dfd6eec7eba0184952f6e00",
+    "size": 10122,
+    "references": [
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "frontend/src/static/ex/seated-row.jpg",
+    "sha256": "5373833a64e607c4040954817d7701b5914324cc6a78c3ddd9acedca5e7ca97c",
+    "size": 26721,
+    "references": [
+      "docs/assets/exercise-sources/README.md",
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "frontend/src/static/ex/legs.jpg",
+    "sha256": "250e05fb66992aca2ef0a6e962ccd484b3f02f88eac79792cc067398bb16f3e2",
+    "size": 9636,
+    "references": [
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "frontend/src/static/ex/stretch.jpg",
+    "sha256": "069f823c763da4af8cd9707a5a6f89f80f30002d63316ac284c90760dff01b90",
+    "size": 10054,
+    "references": [
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "frontend/src/static/ex/hip.jpg",
+    "sha256": "d90cdda0ff218902c17a88c49bad9379c6e27f11aa31401fb050396c55f1d380",
+    "size": 8651,
+    "references": [
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "frontend/src/static/ex/dead-bug.jpg",
+    "sha256": "43d6c62abae2a897b09457473a45a130f282c6ed640935650a603aa60b8f98db",
+    "size": 21473,
+    "references": [
+      "docs/assets/exercise-sources/README.md",
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "frontend/src/static/ex/pull-up.jpg",
+    "sha256": "139c4eb3a73f149a518dffe1a8500cf4b8840b81892fc13ed766ac6b9915b608",
+    "size": 24112,
+    "references": [
+      "docs/assets/exercise-sources/README.md",
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "frontend/src/static/ex/deadlift.jpg",
+    "sha256": "ea97572431f28732381c7dcc04aef48caa7b45805243040489b7bce477e16158",
+    "size": 21067,
+    "references": [
+      "docs/assets/exercise-sources/README.md",
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "frontend/src/static/ex/core.jpg",
+    "sha256": "9a025ea2a701826aac631b4cdd741597fab4e500d9a05d06bfa84e8f6962134e",
+    "size": 9815,
+    "references": [
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "frontend/src/static/ex/back.jpg",
+    "sha256": "f70131c5129611f33451bb9e3265138e4dc7c2aae28344b82ca46563b06b87c4",
+    "size": 12103,
+    "references": [
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "frontend/src/static/ex/dumbbell-bench-press.jpg",
+    "sha256": "a5770c5b8a048d7a07bac98f272f3322e1299992ae07d17d3c71c23f181426b1",
+    "size": 23504,
+    "references": [
+      "docs/assets/exercise-sources/README.md",
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "frontend/src/static/ex/leg-press.jpg",
+    "sha256": "c77af9fda03fc35e4b15e85fd603f5955378a3892eb2f787341fa4ba55cbaff9",
+    "size": 35664,
+    "references": [
+      "docs/assets/exercise-sources/README.md",
+      "frontend/src/styles/thumbs.ts"
+    ],
+    "category": "A",
+    "reason": "thumbs.ts精确/模式/部位映射"
+  },
+  {
+    "path": "improvement/evidence/10-set-inputs.png",
+    "sha256": "ea1e2d5ca23a7a2206ef15a8bd6cf898a29cda16f6870eae58093b1d75630430",
+    "size": 406049,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/08-mobile-today.png",
+    "sha256": "8625aab1dd8d4851c5ef8a39c0b408ee6b6b40cec6b8dc5e918aa8f10d89d5b5",
+    "size": 182786,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/12-progress.png",
+    "sha256": "74ff21c8b06c2d56427fecaf806417fe864ab61f72eee6dc15e31d1e096aeeb2",
+    "size": 473981,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/04-plan-v3.png",
+    "sha256": "fa3140d914df340b186d578b53db240634e926cd67e6f8e7ac3beaa59fac6556",
+    "size": 443423,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/06-login-value.png",
+    "sha256": "98d6126b7274dacdf57b3578f8005753cf7ddfc0a5a169fb3f67800b778b3a94",
+    "size": 802865,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/11-injury-agent.png",
+    "sha256": "1398732dc56abc06f55521cfb6939c2ba6827ea04e33823a33bb62c8510ce35c",
+    "size": 354634,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/13-coach-memory.png",
+    "sha256": "a9e4aca3ec6fb9cbdff0aa9154959702caeb4efd6ec8981223bcb4b0f2e7dc17",
+    "size": 401745,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/05-checkin-back.png",
+    "sha256": "e800bae5a3cba44a21fb7efe292c841bb062360e841b9238ff3169e3ee1cf2af",
+    "size": 396014,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/03-meal-log-saved.png",
+    "sha256": "15a63cc6187c297e9d436bec522ef3cb05d7aea04bdce4d3f18aee5fe6c6aaa7",
+    "size": 403301,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/09-workout-v3.png",
+    "sha256": "e44477e2e7bf0db5002eb7250b3f7f0b338d74d9d9d4934f7c643d2a47eaa7d1",
+    "size": 445695,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/14-state-harder.png",
+    "sha256": "f463a047b7027e8740e69a4dd8b93739009380e407109919a5feb85a1ceb470b",
+    "size": 396254,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/01-today-coach-collapsed.png",
+    "sha256": "fe40accbd6093c931be2823b9a1b462b3e4147e4b8eb962ca4427cb8f5090a9d",
+    "size": 447484,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/02-profile-columns.png",
+    "sha256": "81f29578cb9b0e3c10a7762ca6b38544ce1937d06d2f22a4aa0a400ab244a46b",
+    "size": 593734,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "improvement/evidence/07-plan-no-stale.png",
+    "sha256": "16c4870e5861d0f7d1849c3acb0b80a95d57867798b003f6ffeb4f53c2d535a3",
+    "size": 429563,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/25-after-save-workout.png",
+    "sha256": "b54d3aca2b4322b0ff926aba01e51585a65f6be63308d48f5e9dff7b8b760cb2",
+    "size": 611872,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/59-my.png",
+    "sha256": "adb44492b3472fc3b9e271ca940ea898a0c4286a220c00d61467149ea411668f",
+    "size": 201302,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/23-all-done.png",
+    "sha256": "e525c81f8c33ff30e68f5e828e6835600ccb7e618a838483c467a8eefb5a76e8",
+    "size": 479804,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/45-sheet-mid1.png",
+    "sha256": "a5b6387155101234d5d28f35ee798f82e702612bf546df589b1ff04243c6652b",
+    "size": 311419,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/44-sheet-top.png",
+    "sha256": "80662d00d36f5c7a0a35019bfee0f99b9581fdd69d330d134de9aae0bba5d968",
+    "size": 327941,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/05-after-register2.png",
+    "sha256": "9b269588d8d678182990d4a240e2456a7c327533846749d1cfd96f1acac0c802",
+    "size": 479515,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/40-chat-huangmenji.png",
+    "sha256": "9776fe8a61438e96545b2a9151f477a2679053783b75e3172950ba9b483eb098",
+    "size": 414475,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/80b-progress-full.png",
+    "sha256": "ac373a3402e2ab19ed51879a3edc5d061124d5213553dcfac95c34e4afe21703",
+    "size": 509801,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/01-home.png",
+    "sha256": "8c354ce8d7c34bda5a8233b2bb4840ca0c403b1246ecdd73af7c7fec557e1c60",
+    "size": 529168,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/14-generated.png",
+    "sha256": "568bf5f4872d30df2b685f754acb10547e7a9d336ceb82c22d6eb1818a613a11",
+    "size": 196773,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/33-chat-reply1.png",
+    "sha256": "343f5fd7105a66db17b51fcb39920c5f16271930be8d37d7e2f11c5e79aadc39",
+    "size": 384301,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/56-coach-workspace.png",
+    "sha256": "537b1d58f1e4f72fdcba194b86e8320154d6e07f2043b557e79cab5c2cd1a57c",
+    "size": 252402,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/07-profile-1440x900.png",
+    "sha256": "244510369796dc113d0da66e73eaf5d00ec2b22cb72f5f954e065ad5921ed7c5",
+    "size": 435432,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/52-closed.png",
+    "sha256": "180335e41a996fff2ba789ff9afee4c543143f1f06694d618ac300f777f567ae",
+    "size": 409066,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/41-chat-goal-muscle.png",
+    "sha256": "b04d8cf6a4dee814bb6d912568092bce3215279a4a94c4b00b1e27ea95226f0f",
+    "size": 334473,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/78-once-a-week.png",
+    "sha256": "001fe2d798e05da7bf9a1d80dff3223f5c81b07b1666d4c133e46445d91f0d10",
+    "size": 353322,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/18b-today-full.png",
+    "sha256": "841b1b9659190cee6b589c02b24664736ab14c35a24a9f6dee73a2bfafad18fb",
+    "size": 531236,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/39-chat-diet1.png",
+    "sha256": "8a32368266df90bb619855de15c25fb3d45febd8038cbf31fc30e45494866ebe",
+    "size": 322726,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/15-after15s.png",
+    "sha256": "c4c3a5ed342e48c8aeda06c9819df691feea1e69236486bc5ce6f2dfd8daf643",
+    "size": 197449,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/17b-activated-full.png",
+    "sha256": "2ebb9d611f5a0f4239787212cb4c882b49a48be816f5e204ea2059e4e76d9733",
+    "size": 643620,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/20-set-done.png",
+    "sha256": "9cfd284cab059549d03bca021b624d100515a46ed4d9afb768691249a1ba32f9",
+    "size": 430511,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/60-console.png",
+    "sha256": "0d6ccb9205a5aa3cfc303ad1bf5369f0fbc74ee470c38bedfed75b2f578ce0e4",
+    "size": 465407,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/19-training.png",
+    "sha256": "ee2de2f9444ef3f7e64191568acc9cb6abf970766f01f174e575cd0e233faffb",
+    "size": 480460,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/64-swap-sheet.png",
+    "sha256": "6086f44e163c67503426f8f91102841211d475406e7a5321e5e79260dcfba796",
+    "size": 346930,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/02-register.png",
+    "sha256": "dfb4f5e6f9687a1807ff017ec318c1fd31ff9431e3a9e45fb12ebfd3eca60baf",
+    "size": 447009,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/03-register-validation.png",
+    "sha256": "378131e12289e99f325535ab01943e3b590998bc0e8129af8a940850432790fe",
+    "size": 428152,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/38-chat-reply6-weekly.png",
+    "sha256": "18ce45f6eb0a1b4dc6e497e8a44560c9953fad172d8766c9a9f7576e9c74ea16",
+    "size": 377759,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/35-chat-reply3-knee.png",
+    "sha256": "3c06e25c3130895d5cda600b267d25b01303fce4d5f78a0337766bea606e1734",
+    "size": 406890,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/74-login-error-real.png",
+    "sha256": "87538dfafc059229de652c06eb1f1fcdf58f8aec455f43a3772451b52ad6ebde",
+    "size": 656687,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/28-checkin.png",
+    "sha256": "902d48bd3e73892c64df3133985d28fcaffc00875805cb9fa59fc1467d655c77",
+    "size": 395641,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/37-chat-reply5-memory.png",
+    "sha256": "c8f13c79507be17573bdfae2453856b44be7d74c0ca9277155791638088bcee0",
+    "size": 317754,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/26b-today-after-full.png",
+    "sha256": "682c62c0250a8eaf4da54678bbbf116add0b58a0157d82b5d7e4b0ecf37f5f45",
+    "size": 538504,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/62-today-meal-buttons.png",
+    "sha256": "953bbc72f3ca4e628a7072c877ed5b7226403671953a110389fc3ce9ea81560a",
+    "size": 381690,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/21-howto.png",
+    "sha256": "1539d324375a58ac7e60fd43a8b5fefcf3b6d19014ee44832a645215b505be64",
+    "size": 407208,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/82-approval-click.png",
+    "sha256": "528b91242d69cd785251ec8108bd706c71e24e029b47c207abc2cf3c571080c8",
+    "size": 497909,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/79-two-days-exact.png",
+    "sha256": "c2079141b1f537b34ef9136c5c2a8f19d7db51f14a51e5a2c2cf2b8f5d6d884c",
+    "size": 323186,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/29-checkin-full.png",
+    "sha256": "9c224741e0b8c951fc6abcbcefe93a6dc603d1ba98e21ceeff0e153bbd821690",
+    "size": 456881,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/65-mobile-today.png",
+    "sha256": "f2dd8bb858563a8189c432db402533aa04aa1e30542d4098e11012f32ab5aab8",
+    "size": 144886,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/06b-profile-full.png",
+    "sha256": "0eff2241cc6a1c623783b7eb16747ab9d3825681e5df6b962b454acc19313733",
+    "size": 523304,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/36-chat-reply4-two-days.png",
+    "sha256": "9474da4b26d8642e03111892de3ef7a4ad4cb9877182e6b9b89435f30172d954",
+    "size": 371278,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/81-approval.png",
+    "sha256": "f0960a5fbfe010f733d69d47db81ba360bb92f397e81dcb98e892d1e34f684b0",
+    "size": 659558,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/11-after-save.png",
+    "sha256": "cbfbaf4c822d9ee7d086083e3a7a817572b4fea80cf55af56171af2bf2037294",
+    "size": 313518,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/27b-progress-full.png",
+    "sha256": "8f322322fd6138530d0121481c617bf34ec03a2f91a3eb6692def4dd9491dc45",
+    "size": 519227,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  },
+  {
+    "path": "product-review/evidence/24-feedback.png",
+    "sha256": "e525c81f8c33ff30e68f5e828e6835600ccb7e618a838483c467a8eefb5a76e8",
+    "size": 479804,
+    "references": [],
+    "category": "C",
+    "reason": "源码引用或测试证据；未证无用不删除"
+  }
+]

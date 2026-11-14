@@ -1,5 +1,7 @@
 # 30 条知识库在哪、够不够、面试怎么答"为什么不用 embedding"
 
+> 参考资料，非当前实现说明。保留原设计、教程或决策供查阅；其中历史排期、数量、旧链路与目标值未逐项确认为当前事实。当前入口见 [架构](ARCHITECTURE.md) 与 [运行契约](AGENT_RUNTIME.md)。
+
 ## 1. 30 条放在哪里
 
 **源头文件**：`backend/app/knowledge/seeds.py` 里的 `SEEDS`（30 个 dict）。

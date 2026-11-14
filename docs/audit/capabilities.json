@@ -1,0 +1,3756 @@
+[
+  {
+    "capability_id": "workout.remove_action",
+    "domain": "training",
+    "description": "移除指定日期的一个动作；热身也合法。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "workout_action"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "action",
+    "scope_schema": {
+      "target_types": [
+        "workout_action"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "uncertain",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "workout_action"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "workout.skip_action",
+    "domain": "training",
+    "description": "跳过某日动作（只从该日移除，不改长期计划）或标记当前训练条目 skipped。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "workout_action",
+      "session_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "action",
+    "scope_schema": {
+      "target_types": [
+        "workout_action",
+        "session_item"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "uncertain",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "workout_action",
+          "session_item"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "workout.update_action",
+    "domain": "training",
+    "description": "调整目标组数/次数，支持相对变化。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "sets": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets"
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps"
+        },
+        "sets_delta": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": -9,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets Delta"
+        },
+        "reps_delta": {
+          "anyOf": [
+            {
+              "maximum": 99,
+              "minimum": -99,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps Delta"
+        }
+      },
+      "title": "ActionValues",
+      "type": "object"
+    },
+    "target_types": [
+      "workout_action",
+      "session_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "action",
+    "scope_schema": {
+      "target_types": [
+        "workout_action",
+        "session_item"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "uncertain",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "workout_action",
+          "session_item"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "workout.replace_action",
+    "domain": "training",
+    "description": "用目录动作替换一个动作，保留实例 ID。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "sets": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets"
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps"
+        },
+        "sets_delta": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": -9,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets Delta"
+        },
+        "reps_delta": {
+          "anyOf": [
+            {
+              "maximum": 99,
+              "minimum": -99,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps Delta"
+        },
+        "exercise_id": {
+          "title": "Exercise Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "exercise_id"
+      ],
+      "title": "ExerciseArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "workout_action",
+      "session_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "action",
+    "scope_schema": {
+      "target_types": [
+        "workout_action",
+        "session_item"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "uncertain",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "workout_action",
+          "session_item"
+        ]
+      },
+      "arguments.exercise_id": {
+        "role": "source_catalog_exercise",
+        "types": [
+          "exercise"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "workout.add_action",
+    "domain": "training",
+    "description": "在指定日期新增一个目录动作。selected_id 必须是 day ID（添加目的地），exercise ID 只能填 arguments.exercise_id。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "sets": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets"
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps"
+        },
+        "sets_delta": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": -9,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets Delta"
+        },
+        "reps_delta": {
+          "anyOf": [
+            {
+              "maximum": 99,
+              "minimum": -99,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps Delta"
+        },
+        "exercise_id": {
+          "title": "Exercise Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "exercise_id"
+      ],
+      "title": "ExerciseArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "day"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "action",
+    "scope_schema": {
+      "target_types": [
+        "day"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "uncertain",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "day"
+        ]
+      },
+      "arguments.exercise_id": {
+        "role": "source_catalog_exercise",
+        "types": [
+          "exercise"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "meal.add_food",
+    "domain": "nutrition",
+    "description": "在一餐新增目录食材；保留原有食物。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "ingredient_id": {
+          "title": "Ingredient Id",
+          "type": "string"
+        },
+        "grams": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "le": 500,
+          "title": "Grams"
+        }
+      },
+      "required": [
+        "ingredient_id",
+        "grams"
+      ],
+      "title": "FoodArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "meal"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "food",
+    "scope_schema": {
+      "target_types": [
+        "meal"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "uncertain",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "meal"
+        ]
+      },
+      "arguments.ingredient_id": {
+        "role": "source_catalog_ingredient",
+        "types": [
+          "ingredient"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "meal.remove_food",
+    "domain": "nutrition",
+    "description": "从一餐移除一个具体食物实例。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "food_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "food",
+    "scope_schema": {
+      "target_types": [
+        "food_item"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "uncertain",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "food_item"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "meal.replace_food",
+    "domain": "nutrition",
+    "description": "将具体食物换成目录食材及份量。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "ingredient_id": {
+          "title": "Ingredient Id",
+          "type": "string"
+        },
+        "grams": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "le": 500,
+          "title": "Grams"
+        }
+      },
+      "required": [
+        "ingredient_id",
+        "grams"
+      ],
+      "title": "FoodArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "food_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "food",
+    "scope_schema": {
+      "target_types": [
+        "food_item"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "uncertain",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "food_item"
+        ]
+      },
+      "arguments.ingredient_id": {
+        "role": "source_catalog_ingredient",
+        "types": [
+          "ingredient"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "meal.set_quantity",
+    "domain": "nutrition",
+    "description": "调整具体食物克数，按原比例重算营养。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "grams": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "le": 1000,
+          "title": "Grams"
+        }
+      },
+      "required": [
+        "grams"
+      ],
+      "title": "QuantityArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "food_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "food",
+    "scope_schema": {
+      "target_types": [
+        "food_item"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "uncertain",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "food_item"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "profile.update",
+    "domain": "profile",
+    "description": "更新长期档案，必须确认。仅更新档案值，不会自动重算热量、食物份量或训练负荷。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "goal": {
+          "anyOf": [
+            {
+              "enum": [
+                "fat_loss",
+                "muscle_gain",
+                "cardio",
+                "health"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Goal"
+        },
+        "weight_kg": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 30,
+              "le": 300
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weight Kg"
+        },
+        "weekly_days": {
+          "anyOf": [
+            {
+              "maximum": 7,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weekly Days"
+        },
+        "session_minutes": {
+          "anyOf": [
+            {
+              "maximum": 180,
+              "minimum": 5,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Minutes"
+        },
+        "preferred_time_window": {
+          "anyOf": [
+            {
+              "maxLength": 24,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preferred Time Window"
+        },
+        "preferred_location": {
+          "anyOf": [
+            {
+              "maxLength": 24,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preferred Location"
+        },
+        "dislikes": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dislikes"
+        },
+        "likes": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Likes"
+        },
+        "allergies": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Allergies"
+        },
+        "diet_preferences": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diet Preferences"
+        }
+      },
+      "title": "ProfileArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "profile"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "profile",
+    "scope_schema": {
+      "target_types": [
+        "profile"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "profile"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "memory.create",
+    "domain": "memory",
+    "description": "保存用户明确要求记住的备注或近期反馈。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "default": "note",
+          "enum": [
+            "note",
+            "food_like",
+            "food_dislike",
+            "food_allergy",
+            "training_state"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "NoteArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "profile"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "memory",
+    "scope_schema": {
+      "target_types": [
+        "profile"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "profile"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "memory.archive",
+    "domain": "memory",
+    "description": "归档一个真实记忆条目。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "memory"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "memory",
+    "scope_schema": {
+      "target_types": [
+        "memory"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "memory"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "history.undo",
+    "domain": "history",
+    "description": "补偿某一次实际执行；逐资源校验，无后续重叠更改才能恢复。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "execution"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "undo",
+    "scope_schema": {
+      "target_types": [
+        "execution"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "execution"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "context.inspect",
+    "domain": "read",
+    "description": "查看目标对象或日期的真实数据，不修改。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "day",
+      "workout_action",
+      "meal",
+      "food_item",
+      "profile",
+      "memory",
+      "execution",
+      "session",
+      "session_item"
+    ],
+    "mutates_state": false,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "inspect",
+    "scope_schema": {
+      "target_types": [
+        "day",
+        "workout_action",
+        "meal",
+        "food_item",
+        "profile",
+        "memory",
+        "execution",
+        "session",
+        "session_item"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "day",
+          "workout_action",
+          "meal",
+          "food_item",
+          "profile",
+          "memory",
+          "execution",
+          "session",
+          "session_item"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "commerce.nutrition",
+    "domain": "commerce",
+    "description": "查询麦当劳官方营养表，可结合档案和今日饮食提出建议；不是门店供应或价格，不能保证过敏安全。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "commerce_account"
+    ],
+    "mutates_state": false,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "commerce",
+    "scope_schema": {
+      "target_types": [
+        "commerce_account"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "checkout_business_key_write_ahead_claim",
+    "verification_policy": "fresh_quote_and_authoritative_order_query",
+    "execution_boundary": "commerce",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "commerce_account"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "commerce.search_stores",
+    "domain": "commerce",
+    "description": "查询麦当劳到店自取门店，使用本轮明确城市和地标，缺少时可引用当前用户saved_location；没有可靠城市先澄清，不猜默认城市。用户要求最近餐厅时selection_policy=nearest，指定某餐厅specific，只浏览browse。最近店关闭时必须确认改用最近营业店。距离仅为接口结果，不能冒充用户GPS定位。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "city": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "City",
+          "type": "string"
+        },
+        "keyword": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Keyword",
+          "type": "string"
+        },
+        "selection_policy": {
+          "default": "browse",
+          "enum": [
+            "browse",
+            "nearest",
+            "specific"
+          ],
+          "title": "Selection Policy",
+          "type": "string"
+        }
+      },
+      "required": [
+        "city",
+        "keyword"
+      ],
+      "title": "SearchStores",
+      "type": "object"
+    },
+    "target_types": [
+      "commerce_account"
+    ],
+    "mutates_state": false,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "commerce",
+    "scope_schema": {
+      "target_types": [
+        "commerce_account"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "checkout_business_key_write_ahead_claim",
+    "verification_policy": "fresh_quote_and_authoritative_order_query",
+    "execution_boundary": "commerce",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "commerce_account"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "commerce.select_store",
+    "domain": "commerce",
+    "description": "确认从本次实际搜索结果改用另一家营业门店；search_revision复制store_search.revision。确认只选门店，不授权提交订单；之后继续原点餐目标。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "search_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Search Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "search_revision"
+      ],
+      "title": "StoreSelection",
+      "type": "object"
+    },
+    "target_types": [
+      "commerce_store"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "commerce",
+    "scope_schema": {
+      "target_types": [
+        "commerce_store"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "checkout_business_key_write_ahead_claim",
+    "verification_policy": "fresh_quote_and_authoritative_order_query",
+    "execution_boundary": "commerce",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "commerce_store"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "commerce.menu",
+    "domain": "commerce",
+    "description": "读取所选真实门店当前菜单及价格；选择商品前必须查询。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "commerce_store"
+    ],
+    "mutates_state": false,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "commerce",
+    "scope_schema": {
+      "target_types": [
+        "commerce_store"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "checkout_business_key_write_ahead_claim",
+    "verification_policy": "fresh_quote_and_authoritative_order_query",
+    "execution_boundary": "commerce",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "commerce_store"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "commerce.product_detail",
+    "domain": "commerce",
+    "description": "读取已绑定SKU的详情，区分套餐组与顶层特制组；无额外选项仍是有效商品，不能据此说用户没选大小/冷热。返回真实选项ID及当前商品信息。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "commerce_product"
+    ],
+    "mutates_state": false,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "commerce",
+    "scope_schema": {
+      "target_types": [
+        "commerce_product"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "checkout_business_key_write_ahead_claim",
+    "verification_policy": "fresh_quote_and_authoritative_order_query",
+    "execution_boundary": "commerce",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "commerce_product"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "commerce.prepare_order",
+    "domain": "commerce",
+    "description": "为所选门店准备真实报价草案，不提交订单。items必须用该店的product_id；套餐需选择选项ID或明确使用官方默认组合。未指定取餐方式时留空，系统从真实选项默认外带；明确堂食时take_way_preference=dine_in，无需先知道官方code。",
+    "input_schema": {
+      "$defs": {
+        "CartLine": {
+          "additionalProperties": false,
+          "properties": {
+            "product_id": {
+              "title": "Product Id",
+              "type": "string"
+            },
+            "quantity": {
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Quantity",
+              "type": "integer"
+            },
+            "selections": {
+              "items": {
+                "$ref": "#/$defs/OptionSelection"
+              },
+              "maxItems": 30,
+              "title": "Selections",
+              "type": "array"
+            },
+            "use_default_options": {
+              "default": false,
+              "title": "Use Default Options",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "product_id",
+            "quantity"
+          ],
+          "title": "CartLine",
+          "type": "object"
+        },
+        "OptionSelection": {
+          "additionalProperties": false,
+          "properties": {
+            "option_id": {
+              "title": "Option Id",
+              "type": "string"
+            },
+            "quantity": {
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Quantity",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "option_id",
+            "quantity"
+          ],
+          "title": "OptionSelection",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/CartLine"
+          },
+          "maxItems": 20,
+          "minItems": 1,
+          "title": "Items",
+          "type": "array"
+        },
+        "take_way_code": {
+          "default": "",
+          "maxLength": 64,
+          "title": "Take Way Code",
+          "type": "string"
+        },
+        "take_way_preference": {
+          "anyOf": [
+            {
+              "enum": [
+                "takeaway",
+                "dine_in"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Take Way Preference"
+        }
+      },
+      "required": [
+        "items"
+      ],
+      "title": "PrepareOrder",
+      "type": "object"
+    },
+    "target_types": [
+      "commerce_store"
+    ],
+    "mutates_state": true,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "commerce",
+    "scope_schema": {
+      "target_types": [
+        "commerce_store"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "checkout_business_key_write_ahead_claim",
+    "verification_policy": "fresh_quote_and_authoritative_order_query",
+    "execution_boundary": "commerce",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "commerce_store"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "commerce.revise_order",
+    "domain": "commerce",
+    "description": "修改指定版本订单草案并重新报价，不能修改已提交或未知的订单；不提交订单。",
+    "input_schema": {
+      "$defs": {
+        "CartLine": {
+          "additionalProperties": false,
+          "properties": {
+            "product_id": {
+              "title": "Product Id",
+              "type": "string"
+            },
+            "quantity": {
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Quantity",
+              "type": "integer"
+            },
+            "selections": {
+              "items": {
+                "$ref": "#/$defs/OptionSelection"
+              },
+              "maxItems": 30,
+              "title": "Selections",
+              "type": "array"
+            },
+            "use_default_options": {
+              "default": false,
+              "title": "Use Default Options",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "product_id",
+            "quantity"
+          ],
+          "title": "CartLine",
+          "type": "object"
+        },
+        "OptionSelection": {
+          "additionalProperties": false,
+          "properties": {
+            "option_id": {
+              "title": "Option Id",
+              "type": "string"
+            },
+            "quantity": {
+              "maximum": 20,
+              "minimum": 1,
+              "title": "Quantity",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "option_id",
+            "quantity"
+          ],
+          "title": "OptionSelection",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "items": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/CartLine"
+              },
+              "maxItems": 20,
+              "minItems": 1,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Items"
+        },
+        "take_way_code": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Take Way Code"
+        },
+        "take_way_preference": {
+          "anyOf": [
+            {
+              "enum": [
+                "takeaway",
+                "dine_in"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Take Way Preference"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "ReviseOrder",
+      "type": "object"
+    },
+    "target_types": [
+      "checkout"
+    ],
+    "mutates_state": true,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "commerce",
+    "scope_schema": {
+      "target_types": [
+        "checkout"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "checkout_business_key_write_ahead_claim",
+    "verification_policy": "fresh_quote_and_authoritative_order_query",
+    "execution_boundary": "commerce",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "checkout"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "commerce.submit_order",
+    "domain": "commerce",
+    "description": "仅提交用户已看过的准确版本报价，创建到店自取待支付订单，不代付。未经完整预览不能直接提交；价格变化必须重新确认。已有有效未支付旧单时先展示选择，用户明确保留旧单另下一单时复制快照order_conflict.fingerprint到existing_order_decision，不能自行生成或省略。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "existing_order_decision": {
+          "default": "",
+          "maxLength": 64,
+          "title": "Existing Order Decision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "SubmitOrder",
+      "type": "object"
+    },
+    "target_types": [
+      "checkout"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "commerce",
+    "scope_schema": {
+      "target_types": [
+        "checkout"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "checkout_business_key_write_ahead_claim",
+    "verification_policy": "fresh_quote_and_authoritative_order_query",
+    "execution_boundary": "commerce",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "checkout"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "commerce.cancel_order",
+    "domain": "commerce",
+    "description": "单独取消已有未支付未过期旧单，目标绑定当前新checkout预览，existing_checkout_id和decision_fingerprint复制该预览order_conflict。取消后只恢复新预览，不自动下单；已支付单不退款。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "existing_checkout_id": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Existing Checkout Id",
+          "type": "string"
+        },
+        "decision_fingerprint": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Decision Fingerprint",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "existing_checkout_id",
+        "decision_fingerprint"
+      ],
+      "title": "CancelExistingOrder",
+      "type": "object"
+    },
+    "target_types": [
+      "checkout"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "commerce",
+    "scope_schema": {
+      "target_types": [
+        "checkout"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "checkout_business_key_write_ahead_claim",
+    "verification_policy": "fresh_quote_and_authoritative_order_query",
+    "execution_boundary": "commerce",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "checkout"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "commerce.review_existing_orders",
+    "domain": "commerce",
+    "description": "刷新当前新预览对应的旧订单状态并显示支付链接和选择，不下单不取消。已有order_conflict时用户要继续支付/查询旧单用此能力。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "CheckoutVersion",
+      "type": "object"
+    },
+    "target_types": [
+      "checkout"
+    ],
+    "mutates_state": false,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "commerce",
+    "scope_schema": {
+      "target_types": [
+        "checkout"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "checkout_business_key_write_ahead_claim",
+    "verification_policy": "fresh_quote_and_authoritative_order_query",
+    "execution_boundary": "commerce",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "checkout"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "commerce.query_order",
+    "domain": "commerce",
+    "description": "查询本人草案关联的真实订单或未知提交结果，绝不重新下单。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "checkout"
+    ],
+    "mutates_state": false,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "commerce",
+    "scope_schema": {
+      "target_types": [
+        "checkout"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "checkout_business_key_write_ahead_claim",
+    "verification_policy": "fresh_quote_and_authoritative_order_query",
+    "execution_boundary": "commerce",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "checkout"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "commerce.cancel_checkout",
+    "domain": "commerce",
+    "description": "取消尚未提交的草案，不是取消远程已存在订单。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "version"
+      ],
+      "title": "CheckoutVersion",
+      "type": "object"
+    },
+    "target_types": [
+      "checkout"
+    ],
+    "mutates_state": true,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "commerce",
+    "scope_schema": {
+      "target_types": [
+        "checkout"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "checkout_business_key_write_ahead_claim",
+    "verification_policy": "fresh_quote_and_authoritative_order_query",
+    "execution_boundary": "commerce",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "checkout"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "workout.finish_session",
+    "domain": "workout_lifecycle",
+    "description": "结束训练并确认保存。明确表示全部做完：completion_basis=confirm_current_plan，展示今天会话最新目标组数/次数/默认时长，确认后按用户自报完成保存；用户修正某项目用item_overrides真实session_item ID和实际组数。仅结束/提前停止/不补记录：recorded_only。重量可未知，不强制逐组填。expected_revision复制session.record_revision。",
+    "input_schema": {
+      "$defs": {
+        "CompletionOverride": {
+          "additionalProperties": false,
+          "properties": {
+            "item_id": {
+              "title": "Item Id",
+              "type": "string"
+            },
+            "actual_sets": {
+              "maximum": 100,
+              "minimum": 0,
+              "title": "Actual Sets",
+              "type": "integer"
+            },
+            "reps": {
+              "anyOf": [
+                {
+                  "maximum": 200,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reps"
+            },
+            "duration_min": {
+              "anyOf": [
+                {
+                  "maximum": 1440,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Duration Min"
+            }
+          },
+          "required": [
+            "item_id",
+            "actual_sets"
+          ],
+          "title": "CompletionOverride",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "completion_basis": {
+          "default": "recorded_only",
+          "enum": [
+            "recorded_only",
+            "confirm_current_plan"
+          ],
+          "title": "Completion Basis",
+          "type": "string"
+        },
+        "item_overrides": {
+          "items": {
+            "$ref": "#/$defs/CompletionOverride"
+          },
+          "maxItems": 100,
+          "title": "Item Overrides",
+          "type": "array"
+        },
+        "unfinished_policy": {
+          "default": "preserve_unrecorded",
+          "enum": [
+            "preserve_unrecorded",
+            "skip_remaining"
+          ],
+          "title": "Unfinished Policy",
+          "type": "string"
+        },
+        "actual_minutes": {
+          "anyOf": [
+            {
+              "maximum": 1440,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actual Minutes"
+        },
+        "difficulty": {
+          "anyOf": [
+            {
+              "maximum": 5,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Difficulty"
+        },
+        "fatigue": {
+          "anyOf": [
+            {
+              "maximum": 5,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fatigue"
+        },
+        "note": {
+          "default": "",
+          "maxLength": 1000,
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expected_revision"
+      ],
+      "title": "FinishSession",
+      "type": "object"
+    },
+    "target_types": [
+      "session"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "workout_lifecycle",
+    "scope_schema": {
+      "target_types": [
+        "session"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "workout_lifecycle",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "session"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "workout.correct_record",
+    "domain": "workout_lifecycle",
+    "description": "独立修订已结束训练的一个真实条目，保留审计；不修改计划或其他条目。actual_sets是实际总组数，set_no是实际组号；缺失次数/重量不得用计划值补。expected_revision复制所属session.record_revision，必须确认。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "actual_sets": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actual Sets"
+        },
+        "set_no": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Set No"
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "maximum": 200,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps"
+        },
+        "weight_kg": {
+          "anyOf": [
+            {
+              "maximum": 500,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weight Kg"
+        },
+        "completion_state": {
+          "anyOf": [
+            {
+              "enum": [
+                "done",
+                "partial",
+                "skipped",
+                "unrecorded"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completion State"
+        },
+        "reason": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "reason"
+      ],
+      "title": "CorrectRecord",
+      "type": "object"
+    },
+    "target_types": [
+      "session_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "workout_lifecycle",
+    "scope_schema": {
+      "target_types": [
+        "session_item"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "workout_lifecycle",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "session_item"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "workout.read_records",
+    "domain": "workout_lifecycle",
+    "description": "查询一个真实训练会话及其已持久化日志、逐组数据和未记录项目，不修改。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "session"
+    ],
+    "mutates_state": false,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "workout_lifecycle",
+    "scope_schema": {
+      "target_types": [
+        "session"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "workout_lifecycle",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "session"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "workout.record_progress",
+    "domain": "workout_lifecycle",
+    "description": "记录进行中一个session_item的完成进度。用户明确说该动作/热身完成用as_planned按当前目标记录；明确实际做几组用actual并提供actual_sets总数。保留已记录组，不重复累计；不结束整场、不修改计划。expected_revision复制父session.record_revision，reps/时长用户明确提供时才填，否则保留计划依据或未知。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "completion_basis": {
+          "default": "as_planned",
+          "enum": [
+            "as_planned",
+            "actual"
+          ],
+          "title": "Completion Basis",
+          "type": "string"
+        },
+        "actual_sets": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Actual Sets"
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "maximum": 200,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps"
+        },
+        "duration_min": {
+          "anyOf": [
+            {
+              "maximum": 1440,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Min"
+        }
+      },
+      "required": [
+        "expected_revision"
+      ],
+      "title": "RecordProgress",
+      "type": "object"
+    },
+    "target_types": [
+      "session_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "workout_lifecycle",
+    "scope_schema": {
+      "target_types": [
+        "session_item"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "uncertain",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "workout_lifecycle",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "session_item"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "day_plan.request_replan",
+    "domain": "day_revision",
+    "description": "请求确认放弃原训练方案未完成部分，保留已记录训练，之后再制定新目标。selected_id为day，复制revision_base_revision。此操作不放弃旧安排、不补记完成，系统先展示并保存确认。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_base_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Base Revision",
+          "type": "string"
+        },
+        "scope": {
+          "items": {
+            "enum": [
+              "workout",
+              "breakfast",
+              "lunch",
+              "dinner",
+              "snack"
+            ],
+            "type": "string"
+          },
+          "title": "Scope",
+          "type": "array"
+        }
+      },
+      "required": [
+        "expected_base_revision"
+      ],
+      "title": "RequestReplan",
+      "type": "object"
+    },
+    "target_types": [
+      "day"
+    ],
+    "mutates_state": true,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "day_revision",
+    "scope_schema": {
+      "target_types": [
+        "day"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "day_revision",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "day"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "day_plan.confirm_replan",
+    "domain": "day_revision",
+    "description": "仅确认已经展示的重排选择。selected_id为workout_replan，expected_revision复制etag；确认后允许生成新方案预览，尚不应用新方案。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expected_revision"
+      ],
+      "title": "RevisionVersion",
+      "type": "object"
+    },
+    "target_types": [
+      "workout_replan"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "day_revision",
+    "scope_schema": {
+      "target_types": [
+        "workout_replan"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "day_revision",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "workout_replan"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "day_plan.create_revision",
+    "domain": "day_revision",
+    "description": "创建协调后的当天草案，不应用。保留当前安排局部调整用preserve_current；明确重排新目标用replace_remaining且必须给已approved的replan_authorization_id，不能复用旧记录计新方案进度。selected_id为day，expected_base_revision复制day.revision_base_revision。scope明确训练workout和各餐次；proposal.actions完整目标状态，proposal.meals为各授权餐次完整食材。",
+    "input_schema": {
+      "$defs": {
+        "ActionTarget": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "保留或调整当天既有动作时，逐字复制该动作的真实日期对象ID；省略表示新增目录动作。",
+              "title": "Id"
+            },
+            "action_ref": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "新增/替换仅允许目录action_ref；已有领域生成动作不在目录时，必须保留其真实id，不能当作新增。",
+              "title": "Action Ref"
+            },
+            "slot": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "warmup",
+                    "strength",
+                    "cardio",
+                    "mobility"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Slot"
+            },
+            "sets": {
+              "anyOf": [
+                {
+                  "maximum": 10,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Sets"
+            },
+            "reps": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reps"
+            },
+            "duration_min": {
+              "anyOf": [
+                {
+                  "maximum": 180,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Duration Min"
+            }
+          },
+          "title": "ActionTarget",
+          "type": "object"
+        },
+        "Constraints": {
+          "additionalProperties": false,
+          "properties": {
+            "max_workout_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Max Workout Minutes"
+            },
+            "min_workout_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Min Workout Minutes"
+            },
+            "target_workout_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "用户要求练到/调整为的整场目标时长，不能只保存为上限。",
+              "title": "Target Workout Minutes"
+            },
+            "workout_time_tolerance_min": {
+              "default": 0,
+              "description": "目标时长的允许偏差；明确目标默认0，只有约/左右的请求才给合理偏差。",
+              "maximum": 30,
+              "minimum": 0,
+              "title": "Workout Time Tolerance Min",
+              "type": "integer"
+            },
+            "max_workout_actions": {
+              "anyOf": [
+                {
+                  "maximum": 30,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "正式动作条目数量上限，不是组数。新目标未指定数量时默认3；用户明确要求更多时可给对应数量。",
+              "title": "Max Workout Actions"
+            },
+            "include_warmup_in_action_count": {
+              "default": false,
+              "description": "仅用户明确将热身计入动作总数时为true；默认数量上限不计热身。",
+              "title": "Include Warmup In Action Count",
+              "type": "boolean"
+            },
+            "excluded_ingredients": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 30,
+              "title": "Excluded Ingredients",
+              "type": "array"
+            },
+            "meal_ingredient_rules": {
+              "items": {
+                "$ref": "#/$defs/MealIngredientRule"
+              },
+              "maxItems": 30,
+              "title": "Meal Ingredient Rules",
+              "type": "array"
+            }
+          },
+          "title": "Constraints",
+          "type": "object"
+        },
+        "FoodTarget": {
+          "additionalProperties": false,
+          "properties": {
+            "ingredient_key": {
+              "description": "精确食材目录键（中文名称枚举），不是 ingredient 对象的 UUID。",
+              "enum": [
+                "鸡胸肉",
+                "牛肉",
+                "虾",
+                "豆腐",
+                "鸡蛋",
+                "三文鱼",
+                "米饭",
+                "红薯",
+                "西兰花",
+                "菠菜",
+                "希腊酸奶",
+                "香蕉",
+                "土豆",
+                "玉米",
+                "燕麦",
+                "苹果"
+              ],
+              "title": "Ingredient Key",
+              "type": "string"
+            },
+            "grams": {
+              "exclusiveMinimum": 0,
+              "maximum": 1000,
+              "title": "Grams",
+              "type": "number"
+            }
+          },
+          "required": [
+            "ingredient_key",
+            "grams"
+          ],
+          "title": "FoodTarget",
+          "type": "object"
+        },
+        "MealIngredientRule": {
+          "additionalProperties": false,
+          "properties": {
+            "slot": {
+              "enum": [
+                "breakfast",
+                "lunch",
+                "dinner",
+                "snack"
+              ],
+              "title": "Slot",
+              "type": "string"
+            },
+            "ingredient_options": {
+              "description": "同一食材要求允许的真实目录选项，只能选择本枚举实际提供的键。",
+              "items": {
+                "enum": [
+                  "鸡胸肉",
+                  "牛肉",
+                  "虾",
+                  "豆腐",
+                  "鸡蛋",
+                  "三文鱼",
+                  "米饭",
+                  "红薯",
+                  "西兰花",
+                  "菠菜",
+                  "希腊酸奶",
+                  "香蕉",
+                  "土豆",
+                  "玉米",
+                  "燕麦",
+                  "苹果"
+                ],
+                "type": "string"
+              },
+              "maxItems": 10,
+              "minItems": 1,
+              "title": "Ingredient Options",
+              "type": "array"
+            },
+            "requirement": {
+              "default": "include",
+              "enum": [
+                "include",
+                "exclude"
+              ],
+              "title": "Requirement",
+              "type": "string"
+            },
+            "grams": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 1000,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grams"
+            }
+          },
+          "required": [
+            "slot",
+            "ingredient_options"
+          ],
+          "title": "MealIngredientRule",
+          "type": "object"
+        },
+        "MealTarget": {
+          "additionalProperties": false,
+          "properties": {
+            "slot": {
+              "enum": [
+                "breakfast",
+                "lunch",
+                "dinner",
+                "snack"
+              ],
+              "title": "Slot",
+              "type": "string"
+            },
+            "items": {
+              "items": {
+                "$ref": "#/$defs/FoodTarget"
+              },
+              "maxItems": 20,
+              "title": "Items",
+              "type": "array"
+            }
+          },
+          "required": [
+            "slot",
+            "items"
+          ],
+          "title": "MealTarget",
+          "type": "object"
+        },
+        "TargetProposal": {
+          "additionalProperties": false,
+          "properties": {
+            "actions": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/ActionTarget"
+                  },
+                  "maxItems": 30,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Actions"
+            },
+            "meals": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/MealTarget"
+                  },
+                  "maxItems": 4,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Meals"
+            }
+          },
+          "title": "TargetProposal",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "workout_policy": {
+          "default": "preserve_current",
+          "enum": [
+            "preserve_current",
+            "replace_remaining"
+          ],
+          "title": "Workout Policy",
+          "type": "string"
+        },
+        "replan_authorization_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Replan Authorization Id"
+        },
+        "expected_base_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Base Revision",
+          "type": "string"
+        },
+        "scope": {
+          "items": {
+            "enum": [
+              "workout",
+              "breakfast",
+              "lunch",
+              "dinner",
+              "snack"
+            ],
+            "type": "string"
+          },
+          "maxItems": 5,
+          "minItems": 1,
+          "title": "Scope",
+          "type": "array"
+        },
+        "proposal": {
+          "$ref": "#/$defs/TargetProposal"
+        },
+        "constraints": {
+          "$ref": "#/$defs/Constraints"
+        }
+      },
+      "required": [
+        "expected_base_revision",
+        "scope",
+        "proposal"
+      ],
+      "title": "CreateRevision",
+      "type": "object"
+    },
+    "target_types": [
+      "day"
+    ],
+    "mutates_state": true,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "day_revision",
+    "scope_schema": {
+      "target_types": [
+        "day"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "day_revision",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "day"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "day_plan.preview_revision",
+    "domain": "day_revision",
+    "description": "查看真实草案与结构化差异，不应用。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "day_revision"
+    ],
+    "mutates_state": false,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "day_revision",
+    "scope_schema": {
+      "target_types": [
+        "day_revision"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "day_revision",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "day_revision"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "day_plan.update_revision",
+    "domain": "day_revision",
+    "description": "修改同一个草案。expected_revision复制草案etag；未传入的训练/餐次/约束保留此前选择，actions传入时是完整目标列表，meals传入的餐次是该餐完整组成。不允许扩大原scope。编辑废止旧确认。",
+    "input_schema": {
+      "$defs": {
+        "ActionTarget": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "保留或调整当天既有动作时，逐字复制该动作的真实日期对象ID；省略表示新增目录动作。",
+              "title": "Id"
+            },
+            "action_ref": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "新增/替换仅允许目录action_ref；已有领域生成动作不在目录时，必须保留其真实id，不能当作新增。",
+              "title": "Action Ref"
+            },
+            "slot": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "warmup",
+                    "strength",
+                    "cardio",
+                    "mobility"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Slot"
+            },
+            "sets": {
+              "anyOf": [
+                {
+                  "maximum": 10,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Sets"
+            },
+            "reps": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reps"
+            },
+            "duration_min": {
+              "anyOf": [
+                {
+                  "maximum": 180,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Duration Min"
+            }
+          },
+          "title": "ActionTarget",
+          "type": "object"
+        },
+        "Constraints": {
+          "additionalProperties": false,
+          "properties": {
+            "max_workout_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Max Workout Minutes"
+            },
+            "min_workout_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Min Workout Minutes"
+            },
+            "target_workout_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "用户要求练到/调整为的整场目标时长，不能只保存为上限。",
+              "title": "Target Workout Minutes"
+            },
+            "workout_time_tolerance_min": {
+              "default": 0,
+              "description": "目标时长的允许偏差；明确目标默认0，只有约/左右的请求才给合理偏差。",
+              "maximum": 30,
+              "minimum": 0,
+              "title": "Workout Time Tolerance Min",
+              "type": "integer"
+            },
+            "max_workout_actions": {
+              "anyOf": [
+                {
+                  "maximum": 30,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "正式动作条目数量上限，不是组数。新目标未指定数量时默认3；用户明确要求更多时可给对应数量。",
+              "title": "Max Workout Actions"
+            },
+            "include_warmup_in_action_count": {
+              "default": false,
+              "description": "仅用户明确将热身计入动作总数时为true；默认数量上限不计热身。",
+              "title": "Include Warmup In Action Count",
+              "type": "boolean"
+            },
+            "excluded_ingredients": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 30,
+              "title": "Excluded Ingredients",
+              "type": "array"
+            },
+            "meal_ingredient_rules": {
+              "items": {
+                "$ref": "#/$defs/MealIngredientRule"
+              },
+              "maxItems": 30,
+              "title": "Meal Ingredient Rules",
+              "type": "array"
+            }
+          },
+          "title": "Constraints",
+          "type": "object"
+        },
+        "FoodTarget": {
+          "additionalProperties": false,
+          "properties": {
+            "ingredient_key": {
+              "description": "精确食材目录键（中文名称枚举），不是 ingredient 对象的 UUID。",
+              "enum": [
+                "鸡胸肉",
+                "牛肉",
+                "虾",
+                "豆腐",
+                "鸡蛋",
+                "三文鱼",
+                "米饭",
+                "红薯",
+                "西兰花",
+                "菠菜",
+                "希腊酸奶",
+                "香蕉",
+                "土豆",
+                "玉米",
+                "燕麦",
+                "苹果"
+              ],
+              "title": "Ingredient Key",
+              "type": "string"
+            },
+            "grams": {
+              "exclusiveMinimum": 0,
+              "maximum": 1000,
+              "title": "Grams",
+              "type": "number"
+            }
+          },
+          "required": [
+            "ingredient_key",
+            "grams"
+          ],
+          "title": "FoodTarget",
+          "type": "object"
+        },
+        "MealIngredientRule": {
+          "additionalProperties": false,
+          "properties": {
+            "slot": {
+              "enum": [
+                "breakfast",
+                "lunch",
+                "dinner",
+                "snack"
+              ],
+              "title": "Slot",
+              "type": "string"
+            },
+            "ingredient_options": {
+              "description": "同一食材要求允许的真实目录选项，只能选择本枚举实际提供的键。",
+              "items": {
+                "enum": [
+                  "鸡胸肉",
+                  "牛肉",
+                  "虾",
+                  "豆腐",
+                  "鸡蛋",
+                  "三文鱼",
+                  "米饭",
+                  "红薯",
+                  "西兰花",
+                  "菠菜",
+                  "希腊酸奶",
+                  "香蕉",
+                  "土豆",
+                  "玉米",
+                  "燕麦",
+                  "苹果"
+                ],
+                "type": "string"
+              },
+              "maxItems": 10,
+              "minItems": 1,
+              "title": "Ingredient Options",
+              "type": "array"
+            },
+            "requirement": {
+              "default": "include",
+              "enum": [
+                "include",
+                "exclude"
+              ],
+              "title": "Requirement",
+              "type": "string"
+            },
+            "grams": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 1000,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grams"
+            }
+          },
+          "required": [
+            "slot",
+            "ingredient_options"
+          ],
+          "title": "MealIngredientRule",
+          "type": "object"
+        },
+        "MealTarget": {
+          "additionalProperties": false,
+          "properties": {
+            "slot": {
+              "enum": [
+                "breakfast",
+                "lunch",
+                "dinner",
+                "snack"
+              ],
+              "title": "Slot",
+              "type": "string"
+            },
+            "items": {
+              "items": {
+                "$ref": "#/$defs/FoodTarget"
+              },
+              "maxItems": 20,
+              "title": "Items",
+              "type": "array"
+            }
+          },
+          "required": [
+            "slot",
+            "items"
+          ],
+          "title": "MealTarget",
+          "type": "object"
+        },
+        "TargetProposal": {
+          "additionalProperties": false,
+          "properties": {
+            "actions": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/ActionTarget"
+                  },
+                  "maxItems": 30,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Actions"
+            },
+            "meals": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/MealTarget"
+                  },
+                  "maxItems": 4,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Meals"
+            }
+          },
+          "title": "TargetProposal",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "proposal": {
+          "$ref": "#/$defs/TargetProposal"
+        },
+        "constraints": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Constraints"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "expected_revision",
+        "proposal"
+      ],
+      "title": "UpdateRevision",
+      "type": "object"
+    },
+    "target_types": [
+      "day_revision"
+    ],
+    "mutates_state": true,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "day_revision",
+    "scope_schema": {
+      "target_types": [
+        "day_revision"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "day_revision",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "day_revision"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "day_plan.extend_revision",
+    "domain": "day_revision",
+    "description": "用户追加原草案范围外的餐次要求时，扩展同一草案并更新该餐的完整组成。additional_scope只列本轮明确新增餐次；保留原训练与已有餐食及约束，不重建草案，不复用训练授权作为餐食授权。仅更新预览，废止旧确认，最终应用仍另行确认。",
+    "input_schema": {
+      "$defs": {
+        "ActionTarget": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "保留或调整当天既有动作时，逐字复制该动作的真实日期对象ID；省略表示新增目录动作。",
+              "title": "Id"
+            },
+            "action_ref": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "新增/替换仅允许目录action_ref；已有领域生成动作不在目录时，必须保留其真实id，不能当作新增。",
+              "title": "Action Ref"
+            },
+            "slot": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "warmup",
+                    "strength",
+                    "cardio",
+                    "mobility"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Slot"
+            },
+            "sets": {
+              "anyOf": [
+                {
+                  "maximum": 10,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Sets"
+            },
+            "reps": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Reps"
+            },
+            "duration_min": {
+              "anyOf": [
+                {
+                  "maximum": 180,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Duration Min"
+            }
+          },
+          "title": "ActionTarget",
+          "type": "object"
+        },
+        "Constraints": {
+          "additionalProperties": false,
+          "properties": {
+            "max_workout_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Max Workout Minutes"
+            },
+            "min_workout_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Min Workout Minutes"
+            },
+            "target_workout_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "用户要求练到/调整为的整场目标时长，不能只保存为上限。",
+              "title": "Target Workout Minutes"
+            },
+            "workout_time_tolerance_min": {
+              "default": 0,
+              "description": "目标时长的允许偏差；明确目标默认0，只有约/左右的请求才给合理偏差。",
+              "maximum": 30,
+              "minimum": 0,
+              "title": "Workout Time Tolerance Min",
+              "type": "integer"
+            },
+            "max_workout_actions": {
+              "anyOf": [
+                {
+                  "maximum": 30,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "description": "正式动作条目数量上限，不是组数。新目标未指定数量时默认3；用户明确要求更多时可给对应数量。",
+              "title": "Max Workout Actions"
+            },
+            "include_warmup_in_action_count": {
+              "default": false,
+              "description": "仅用户明确将热身计入动作总数时为true；默认数量上限不计热身。",
+              "title": "Include Warmup In Action Count",
+              "type": "boolean"
+            },
+            "excluded_ingredients": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 30,
+              "title": "Excluded Ingredients",
+              "type": "array"
+            },
+            "meal_ingredient_rules": {
+              "items": {
+                "$ref": "#/$defs/MealIngredientRule"
+              },
+              "maxItems": 30,
+              "title": "Meal Ingredient Rules",
+              "type": "array"
+            }
+          },
+          "title": "Constraints",
+          "type": "object"
+        },
+        "FoodTarget": {
+          "additionalProperties": false,
+          "properties": {
+            "ingredient_key": {
+              "description": "精确食材目录键（中文名称枚举），不是 ingredient 对象的 UUID。",
+              "enum": [
+                "鸡胸肉",
+                "牛肉",
+                "虾",
+                "豆腐",
+                "鸡蛋",
+                "三文鱼",
+                "米饭",
+                "红薯",
+                "西兰花",
+                "菠菜",
+                "希腊酸奶",
+                "香蕉",
+                "土豆",
+                "玉米",
+                "燕麦",
+                "苹果"
+              ],
+              "title": "Ingredient Key",
+              "type": "string"
+            },
+            "grams": {
+              "exclusiveMinimum": 0,
+              "maximum": 1000,
+              "title": "Grams",
+              "type": "number"
+            }
+          },
+          "required": [
+            "ingredient_key",
+            "grams"
+          ],
+          "title": "FoodTarget",
+          "type": "object"
+        },
+        "MealIngredientRule": {
+          "additionalProperties": false,
+          "properties": {
+            "slot": {
+              "enum": [
+                "breakfast",
+                "lunch",
+                "dinner",
+                "snack"
+              ],
+              "title": "Slot",
+              "type": "string"
+            },
+            "ingredient_options": {
+              "description": "同一食材要求允许的真实目录选项，只能选择本枚举实际提供的键。",
+              "items": {
+                "enum": [
+                  "鸡胸肉",
+                  "牛肉",
+                  "虾",
+                  "豆腐",
+                  "鸡蛋",
+                  "三文鱼",
+                  "米饭",
+                  "红薯",
+                  "西兰花",
+                  "菠菜",
+                  "希腊酸奶",
+                  "香蕉",
+                  "土豆",
+                  "玉米",
+                  "燕麦",
+                  "苹果"
+                ],
+                "type": "string"
+              },
+              "maxItems": 10,
+              "minItems": 1,
+              "title": "Ingredient Options",
+              "type": "array"
+            },
+            "requirement": {
+              "default": "include",
+              "enum": [
+                "include",
+                "exclude"
+              ],
+              "title": "Requirement",
+              "type": "string"
+            },
+            "grams": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 1000,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grams"
+            }
+          },
+          "required": [
+            "slot",
+            "ingredient_options"
+          ],
+          "title": "MealIngredientRule",
+          "type": "object"
+        },
+        "MealTarget": {
+          "additionalProperties": false,
+          "properties": {
+            "slot": {
+              "enum": [
+                "breakfast",
+                "lunch",
+                "dinner",
+                "snack"
+              ],
+              "title": "Slot",
+              "type": "string"
+            },
+            "items": {
+              "items": {
+                "$ref": "#/$defs/FoodTarget"
+              },
+              "maxItems": 20,
+              "title": "Items",
+              "type": "array"
+            }
+          },
+          "required": [
+            "slot",
+            "items"
+          ],
+          "title": "MealTarget",
+          "type": "object"
+        },
+        "TargetProposal": {
+          "additionalProperties": false,
+          "properties": {
+            "actions": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/ActionTarget"
+                  },
+                  "maxItems": 30,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Actions"
+            },
+            "meals": {
+              "anyOf": [
+                {
+                  "items": {
+                    "$ref": "#/$defs/MealTarget"
+                  },
+                  "maxItems": 4,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Meals"
+            }
+          },
+          "title": "TargetProposal",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "proposal": {
+          "$ref": "#/$defs/TargetProposal"
+        },
+        "constraints": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Constraints"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "additional_scope": {
+          "items": {
+            "enum": [
+              "breakfast",
+              "lunch",
+              "dinner",
+              "snack"
+            ],
+            "type": "string"
+          },
+          "maxItems": 4,
+          "minItems": 1,
+          "title": "Additional Scope",
+          "type": "array"
+        }
+      },
+      "required": [
+        "expected_revision",
+        "proposal",
+        "additional_scope"
+      ],
+      "title": "ExtendRevision",
+      "type": "object"
+    },
+    "target_types": [
+      "day_revision"
+    ],
+    "mutates_state": true,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "day_revision",
+    "scope_schema": {
+      "target_types": [
+        "day_revision"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "day_revision",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "day_revision"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "day_plan.apply_revision",
+    "domain": "day_revision",
+    "description": "仅在用户确认后应用真实草案，expected_revision复制最新etag。训练和饮食同一事务提交，保护完成事实。不可与create/update放同一轮，必须先展示差异再确认。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expected_revision"
+      ],
+      "title": "RevisionVersion",
+      "type": "object"
+    },
+    "target_types": [
+      "day_revision"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "day_revision",
+    "scope_schema": {
+      "target_types": [
+        "day_revision"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "day_revision",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "day_revision"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "day_plan.cancel_revision",
+    "domain": "day_revision",
+    "description": "取消尚未应用的草案，不改当天实际计划；expected_revision复制etag。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expected_revision"
+      ],
+      "title": "RevisionVersion",
+      "type": "object"
+    },
+    "target_types": [
+      "day_revision"
+    ],
+    "mutates_state": true,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "day_revision",
+    "scope_schema": {
+      "target_types": [
+        "day_revision"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "day_revision",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "day_revision"
+        ]
+      }
+    }
+  }
+]

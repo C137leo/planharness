@@ -1,5 +1,7 @@
 # 22 面试总结与项目架构
 
+> 参考资料，非当前实现说明。保留原设计、教程或决策供查阅；其中历史排期、数量、旧链路与目标值未逐项确认为当前事实。当前入口见 [架构](ARCHITECTURE.md) 与 [运行契约](AGENT_RUNTIME.md)。
+
 > 当前代码：192 passed / 1 skipped；8 个任务级 Evals；6/6 变异测试；26 条知识；6 个工具；TodayAgent 最多 6 步。
 > 定位：**bounded agentic workflow（有边界的 Agent 工作流）**，不是全自主 Agent，也不是纯 workflow。
 

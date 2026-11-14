@@ -1,0 +1,292 @@
+[
+  {
+    "path": "docs/02-ux-wireframes.md",
+    "original_use": "# 02 页面线框; ## 0. 设计原则",
+    "reason": "Console不再含评测/三页；main.py已装配patch_graph；semantic_runtime为聊天路径；固定2026-10/11排期及下一步模板不再为当前开发入口",
+    "replacement": "docs/CODEBASE_AUDIT_REPORT.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "ccc737be3f001a6506ec3b0979416058d3dd3255220ebc69e6a5eb77cb5f2ddf",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/03-domain-and-protocol.md",
+    "original_use": "# 03 领域模型与协议; ## 1. 设计原则",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/ARCHITECTURE.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "99efba5cd98ea32417887dca0d3d1d5336a0f1f45bf0967586ec981bbaced044",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/05-one-week-sprint.md",
+    "original_use": "# 05 一周冲刺（裁剪版 / 回退方案）; ## 0. 结论",
+    "reason": "Console不再含评测/三页；main.py已装配patch_graph；semantic_runtime为聊天路径；固定2026-10/11排期及下一步模板不再为当前开发入口",
+    "replacement": "docs/CODEBASE_AUDIT_REPORT.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "6559b7ac2520836d44f4a1cfd526659339d074bc1fff89d1d8e06f611ae810b6",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/06-full-scope-sprint.md",
+    "original_use": "# 06 全量 P0 一周冲刺（2026-10-31 ～ 11-06）; ## 环境状态（2026-10-31 14:50）",
+    "reason": "Console不再含评测/三页；main.py已装配patch_graph；semantic_runtime为聊天路径；固定2026-10/11排期及下一步模板不再为当前开发入口",
+    "replacement": "docs/CODEBASE_AUDIT_REPORT.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "0aaa943d55f5062a630602595fdec1f765a59990da64136d0226142f6af405e1",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/07-environment-and-deploy.md",
+    "original_use": "# 07 环境与部署; ## 1. 当前环境",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/DEVELOPMENT.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "2f10d8d856b14a1b6a6f1733dc798bcb3de7a409e4d25ca72cca171872c6a7f7",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/10-code-map-and-flows.md",
+    "original_use": "# 10 代码地图与流程图; ## 一、一句话说清这个项目",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/ARCHITECTURE.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "87cfe00148868c4a3d01ef5ecf367e07cd9e176f51425bfebd517fd1f8ffa084",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/11-progress-review.md",
+    "original_use": "# 11 进度复盘：做了什么、链路图、LangGraph 缺口; ## 1. 一句话总结",
+    "reason": "Console不再含评测/三页；main.py已装配patch_graph；semantic_runtime为聊天路径；固定2026-10/11排期及下一步模板不再为当前开发入口",
+    "replacement": "docs/CODEBASE_AUDIT_REPORT.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "01cbda29a1d95cfc3cecbe941e0cb06d1c1e7d06c2f3e6a6f3150b70c6f9fb8a",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/13-langgraph-integration.md",
+    "original_use": "# 13 接入 LangGraph：把补丁函数包成节点; ## 0. 先看注册改动",
+    "reason": "Console不再含评测/三页；main.py已装配patch_graph；semantic_runtime为聊天路径；固定2026-10/11排期及下一步模板不再为当前开发入口",
+    "replacement": "docs/CODEBASE_AUDIT_REPORT.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "c0a69cacd43ee6936ccd5e938091d5d90f52a9fae3770e6a2afceda8236289de",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/16-graph-wiring-template.md",
+    "original_use": "# 16 让 API 真正走 LangGraph：照着填的模板; ## 0. 完成标准",
+    "reason": "Console不再含评测/三页；main.py已装配patch_graph；semantic_runtime为聊天路径；固定2026-10/11排期及下一步模板不再为当前开发入口",
+    "replacement": "docs/CODEBASE_AUDIT_REPORT.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "edfd7c2f1394f618f6b2ee462b8a296b6b89e928ab62626d9eb6deed5adbd604",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/17-run-lifecycle-and-verifier.md",
+    "original_use": "# 17 下一阶段模板：AgentRun 生命周期 + 独立 Verifier; ## 0. 为什么先做这两个",
+    "reason": "Console不再含评测/三页；main.py已装配patch_graph；semantic_runtime为聊天路径；固定2026-10/11排期及下一步模板不再为当前开发入口",
+    "replacement": "docs/CODEBASE_AUDIT_REPORT.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "bdf864668cf8bbab58f557d4eab1bf85098cc3cc6010958c0bc2f7ab1a1e4d6c",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/18-remaining-work.md",
+    "original_use": "# 18 剩余工作清单（2026-11-03）; ## 0. 当前快照",
+    "reason": "Console不再含评测/三页；main.py已装配patch_graph；semantic_runtime为聊天路径；固定2026-10/11排期及下一步模板不再为当前开发入口",
+    "replacement": "docs/CODEBASE_AUDIT_REPORT.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "3a877064f0a96a68800145dd8415fa8492157e2649d43dd3c4c9b03fa8ecb75e",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/19-final-priorities.md",
+    "original_use": "# 19 当前阶段与剩余优先级（2026-11-04）; ## 0. 一句话",
+    "reason": "Console不再含评测/三页；main.py已装配patch_graph；semantic_runtime为聊天路径；固定2026-10/11排期及下一步模板不再为当前开发入口",
+    "replacement": "docs/CODEBASE_AUDIT_REPORT.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "6449a61e4a9e9a5ef8f7d86b459ee4d01623a843cef2a1ed67cbe98e63852d45",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/20-flexible-patch-flow.md",
+    "original_use": "# 20 一句话改计划：从「固定补丁」到「可协商草案」; ## 1. 原来的问题",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "a4d52e5ee66daa70948f4bb429e95cedb61378a11beef4065c89115e2c82e79a",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/20-food-ordering-and-rag.md",
+    "original_use": "# 20 订餐 + 健康知识 RAG：落地方案; ## 0. 先定两条边界",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "16772e3605c98035d1c69902576556a00ce70762783c93d78f1699d7810265e2",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/21-agentic-today-planner.md",
+    "original_use": "# 21 今日规划 Agent：让模型自己决定调哪些工具; ## 0. 先分清：什么叫“不是 workflow”",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/ARCHITECTURE.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "9bcfd05fe88324357fc9d838bc2263e6703108cbf32712e1426eb139a707ea17",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/21-skill-driven-plan.md",
+    "original_use": "# 21 把教练 skill 接进产品：生成 → 确认 → 执行; ## 1. 责任划分（先定这个，后面都是细节）",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/ARCHITECTURE.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "4994e1b6b38c1113e6099376a2576f5cdf6678f2a7a16fcbc6f3117be47ccc06",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/24-mcd-order.md",
+    "original_use": "# 麦当劳 MCP：从\"推荐\"走到\"停在付款前\"; ## 1. 为什么网页购物车里没有 Agent 的餐食",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "c519b8c7de1e0b590660438b113fc6258248ffe31c7a0919d979e79b8f6dea50",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/30-observability-and-targets.md",
+    "original_use": "# 可观测性（trace / token / 成本）与营养目标口径; ## 1. trace 里大量 `{}` 是怎么来的",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "8a6a7f4801e8623cf37946f7b0bb3248b30d351b302096322e78a4dd015cf84a",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/32-deploy-skill.md",
+    "original_use": "# 线上部署：skill（healthy-fitness-coach）怎么跟着走; ## 1. 先看它是什么",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/DEVELOPMENT.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "5ca432707568d7d56391b27972632ddae9fe214124fa3f747aaa21df41c5c996",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/38-unified-coach-agent.md",
+    "original_use": "# 38 统一健身教练 Agent：入口、记忆与训练执行; ## 一、一个入口，四种上下文",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "14a35336e66f40bd61572402d451e4f42ed3b7170ecb900b53e681ac730f80a3",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/39-memory-lifecycle-and-consistency.md",
+    "original_use": "# 39 记忆生命周期、临时上下文 TTL 与计划展示一致性; ## 一、当前数据结构（修改后）",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "d77c466c846a82ebffd63103b80716f4f14b272847b1e752fb2006923870dbd3",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/40-global-coach-workspace.md",
+    "original_use": "# 40 GlobalCoachWorkspace：全站统一教练工作区; ## 一、组件与状态",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/ARCHITECTURE.md",
+    "recovery_commit": "ed3bbef024613a219a96771e8e87fff9b124ac9b",
+    "sha256": "369492d71f75d4b58f60e68654094b58e4b118fb5c655a6544b06e90ab10459e",
+    "tracked_before": true,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/CONSOLE_RUNTIME_ARCHITECTURE.md",
+    "original_use": "# Coach Agent 运行工作台：当前实现与边界; ## 实际调用链",
+    "reason": "对照main.py、coach_routes.py、semantic_runtime.py、capabilities.py、workout_records.py、day_revision.py、commerce.py、runtime_console.py、frontend当前页面；不复制旧结论",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
+    "sha256": "9c6c4c4c4888a6fd97d8a8a302ec1575536ac52fa041f32f599ed58280767892",
+    "tracked_before": false,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/coach_agent_architecture_refactor.md",
+    "original_use": "# Coach Agent 架构审查与执行闭环重构; ## 1. 当前架构（重构前的源码事实）",
+    "reason": "新旧阶段与当前事实混排；semantic_runtime.py为当前入口；未解决Console/生产并发边界提炼至AGENT_RUNTIME；docs/evidence原始数据不删除；原文在既有console-runtime-after检查点可恢复",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
+    "sha256": "3e9da7d107180c005d681d9d881564c03df7db4dd4719e289d2980a4c6c65162",
+    "tracked_before": false,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/coach_agent_capability_migration.md",
+    "original_use": "# Coach Agent 能力迁移（持续更新）; ## 阶段与证据规则",
+    "reason": "新旧阶段与当前事实混排；semantic_runtime.py为当前入口；未解决Console/生产并发边界提炼至AGENT_RUNTIME；docs/evidence原始数据不删除；原文在既有console-runtime-after检查点可恢复",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
+    "sha256": "7ba3ce8f764ba70ed3fe6966b4e92fc0fd24ea95c38c731cedf1dbbaf192293d",
+    "tracked_before": false,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/coach_agent_full_refactor_report.md",
+    "original_use": "# AI Coach 自然语言交互与执行系统完整重构报告; ## 1. 原始架构与真实调用链",
+    "reason": "新旧阶段与当前事实混排；semantic_runtime.py为当前入口；未解决Console/生产并发边界提炼至AGENT_RUNTIME；docs/evidence原始数据不删除；原文在既有console-runtime-after检查点可恢复",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
+    "sha256": "0eeea978f19750a1e215582ab87617ce1f9b8ecb6f89d52f646bb2104633718b",
+    "tracked_before": false,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/coach_agent_mixed_confirmation_fix.md",
+    "original_use": "# 混合确认、对象角色绑定与输入框修复; ## 根因与修复",
+    "reason": "新旧阶段与当前事实混排；semantic_runtime.py为当前入口；未解决Console/生产并发边界提炼至AGENT_RUNTIME；docs/evidence原始数据不删除；原文在既有console-runtime-after检查点可恢复",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
+    "sha256": "02574b245d44aeae363c53e7883f3aca1ccb58423819cff08c65fe3ce2ee26ec",
+    "tracked_before": false,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/coach_agent_semantic_binding_refactor.md",
+    "original_use": "# Coach Agent 语义绑定重构实录; ## 1. 调查时的架构与五个根本问题",
+    "reason": "新旧阶段与当前事实混排；semantic_runtime.py为当前入口；未解决Console/生产并发边界提炼至AGENT_RUNTIME；docs/evidence原始数据不删除；原文在既有console-runtime-after检查点可恢复",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
+    "sha256": "75e8377792895447a1abc181828219637cf2fafb875f1319bac4d3346299e42a",
+    "tracked_before": false,
+    "cleanup_commit": null
+  },
+  {
+    "path": "docs/coach_agent_semantic_rule_inventory.md",
+    "original_use": "# 语义规则审计位置索引",
+    "reason": "新旧阶段与当前事实混排；semantic_runtime.py为当前入口；未解决Console/生产并发边界提炼至AGENT_RUNTIME；docs/evidence原始数据不删除；原文在既有console-runtime-after检查点可恢复",
+    "replacement": "docs/AGENT_RUNTIME.md",
+    "recovery_commit": "906986713363a8409e33f4d7496fb710d18a3370",
+    "sha256": "42125be7a858fb6e0dbb229b579940e88e7c24b57f6f2f232899fc355c9b3c93",
+    "tracked_before": false,
+    "cleanup_commit": null
+  }
+]
