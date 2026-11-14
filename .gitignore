@@ -26,3 +26,8 @@ docs/assets/exercise-sources/*.png
 
 # 本地IDE配置，不作为项目运行入口
 .idea/
+
+# 本地评测、浏览器验收输出：保留磁盘，不提交原始轨迹/日志/截图。
+# 测试实际读取的固定数据放 backend/tests/fixtures/，应纳入版本管理。
+docs/evidence/
+backend/eval_intent_result.json

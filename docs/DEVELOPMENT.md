@@ -53,3 +53,5 @@ browser.cjs 是带独立服务/Chrome fixture 的人工集成入口，不和 *.t
 systemd/Nginx/PG 的备份、权限、数据库角色、checkpointer、回滚步骤集中在 [部署说明](../deploy/README.md)。本地检查不代替生产迁移验收；启动期加法迁移异常需单独查日志。不要运行默认 compose 覆盖已有部署。
 
 优先更新权威文档，不为每次开发另写总结报告。删除须核实真实入口、字符串注册、脚本读取和动态图片映射；不确定则记录 [待确认项](UNUSED_CODE_REVIEW.md)，保留原路径。维护规范见 [AGENTS.md](../AGENTS.md)。
+
+提交时纳入源码、测试、评测样本、配置模板、锁文件及运行所需静态资源。`docs/evidence/` 与 `backend/eval_intent_result.json` 是本地生成的验收输出，保留磁盘并忽略，不把原始模型轨迹、认证响应和大批截图加入 Git。历史数据不是当前通过率。测试实际读取的两份稳定输入位于 `backend/tests/fixtures/`：迁移前能力菜单用于契约比较，官方营养只读样本用于隔离 UI fixture；修改原始报告不应改变这些固定测试输入。
