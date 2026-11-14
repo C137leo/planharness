@@ -1,0 +1,3113 @@
+{
+  "id": "coach-dialogues-v2-expanded-regression",
+  "split": "regression",
+  "authored_by": "independent_test_agent",
+  "notes": [
+    "Synthetic scenarios, never model prompt examples.",
+    "Not executed against a real model yet; no NLU accuracy claim.",
+    "One isolated database per conversation, never reset between turns.",
+    "Expectations are evaluator-only postconditions."
+  ],
+  "conversations": [
+    {
+      "id": "reg-01-after-work",
+      "theme": "跨餐次主题切换后继续之前训练目标",
+      "turns": [
+        {
+          "text": "加班回来没多少劲，今天划船只做三组，别的照旧。",
+          "tags": [
+            "colloquial",
+            "training"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "刚调整的那项再少一组就好。",
+          "tags": [
+            "ellipsis",
+            "relative_change"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "换个话题，晚餐额外加一百克牛肉，鸡胸肉和米饭都留着。",
+          "tags": [
+            "topic_switch",
+            "add_food"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "这份新增牛肉先撤掉，恢复添加之前那顿晚饭。",
+          "tags": [
+            "undo",
+            "correction"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "回到前面减组数的动作，它还是恢复到四组吧。",
+          "tags": [
+            "long_reference",
+            "restore"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "深蹲如果只做两组会怎样？先建议，别帮我保存。",
+          "tags": [
+            "advice_only",
+            "negation"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "刚才那个建议作废，今天就保持已经保存的安排。",
+          "tags": [
+            "cancel",
+            "proposal"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-02-added-food",
+      "theme": "添加与替换的边界、餐次纠错",
+      "turns": [
+        {
+          "text": "晚饭整点牛肉，另外加一百克就行，原来的菜不要减。",
+          "tags": [
+            "colloquial",
+            "add_food"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "刚加的肉再加五十克，米饭还是原来那些。",
+          "tags": [
+            "relative_change",
+            "food_quantity"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "牛肉还是全部去掉吧，只去掉晚饭的牛肉。",
+          "tags": [
+            "remove_food",
+            "scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "午饭鸡胸肉我想换成豆腐，其他食物保留。",
+          "tags": [
+            "topic_switch",
+            "replace_food"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "contains_food",
+                "value": "豆腐"
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "excludes_food",
+                "value": "鸡胸肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/lunch"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "我指的是午餐，你检查一下刚才实际保存到哪一餐了，不要再改。",
+          "tags": [
+            "correction",
+            "audit_query"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "contains_food",
+                "value": "豆腐"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "刚才午餐那次替换撤销，恢复鸡胸肉。",
+          "tags": [
+            "undo",
+            "meal_reference"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "excludes_food",
+                "value": "豆腐"
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/lunch"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "把这段对话里真实改过和后来恢复的内容列给我，先别执行新操作。",
+          "tags": [
+            "audit_query",
+            "no_mutation"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-03-renumber",
+      "theme": "删除与替换后根据当前动作编号继续执行",
+      "turns": [
+        {
+          "text": "第一个动作今天跳过，第三个改成拉伸，不改这周其他天。",
+          "tags": [
+            "multi_task",
+            "scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat",
+                "kind": "absent"
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up",
+                "kind": "absent"
+              },
+              {
+                "path": "/days/2026-11-11/action_order",
+                "value": [
+                  "one-arm-dumbbell-row",
+                  "full_body_stretch"
+                ]
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions",
+              "/days/2026-11-11/action_order"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "现在剩下的第一个动作安排两组。",
+          "tags": [
+            "renumber",
+            "context_reference"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "最后那个拉伸也先删掉，今天只留划船。",
+          "tags": [
+            "remove_action",
+            "ordinal"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/full_body_stretch",
+                "kind": "absent"
+              },
+              {
+                "path": "/days/2026-11-11/action_order",
+                "value": [
+                  "one-arm-dumbbell-row"
+                ]
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions",
+              "/days/2026-11-11/action_order"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "最后这次删除反悔了，把拉伸恢复回来。",
+          "tags": [
+            "undo",
+            "restore"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/action_order",
+                "value": [
+                  "one-arm-dumbbell-row",
+                  "full_body_stretch"
+                ]
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions",
+              "/days/2026-11-11/action_order"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "划船不减量了，改回四组。",
+          "tags": [
+            "negation",
+            "sets"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "明天别照搬今天删动作的结果，只保留今天的临时安排。",
+          "tags": [
+            "date_scope",
+            "negation"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/action_order",
+                "value": [
+                  "one-arm-dumbbell-row",
+                  "full_body_stretch"
+                ]
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "你核对一下，今天留下的动作和组数到底是什么？只查询。",
+          "tags": [
+            "audit_query",
+            "read_only"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/action_order",
+                "value": [
+                  "one-arm-dumbbell-row",
+                  "full_body_stretch"
+                ]
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-04-replan",
+      "theme": "模糊重生成先澄清，再限制为训练领域",
+      "turns": [
+        {
+          "text": "今天的计划重新生成一下吧。",
+          "tags": [
+            "ambiguous",
+            "replan"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions",
+                "kind": "unchanged"
+              },
+              {
+                "path": "/days/2026-11-11/meals",
+                "kind": "unchanged"
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false,
+            "clarification": true
+          }
+        },
+        {
+          "text": "说的是今天训练，重新排动作就好，午饭和晚饭都别碰。",
+          "tags": [
+            "clarify_answer",
+            "training_only"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions",
+                "kind": "changed"
+              },
+              {
+                "path": "/days/2026-11-11/meals",
+                "kind": "unchanged"
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions",
+              "/days/2026-11-11/action_order"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "刚才究竟变了哪些动作？请按保存记录说，不用再次生成。",
+          "tags": [
+            "audit_query",
+            "no_mutation"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions",
+                "kind": "unchanged"
+              },
+              {
+                "path": "/days/2026-11-11/meals",
+                "kind": "unchanged"
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "重新排的这版先不要了，把刚才重排前的训练恢复。",
+          "tags": [
+            "undo",
+            "replan"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/action_order",
+                "value": [
+                  "goblet-squat",
+                  "one-arm-dumbbell-row",
+                  "push-up"
+                ]
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions",
+              "/days/2026-11-11/action_order"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "这次换午餐，额外添一百克牛肉，不要替掉任何食物。",
+          "tags": [
+            "topic_switch",
+            "add_food"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/lunch"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "刚才没让你改晚饭，请查记录确认晚饭有没有动过，不要重写餐单。",
+          "tags": [
+            "correction",
+            "audit_query"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "没有别的要求了，取消所有尚未执行的建议，已保存的午饭先留着。",
+          "tags": [
+            "cancel",
+            "pending_vs_saved"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-05-ambiguous-reference",
+      "theme": "多个修改对象下不猜指代",
+      "turns": [
+        {
+          "text": "今天深蹲两组，划船三组，俯卧撑照旧四组。",
+          "tags": [
+            "multi_task",
+            "sets"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 2
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/goblet-squat/sets",
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "刚才那个再少一组吧。",
+          "tags": [
+            "ambiguous_reference",
+            "clarification"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 2
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false,
+            "clarification": true
+          }
+        },
+        {
+          "text": "我是说划船，再减一组。",
+          "tags": [
+            "clarify_answer",
+            "relative_change"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              },
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 2
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "深蹲别减那么多了，恢复成四组。",
+          "tags": [
+            "negation",
+            "correction"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/goblet-squat/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "晚餐米饭不要动，另外加一百五十克牛肉。",
+          "tags": [
+            "topic_switch",
+            "food_constraint"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "刚才新增的那份肉取消，晚餐回到添加之前。",
+          "tags": [
+            "undo",
+            "food_reference"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "保持现在这样，不要把这些临时修改写成长期偏好。",
+          "tags": [
+            "scope",
+            "no_mutation"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-06-propose-cancel",
+      "theme": "建议、取消与明确执行授权分离",
+      "turns": [
+        {
+          "text": "俯卧撑减到两组可能更适合我吗？先告诉我怎么改，别直接执行。",
+          "tags": [
+            "proposal",
+            "permission_boundary"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "先别按刚才的建议改，那个提议取消。",
+          "tags": [
+            "cancel",
+            "negation"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "现在我决定只把今天俯卧撑保存为三组，其余不变。",
+          "tags": [
+            "explicit_execution",
+            "scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/push-up/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "不，还是不减了，恢复原来的四组。",
+          "tags": [
+            "correction",
+            "negation"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/push-up/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "晚饭不是换掉鸡胸肉，是在原有餐单上加一百克牛肉。",
+          "tags": [
+            "add_not_replace",
+            "negation"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "午餐不用跟着改，我只想再看一下晚餐当前都有什么。",
+          "tags": [
+            "query",
+            "scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "新增牛肉这件事也撤销吧，训练不用再调整。",
+          "tags": [
+            "undo",
+            "cross_domain_scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-07-topic-reset",
+      "theme": "饮食和动作话题反复切换",
+      "turns": [
+        {
+          "text": "今天第三个动作改成两组，我正在看训练安排。",
+          "tags": [
+            "training",
+            "explicit_domain"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 2
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/push-up/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "虽然还在训练页，晚餐加一百克牛肉，别去找训练动作。",
+          "tags": [
+            "domain_switch",
+            "page_is_weak_hint"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "肉还是不加了，撤销刚才晚餐那次添加。",
+          "tags": [
+            "undo",
+            "meal_reference"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "再说回最早减过组的那个训练动作，给它加一组。",
+          "tags": [
+            "long_reference",
+            "relative_change"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/push-up/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "午饭鸡胸肉换成豆腐，晚餐保留原计划。",
+          "tags": [
+            "topic_switch",
+            "scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "contains_food",
+                "value": "豆腐"
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "excludes_food",
+                "value": "鸡胸肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/lunch"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "你现在理解我在说训练还是饮食？按上一条实际操作解释，不要再执行。",
+          "tags": [
+            "audit_query",
+            "context"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "contains_food",
+                "value": "豆腐"
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "上一条保存的午餐替换恢复，别影响刚才的俯卧撑组数。",
+          "tags": [
+            "undo",
+            "cross_domain_scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/lunch"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-08-date-correction",
+      "theme": "日期更正与当前餐单保护",
+      "turns": [
+        {
+          "text": "今天晚餐额外加一百克牛肉，其他餐不改。",
+          "tags": [
+            "add_food",
+            "today_only"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "日期说错了，刚才今天晚餐的添加先撤回；我原本想说明天，明天没有餐单就不要猜着改。",
+          "tags": [
+            "date_correction",
+            "mixed_completed_pending"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": true,
+            "completion": false
+          }
+        },
+        {
+          "text": "先不处理明天了，就查今天晚餐是不是恢复好了，不做新修改。",
+          "tags": [
+            "cancel",
+            "audit_query"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "今天划船做三组，明天的训练不用跟着变。",
+          "tags": [
+            "scope",
+            "training"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "它再少一组，仍然只针对今天。",
+          "tags": [
+            "relative_change",
+            "date_scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "刚才减到两组的修改撤销，回到三组就行，不是四组。",
+          "tags": [
+            "undo_latest",
+            "negation"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "接下来没有新任务，把还没执行的明天安排请求取消。",
+          "tags": [
+            "cancel",
+            "pending"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-09-partial-target-missing",
+      "theme": "有效任务和不存在目标混合",
+      "turns": [
+        {
+          "text": "今天删掉登山跑，另外晚餐加一百克牛肉。",
+          "tags": [
+            "partial_success",
+            "missing_target"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "登山跑不在计划里就算了，确认一下刚才晚餐有没有加成功，不用再添加。",
+          "tags": [
+            "audit_query",
+            "no_duplicate"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "只把上次真正加进去的牛肉恢复掉，失败的删动作别重试。",
+          "tags": [
+            "undo_successful_only",
+            "mixed_completed_pending"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "那今天第一个动作减成两组，其他两个动作保留。",
+          "tags": [
+            "ordinal",
+            "training"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 2
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/goblet-squat/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "不是两组，我改主意了，刚才那个做三组。",
+          "tags": [
+            "correction",
+            "context_reference"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/goblet-squat/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "午饭只给我介绍替换鸡胸肉的思路，别实际换餐单。",
+          "tags": [
+            "advice_only",
+            "topic_switch"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "建议不用保存了，已改好的三组深蹲保持不变。",
+          "tags": [
+            "cancel",
+            "pending_vs_saved"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-10-negated-food",
+      "theme": "否定表达不应误记偏好或误删食物",
+      "turns": [
+        {
+          "text": "今晚不要鸡胸肉了，换成豆腐；只是今晚，不代表以后都不吃。",
+          "tags": [
+            "negation",
+            "temporary_not_preference"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "contains_food",
+                "value": "豆腐"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "鸡胸肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "米饭不是不要，保持一百五十克，别理解反了。",
+          "tags": [
+            "correction",
+            "food_constraint"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "contains_food",
+                "value": "豆腐"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "刚换成的豆腐再换回鸡胸肉，晚餐其他东西照旧。",
+          "tags": [
+            "replace_again",
+            "context_reference"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "豆腐"
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "今天划船改成两组，不要修改吃的。",
+          "tags": [
+            "topic_switch",
+            "training_only"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "我不是让你把所有动作都减组，查一下其他动作有没有保持四组，不要再次调整。",
+          "tags": [
+            "correction",
+            "audit_query"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "划船这次也恢复原来的四组。",
+          "tags": [
+            "undo",
+            "training"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "刚刚这些都是临时决定，不要写进长期档案，先结束本轮调整。",
+          "tags": [
+            "scope",
+            "cancel"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-11-successive-relative",
+      "theme": "连续相对修改与精确撤销",
+      "turns": [
+        {
+          "text": "今天深蹲先安排三组。",
+          "tags": [
+            "training",
+            "sets"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/goblet-squat/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "它再减一组，今天想省点体力。",
+          "tags": [
+            "relative_change",
+            "context_reference"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 2
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/goblet-squat/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "等一下，只撤销最近这次减组，前面改成三组的决定保留。",
+          "tags": [
+            "undo_latest",
+            "successive_changes"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/goblet-squat/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "晚饭想多点蛋白，额外加一百五十克牛肉，原有鸡肉和饭保留。",
+          "tags": [
+            "topic_switch",
+            "add_food"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "训练那边不继续减了，刚才的三组先保持。",
+          "tags": [
+            "negation",
+            "cross_domain_reference"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "把晚饭加肉那次撤掉，别把深蹲也恢复了。",
+          "tags": [
+            "undo",
+            "scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "最后核对一下今天深蹲组数和晚饭食材，用实际数据回答，不做修改。",
+          "tags": [
+            "query",
+            "audit_evidence"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-12-meal-specific",
+      "theme": "同种食物出现在两餐时精准定位",
+      "turns": [
+        {
+          "text": "午餐鸡胸肉改成牛肉，晚餐的鸡胸肉别动。",
+          "tags": [
+            "meal_scope",
+            "replace_food"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "contains_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "excludes_food",
+                "value": "鸡胸肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/lunch"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "晚餐也换豆腐，但是午餐继续保持牛肉。",
+          "tags": [
+            "scope_switch",
+            "explicit_reference"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "contains_food",
+                "value": "豆腐"
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "contains_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "鸡胸肉"
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "刚才那餐的米饭不要动，查一下现在还是一百五十克吗？",
+          "tags": [
+            "query",
+            "food_constraint"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "恢复午餐那次替换，晚餐的豆腐继续保留。",
+          "tags": [
+            "undo_earlier",
+            "meal_scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "contains_food",
+                "value": "豆腐"
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/lunch"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "再往晚餐额外加一百克牛肉，不是拿它替掉豆腐。",
+          "tags": [
+            "add_not_replace",
+            "negation"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "contains_food",
+                "value": "豆腐"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "只撤回最后添加牛肉的操作，别恢复更早那次换豆腐。",
+          "tags": [
+            "undo_latest",
+            "successive_changes"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "contains_food",
+                "value": "豆腐"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "两餐就先这样，今天别再自动替换，也不用修改训练。",
+          "tags": [
+            "cancel",
+            "domain_boundary"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "contains_food",
+                "value": "豆腐"
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-13-training-only-replan",
+      "theme": "单领域重新规划后安全撤回",
+      "turns": [
+        {
+          "text": "把今天训练重新排一版，饮食完全沿用现在这份。",
+          "tags": [
+            "replan",
+            "training_only"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions",
+                "kind": "changed"
+              },
+              {
+                "path": "/days/2026-11-11/meals",
+                "kind": "unchanged"
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions",
+              "/days/2026-11-11/action_order"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "你把午饭也动了吗？先核实实际变更，不要为了回答再改任何数据。",
+          "tags": [
+            "correction",
+            "audit_query"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/actions",
+                "kind": "unchanged"
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "这版训练我不采用了，恢复到重排之前的三个动作。",
+          "tags": [
+            "undo",
+            "replan"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/action_order",
+                "value": [
+                  "goblet-squat",
+                  "one-arm-dumbbell-row",
+                  "push-up"
+                ]
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions",
+              "/days/2026-11-11/action_order"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "只把俯卧撑减为两组，其他照刚恢复的版本。",
+          "tags": [
+            "sets",
+            "scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 2
+              },
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/push-up/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "别减到两组了，刚才那项留三组。",
+          "tags": [
+            "negation",
+            "correction"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/push-up/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "要不晚餐换个蛋白？这句先当咨询，不要直接改。",
+          "tags": [
+            "advice_only",
+            "topic_switch"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "饮食咨询取消，今天最终只保留俯卧撑三组这项修改。",
+          "tags": [
+            "cancel",
+            "final_scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-14-audit-and-correct",
+      "theme": "用户质疑与真实变更记录核查",
+      "turns": [
+        {
+          "text": "午餐额外加一百克牛肉，米饭鸡胸肉都保留。",
+          "tags": [
+            "add_food",
+            "meal_scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/lunch"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "你刚才到底加到哪一顿了？请查询已保存记录，不要再加一次。",
+          "tags": [
+            "audit_query",
+            "no_duplicate"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "我改主意了，午餐加肉那次先恢复掉，晚餐暂时不动。",
+          "tags": [
+            "undo",
+            "meal_scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/lunch"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "现在才给晚餐添加一百克牛肉，不是午餐。",
+          "tags": [
+            "correction",
+            "scope_switch"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "没让你移除米饭，检查晚饭米饭有没有被动，若没动不要做多余恢复。",
+          "tags": [
+            "correction",
+            "audit_not_assume"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "训练划船今天降到两组，饮食保留刚刚保存的版本。",
+          "tags": [
+            "topic_switch",
+            "scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "把训练降组数那项恢复，晚餐加肉的结果继续保留。",
+          "tags": [
+            "undo",
+            "cross_domain_scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 100
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "reg-15-user-exploration",
+      "theme": "上班族自由探索式话题与反悔",
+      "turns": [
+        {
+          "text": "今天会开到很晚，深蹲三组、俯卧撑两组，划船先照旧。",
+          "tags": [
+            "colloquial",
+            "multi_task"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 2
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/goblet-squat/sets",
+              "/days/2026-11-11/actions/push-up/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "俯卧撑我又想多做一组，只加它。",
+          "tags": [
+            "relative_change",
+            "scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/push-up/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "晚饭想吃牛肉但不想减原来的饭菜，另外添一百五十克。",
+          "tags": [
+            "topic_switch",
+            "add_not_replace"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "忘了说，我现在只想看方案，下一步任何修改都先不要执行；已经保存的保留。",
+          "tags": [
+            "permission_change",
+            "pending_vs_saved"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "那建议我明天怎样安排吧，今天的数据别动，也先不要保存明天。",
+          "tags": [
+            "advice_only",
+            "date_scope"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions",
+                "kind": "unchanged"
+              },
+              {
+                "path": "/days/2026-11-11/meals",
+                "kind": "unchanged"
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "刚说的明天建议不用了；我现在明确要求撤销今天晚餐加牛肉这件事。",
+          "tags": [
+            "cancel",
+            "explicit_execution",
+            "undo"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "先到这里，核对今天最终保存的训练和晚餐结果，不用再调整。",
+          "tags": [
+            "audit_query",
+            "conversation_end"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "鸡胸肉",
+                "value": 150
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "米饭",
+                "value": 150
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    }
+  ]
+}

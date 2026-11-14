@@ -1,0 +1,106 @@
+{
+  "id": "workout-progress-development",
+  "split": "development",
+  "fixture": "progress",
+  "conversations": [
+    {
+      "id": "progress-dev",
+      "turns": [
+        {
+          "text": "我已经热身完了。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "progress_percent": 10,
+            "logs": 0
+          }
+        },
+        {
+          "text": "今天剩下的三个正式动作各减一组，保留已完成热身。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "targets": [
+              1,
+              2,
+              2,
+              2
+            ],
+            "day_strength_sets": 2,
+            "progress_percent": 14
+          }
+        },
+        {
+          "text": "我所有的锻炼都做完了，按今天调整后的默认安排给我确认。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "logs": 0
+          }
+        },
+        {
+          "text": "其他按默认完成，深蹲实际只做了一组，用了六分钟，请先修改这个完成摘要。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "logs": 0
+          }
+        },
+        {
+          "text": "确认，按修改后的摘要保存。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "finished",
+            "item_sets": [
+              1,
+              1,
+              2,
+              2
+            ],
+            "logs": 4,
+            "progress_percent": 86
+          }
+        },
+        {
+          "text": "再看看刚才最终保存的训练进度和记录。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "item_sets": [
+              1,
+              1,
+              2,
+              2
+            ],
+            "logs": 4
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+{"id":"mixed-blind-v5","split":"holdout-first-run","conversations":[{"id":"blind-five","turns":[
+{"text":"热身中的动态热身这项我想跳过。","expect":{"statuses":["confirmation_required"]}},
+{"text":"行，批准刚才跳过那项，再把深蹲的组数调为两组。","expect":{"statuses":["success"],"allow_actions":["动态热身","深蹲"],"absent":["动态热身"],"sets":[["深蹲",2]]}},
+{"text":"全身拉伸也改成三组，别把深蹲改回去。","expect":{"statuses":["success"],"allow_actions":["全身拉伸"],"sets":[["全身拉伸",3],["深蹲",2]]}}
+]}]}

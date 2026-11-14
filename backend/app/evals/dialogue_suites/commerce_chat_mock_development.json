@@ -1,0 +1,7 @@
+{"id":"commerce-chat-mock-development","split":"development","conversations":[{"id":"commerce-mock-dev","turns":[
+{"text":"我在北京三里屯，找附近营业的麦当劳，再查最近这家的菜单。","expect":{"statuses":["success"],"capabilities":["commerce.search_stores","commerce.menu"]}},
+{"text":"来两份麦辣鸡翅，先给我看订单报价，别直接下单。","expect":{"statuses":["success"],"capabilities":["commerce.prepare_order"],"checkout_status":["needs_selection"]}},
+{"text":"外带。","expect":{"statuses":["confirmation_required"],"capabilities":["commerce.revise_order"],"checkout_status":["awaiting_confirmation"]}},
+{"text":"对，确认刚才那两份鸡翅，创建待付款订单。","expect":{"statuses":["success"],"checkout_status":["submitted"],"total_mock_submits":1}},
+{"text":"查查刚才这单，现在什么状态？别重新下。","expect":{"statuses":["success"],"capabilities":["commerce.query_order"],"checkout_status":["submitted"],"total_mock_submits":1}}
+]}]}

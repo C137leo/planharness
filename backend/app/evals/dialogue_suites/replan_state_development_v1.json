@@ -1,0 +1,132 @@
+{
+  "id": "replan-state-development-v1",
+  "split": "development",
+  "conversations": [
+    {
+      "id": "expired-empty-day-exact-reported-phrases",
+      "fixture": "empty_day",
+      "expired_approval": true,
+      "turns": [
+        {
+          "text": "给我重新生成一份训练计划",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "fresh_consent": true,
+            "done_sets": 0
+          }
+        },
+        {
+          "text": "我确认放弃原来的部分",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 0
+          }
+        },
+        {
+          "text": "确认应用这份新的训练计划",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "done_sets": 0,
+            "previous_sets": 0,
+            "completed": false,
+            "apply": true
+          }
+        },
+        {
+          "text": "我还没开始新训练，核对一下当前做了几组。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 0,
+            "completed": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "expired-prior-records-short-confirmation",
+      "expired_approval": true,
+      "turns": [
+        {
+          "text": "保留实际记录，重新排今天20分钟训练，餐食都照旧。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "fresh_consent": true,
+            "done_sets": 7
+          }
+        },
+        {
+          "text": "先放弃",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "max_minutes": 20
+          }
+        },
+        {
+          "text": "先留着这份预览，不应用。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "same_draft": true
+          }
+        },
+        {
+          "text": "现在确认按预览执行。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "apply": true,
+            "same_draft": true
+          }
+        },
+        {
+          "text": "旧记录和新目标各完成了几组？分开说，我还没开始新的。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "explain_separation": true
+          }
+        }
+      ]
+    }
+  ]
+}

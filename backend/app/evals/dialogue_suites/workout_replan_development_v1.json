@@ -1,0 +1,104 @@
+{
+  "id": "workout-replan-development-v1",
+  "split": "development",
+  "conversations": [
+    {
+      "id": "legacy-seventy-replan",
+      "turns": [
+        {
+          "text": "帮我安排一下今天的训练",
+          "expect": {
+            "statuses": [
+              "success",
+              "confirmation_required",
+              "proposed",
+              "noop"
+            ],
+            "completed": false,
+            "done_sets": 7,
+            "not_all_complete": true
+          }
+        },
+        {
+          "text": "不要继续原来的剩余部分了，保留已有记录，重新给今天排20分钟训练。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "done_sets": 7
+          }
+        },
+        {
+          "text": "对，确认放弃原方案没做的部分，已经记录的保留，先给我看新方案。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "max_minutes": 20,
+            "done_sets": 7
+          }
+        },
+        {
+          "text": "新方案可以，确认应用。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "apply": true
+          }
+        },
+        {
+          "text": "现在新方案做了几组，还差多少？旧记录别算进去。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "partial-preserve-cancel",
+      "fixture": "partial_active",
+      "turns": [
+        {
+          "text": "我只做了记录里的那一组，原方案先不要了，重排20分钟，做过的给我留档。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "old_status": "active",
+            "done_sets": 1
+          }
+        },
+        {
+          "text": "等等，别放弃了，取消这次重排，继续原安排。",
+          "expect": {
+            "statuses": [
+              "cancelled",
+              "rejected",
+              "success"
+            ],
+            "authorization_status": "cancelled",
+            "old_status": "active",
+            "done_sets": 1
+          }
+        }
+      ]
+    }
+  ]
+}

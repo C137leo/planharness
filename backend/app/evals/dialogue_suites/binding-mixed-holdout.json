@@ -1,0 +1,7 @@
+{"id":"mixed-request-unseen-v1","split":"holdout-first-run","conversations":[{"id":"mixed-unseen","turns":[
+{"text":"今天把动态热身去掉吧。","expect":{"statuses":["confirmation_required"]}},
+{"text":"没错，照办。再把深蹲加一组。","expect":{"statuses":["success"],"allow_actions":["动态热身","深蹲"],"absent":["动态热身"],"sets":[["深蹲",5]]}},
+{"text":"把全身拉伸先拿掉，但别动引体向上。","expect":{"statuses":["success"],"allow_actions":["全身拉伸"],"absent":["全身拉伸"],"present":["引体向上"]}},
+{"text":"全身拉伸还是恢复，先让我核对恢复对象。","expect":{"statuses":["confirmation_required"]}},
+{"text":"对，恢复它；另外晚饭添60克豆腐。","expect":{"statuses":["success"],"allow_actions":["全身拉伸"],"allow_meals":["dinner"],"present":["全身拉伸"],"food":[["dinner","豆腐",true]],"grams":[["dinner","豆腐",60]]}}
+]}]}

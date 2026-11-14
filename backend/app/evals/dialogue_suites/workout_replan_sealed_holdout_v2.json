@@ -1,0 +1,143 @@
+{
+  "id": "workout-replan-sealed-holdout-v2",
+  "split": "sealed_holdout",
+  "conversations": [
+    {
+      "id": "legacy-credit-confirmation-and-defer",
+      "turns": [
+        {
+          "text": "我记得只做了热身和每项两组。今天那个完成标记靠谱吗，还欠什么？",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop",
+              "confirmation_required"
+            ],
+            "done_sets": 7,
+            "completed": false,
+            "not_all_complete": true
+          }
+        },
+        {
+          "text": "不补原来那三组了，旧记录照存。请把今天剩下的目标换成十七分钟的新安排。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "done_sets": 7
+          }
+        },
+        {
+          "text": "确定，已做的不动，旧的未做部分不要了，先出个新计划给我。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "max_minutes": 17
+          }
+        },
+        {
+          "text": "暂时别落地，我想再看看这个方案。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "max_minutes": 17
+          }
+        },
+        {
+          "text": "看好了，按刚才这份执行吧。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "apply": true
+          }
+        },
+        {
+          "text": "我还没练新计划，给我核对它和重排前记录各有几组。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "partial-live-facts-separate",
+      "fixture": "partial_active",
+      "turns": [
+        {
+          "text": "就记下刚做的那一组，之前没做的先放弃，重新给今天排十六分钟，旧记录要保留。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "old_status": "active",
+            "done_sets": 1
+          }
+        },
+        {
+          "text": "可以保留已做的再换目标，先预览，不急着生效。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "old_status": "active",
+            "done_sets": 1,
+            "max_minutes": 16
+          }
+        },
+        {
+          "text": "预览没问题，现在把新计划设为今天的安排。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "old_status": "superseded",
+            "done_sets": 0,
+            "previous_sets": 1,
+            "completed": false,
+            "apply": true
+          }
+        },
+        {
+          "text": "新安排现在应当还是零吧？前面那组单独查得到吗？",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 1,
+            "completed": false
+          }
+        }
+      ]
+    }
+  ]
+}

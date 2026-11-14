@@ -1,0 +1,97 @@
+{
+  "id": "coordinated-replan-development-v1",
+  "split": "development",
+  "conversations": [
+    {
+      "id": "rest-day-training-and-three-meals",
+      "fixture": "empty_day",
+      "turns": [
+        {
+          "text": "重新给今天排20分钟训练和三餐：早餐只要燕麦60克和鸡蛋100克，午餐鸡胸肉150克、米饭160克、西兰花150克；晚餐豆腐200克、菠菜150克、红薯180克。先给预览。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "done_sets": 0
+          }
+        },
+        {
+          "text": "是的，放弃原方案，直接重新制定目标，先看预览。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 0,
+            "max_minutes": 20,
+            "foods": {
+              "breakfast": {
+                "燕麦": 60,
+                "鸡蛋": 100
+              },
+              "lunch": {
+                "鸡胸肉": 150,
+                "米饭": 160,
+                "西兰花": 150
+              },
+              "dinner": {
+                "豆腐": 200,
+                "菠菜": 150,
+                "红薯": 180
+              }
+            }
+          }
+        },
+        {
+          "text": "我看过了，确认应用这份训练和三餐。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "done_sets": 0,
+            "previous_sets": 0,
+            "completed": false,
+            "foods": {
+              "breakfast": {
+                "燕麦": 60,
+                "鸡蛋": 100
+              },
+              "lunch": {
+                "鸡胸肉": 150,
+                "米饭": 160,
+                "西兰花": 150
+              },
+              "dinner": {
+                "豆腐": 200,
+                "菠菜": 150,
+                "红薯": 180
+              }
+            },
+            "apply": true,
+            "meal_scopes": [
+              "breakfast",
+              "lunch",
+              "dinner"
+            ]
+          }
+        },
+        {
+          "text": "早餐的燕麦是多少克？当前新训练做了几组？",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 0,
+            "completed": false
+          }
+        }
+      ]
+    }
+  ]
+}

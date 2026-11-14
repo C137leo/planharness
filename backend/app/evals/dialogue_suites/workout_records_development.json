@@ -1,0 +1,87 @@
+{
+  "id": "workout-records-development",
+  "split": "development",
+  "conversations": [
+    {
+      "id": "training-dev",
+      "turns": [
+        {
+          "text": "今天练到这儿，没记录的不要当做练过，帮我结束并保存。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "status": "active",
+            "logs": 0
+          }
+        },
+        {
+          "text": "确认，照真实记录结束，剩下的留未记录。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "finished",
+            "sets": [
+              3
+            ],
+            "logs": 1
+          }
+        },
+        {
+          "text": "刚才深蹲最后那组重量其实62.5公斤，其他记录不改。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "weights": [
+              60
+            ],
+            "audits": 0
+          }
+        },
+        {
+          "text": "对，确认这处纠错。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "weights": [
+              62.5
+            ],
+            "audits": 1
+          }
+        },
+        {
+          "text": "查一下刚刚保存的训练日志，看看实际几组和最后的重量。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "sets": [
+              3
+            ],
+            "weights": [
+              62.5
+            ],
+            "logs": 1
+          }
+        },
+        {
+          "text": "再结束一次刚才训练，不要重复新增日志。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "sets": [
+              3
+            ],
+            "logs": 1,
+            "audits": 1
+          }
+        }
+      ]
+    }
+  ]
+}

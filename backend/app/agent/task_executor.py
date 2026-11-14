@@ -1,0 +1,382 @@
+"""ID-only execution. This module never receives or interprets the user's text."""
+import copy
+import datetime as dt
+import json
+from pydantic import ValidationError
+from sqlalchemy import select
+from app.agent.capabilities import REGISTRY, capability
+from app.agent.business_snapshot import business_state
+from app.domain.day_plan import effective_day, save_override
+from app.models import (CoachTaskExecution, Memory, Profile, WorkoutSession, new_id)
+
+
+class TaskFailure(ValueError):
+    def __init__(self, stage, message, details=None):
+        self.stage = stage
+        self.details = details or {}
+        super().__init__(message)
+
+# 验证任务
+def validate_tasks(tasks, snapshot):
+    objects = {o["id"]: o for o in snapshot.payload["objects"]}
+    task_ids = [t.task_id for t in tasks]
+    if len(set(task_ids)) != len(task_ids):
+        raise TaskFailure("schema", "任务 ID 重复。")
+    if len(tasks)>1 and any(t.capability_id.startswith('day_plan.') for t in tasks):
+        raise TaskFailure('execution_boundary','整日草案每轮只执行一个生命周期任务，先展示差异再单独确认提交。')
+    submitted={t.resolution.selected_id for t in tasks if t.capability_id=="commerce.submit_order"}
+    edited={t.resolution.selected_id for t in tasks if t.capability_id in {"commerce.revise_order","commerce.cancel_checkout"}}
+    if submitted & edited:
+        raise TaskFailure("confirmation_scope", "同一订单草案的修订/取消不能与旧版本提交放在一个执行计划中；请先更新预览再确认。")
+    seen = set()
+    for task in tasks:
+        cap = capability(task.capability_id)
+        if cap is None:
+            raise TaskFailure("capability", "不支持该能力。")
+        if cap.execution_boundary in {"commerce","workout_lifecycle","day_revision"} and cap.executor == cap.execution_boundary:
+            pass
+        elif cap.execution_boundary != "local_database" or cap.executor not in {"action", "food", "profile", "memory", "undo", "inspect"}:
+            raise TaskFailure("capability", "该能力尚未接入对应的执行边界，不能在本地事务中执行。")
+        if task.parameters_resolved:
+            try:cap.argument_model.model_validate(task.arguments)
+            except ValidationError as exc:
+                issues=exc.errors(include_url=False,include_context=False)
+                message='工具参数不符合已注册Schema。'
+                if cap.execution_boundary=='day_revision':
+                    fields={part for issue in issues for part in issue['loc'] if isinstance(part,str)}
+                    message='新方案的动作、组数或食材份量尚未通过校验。'
+                    if 'ingredient_key' in fields:message='所选食材不在当前可用食材目录，请重新选择。'
+                    elif 'action_ref' in fields:message='所选动作不在可用目录，或尚未绑定当天的真实动作。'
+                raise TaskFailure('arguments_schema',message,{'task_id':task.task_id,'capability_id':cap.capability_id,'errors':issues}) from exc
+        for override in task.arguments.get('item_overrides',[]):
+            item=objects.get(override.get('item_id'),{})
+            if item.get('type')!='session_item' or item.get('parent_id')!=task.resolution.selected_id:
+                raise TaskFailure('ownership_scope','完成摘要条目不属于目标训练会话。')
+        r = task.resolution
+        ids = set(r.candidate_ids + ([r.selected_id] if r.selected_id else []))
+        for id in ids:
+            if id not in objects:
+                raise TaskFailure("ownership_scope", f"任务 {task.task_id} 的目标不在当前用户快照中。", {"task_id": task.task_id, "target_id": id})
+            if objects[id]["type"] not in cap.target_types:
+                actual = objects[id]["type"]
+                raise TaskFailure("target_type", f"任务 {task.task_id}（{cap.capability_id}）绑定类型错误：实际为 {actual}，需要 {'/'.join(cap.target_types)}。",
+                                  {"task_id": task.task_id, "target_id": id, "actual_type": actual, "expected_types": list(cap.target_types)})
+        if r.status == "resolved" and (not r.selected_id or (r.candidate_ids and set(r.candidate_ids) != {r.selected_id})):
+            raise TaskFailure("resolution", "唯一绑定与候选列表不一致。", {"task_id": task.task_id, "selected_id": r.selected_id, "candidate_ids": r.candidate_ids})
+        if r.status == "ambiguous" and len(set(r.candidate_ids)) < 2:
+            raise TaskFailure("resolution", "多候选状态需要多个真实候选。")
+        if task.capability_id in {'day_plan.create_revision','day_plan.update_revision','day_plan.extend_revision'} and task.parameters_resolved and r.status=='resolved' and snapshot.payload.get('day_revision'):
+            # All draft edits use the exact same pure preflight as execution.
+            from app.domain import day_revision
+            from app.agent.revision_requirements import candidate
+            try:candidate(task,snapshot)
+            except day_revision.RevisionError as exc:
+                raise TaskFailure('arguments_schema',str(exc),{'task_id':task.task_id,
+                    'capability_id':cap.capability_id,'errors':[{'type':exc.code,'message':str(exc),'details':exc.details}]}) from exc
+        for key, kind in (("ingredient_id", "ingredient"), ("exercise_id", "exercise")):
+            if key in task.arguments and (task.arguments[key] not in objects or objects[task.arguments[key]]["type"] != kind):
+                raise TaskFailure("ownership_scope", "目录 ID 不存在或类型错误。")
+        if not set(task.dependencies) <= seen:
+            raise TaskFailure("dependency", "依赖不存在或顺序错误。")
+        seen.add(task.task_id)
+    return objects
+
+
+def requires_confirmation(task, objects):
+    cap = capability(task.capability_id)
+    r = task.resolution
+    target = objects.get(r.selected_id, {})
+    if cap.execution_boundary in {"commerce","day_revision"} and cap.confirmation == "never":
+        return cap.mutates_state and (not task.parameters_resolved or r.status != "resolved")
+    return cap.mutates_state and (cap.confirmation == "always" or task.needs_confirmation
+           or not task.parameters_resolved or r.status != "resolved" or r.basis in {"inferred", "none"}
+           or (target.get("slot") == "warmup" and task.capability_id in {"workout.remove_action", "workout.skip_action"}))
+
+
+def _get(items, id):
+    matches = [item for item in items if item["id"] == id]
+    if len(matches) != 1:
+        raise TaskFailure("stale", "目标不存在或已变化。")
+    return matches[0]
+
+
+def _save_day(db, user, date, expected, current):
+    payload = save_override(db, user, dt.date.fromisoformat(date), actions=current["actions"], meals=current["meals"],
+                           constraints=current["constraints"], summary="教练结构化任务调整", reason="validated_bound_task",
+                           base_version=current["plan_version"], expected_adjustment_id=current["adjustment_id"])
+    expected["days"][date] = copy.deepcopy(current)
+    expected["days"][date]["adjustment_id"] = payload["adjustment_id"]
+    for row in db.scalars(select(WorkoutSession).where(WorkoutSession.user_id==user.id,WorkoutSession.date==dt.date.fromisoformat(date))):
+        expected['sessions'][row.id]={'date':date,'status':row.status,'items':copy.deepcopy(row.items)}
+
+
+def _exercise(objects, id):
+    ex = objects[id]
+    from app.domain.catalog import display_action_name
+    name = display_action_name({**ex, "name": ex.get("name_zh") or ex.get("name_en")})
+    return {"action_ref": ex["action_ref"], "name": name,
+            "equipment": ex.get("equipment"), "primary_muscle": ex.get("primary_muscle"),
+            "meta": {"knee_risky": ex.get("knee_risky", False), "name_zh": name}}
+
+
+def _action(db, user, task, target, objects, expected):
+    op, args = task.capability_id, task.arguments
+    session = target["type"] == "session_item"
+    date = target["date"]
+    current = copy.deepcopy(expected["days"][date])
+    row = db.get(WorkoutSession, target["parent_id"]) if session else None
+    if session and (row is None or row.user_id != user.id or row.status not in {"active", "paused"}):
+        raise TaskFailure("scope", "训练会话不可修改。")
+    actions = copy.deepcopy(row.items) if session else current["actions"]
+    item = None if op == "workout.add_action" else _get(actions, target["id"])
+    if session and item["status"] in {"done", "skipped"}:
+        raise TaskFailure("constraint", "已完成的训练条目不可修改。")
+    if op == "workout.remove_action":
+        actions.remove(item)
+    elif op == "workout.skip_action":
+        if session:
+            item["status"] = "skipped"
+        else:
+            actions.remove(item)
+    elif op in {"workout.replace_action", "workout.add_action"}:
+        if session and int(item.get("completed_sets") or 0) > 0:
+            raise TaskFailure("constraint", "已经完成组数的动作不能替换。")
+        exercise = _exercise(objects, args["exercise_id"])
+        from app.domain.day_plan import allowed_equipment, _norm_equipment
+        from app.domain.safety_rules import is_risky_for
+        profile = db.get(Profile, user.id)
+        if _norm_equipment(exercise.get("equipment")) not in allowed_equipment(profile, current["constraints"]):
+            raise TaskFailure("constraint", "当前器械约束不允许该动作。")
+        injured = current["constraints"].get("injured_regions") or []
+        if any(is_risky_for(exercise["action_ref"], region) for region in injured):
+            raise TaskFailure("constraint", "该动作与身体限制冲突。")
+        if item is None:
+            item = {"id": new_id(), "slot": "strength", "sets": args.get("sets") or 3,
+                    "reps": args.get("reps") or 10, "duration_min": None}
+            actions.append(item)
+        item.update(exercise)
+    if op in {"workout.update_action", "workout.replace_action"}:
+        changed = op == "workout.replace_action"
+        for key, upper in (("sets", 10), ("reps", 100)):
+            field = "target_" + key if session else key
+            value, delta = args.get(key), args.get(key + "_delta")
+            if value is not None and delta is not None:
+                raise TaskFailure("parameters", "绝对值和相对值不能同时指定。")
+            if delta is not None:
+                if type(item.get(field)) is not int:
+                    raise TaskFailure("parameters", "动作没有可调整的数量。")
+                value = item[field] + delta
+            if value is not None:
+                if not 1 <= value <= upper or (session and key == "sets" and value < int(item.get("completed_sets") or 0)):
+                    raise TaskFailure("constraint", "目标数量越界或低于已完成数量。")
+                item[field] = value
+                changed = True
+        if not changed:
+            raise TaskFailure("parameters", "没有提供可执行的数量调整。")
+    if session:
+        row.items = actions
+        from app.domain.workout import _advance
+        _advance(row)
+        expected["sessions"][row.id].update(items=copy.deepcopy(row.items), status=row.status)
+    else:
+        current["actions"] = actions
+        _save_day(db, user, date, expected, current)
+
+
+def _recalc(meal):
+    for field, source in (("kcal", "kcal"), ("protein_g", "protein"), ("fat_g", "fat"), ("carb_g", "carb")):
+        meal[field] = round(sum(float(i.get(source) or 0) for i in meal["items"]), 1)
+
+
+def _food(db, user, task, target, objects, expected):
+    date, args, op = target["date"], task.arguments, task.capability_id
+    current = copy.deepcopy(expected["days"][date])
+    meal = _get(current["meals"], target["id"] if target["type"] == "meal" else target["parent_id"])
+    item = None if op == "meal.add_food" else _get(meal["items"], target["id"])
+    if op == "meal.remove_food":
+        meal["items"].remove(item)
+    elif op == "meal.set_quantity":
+        grams = float(item.get("grams") or 0)
+        if grams <= 0:
+            raise TaskFailure("constraint", "缺少原始份量，无法可靠重算营养。")
+        ratio = args["grams"] / grams
+        for field in ("kcal", "protein", "fat", "carb"):
+            item[field] = round(float(item.get(field) or 0) * ratio, 1)
+        item["grams"] = args["grams"]
+    else:
+        ingredient = objects[args["ingredient_id"]]
+        profile = db.get(Profile, user.id)
+        forbidden = (profile.allergies or []) + (current["constraints"].get("avoid_foods") or [])
+        # Conservative lexical allergy gate only rejects; it never selects a semantic target.
+        if any(term and term in ingredient["name"] for term in forbidden):
+            raise TaskFailure("constraint", "食材与过敏或忌口约束冲突。")
+        if item is None:
+            item = {"id": new_id()}
+            meal["items"].append(item)
+        values = ingredient["macros_per_100g"]
+        item.update(name=ingredient["name"], ingredient_id=ingredient["id"], ingredient_key=ingredient["name"], grams=args["grams"])
+        item.update({field: round(value * args["grams"] / 100, 1) for field, value in zip(("kcal", "protein", "fat", "carb"), values)})
+    if op in {"meal.add_food", "meal.replace_food"}:
+        from app.domain.meal_items import merge_food_items
+        meal["items"] = merge_food_items(meal["items"], target=item)
+    _recalc(meal)
+    _save_day(db, user, date, expected, current)
+
+
+def resource_changes(before, after):
+    changes = []
+    for date in before["days"]:
+        for kind in ("actions", "meals"):
+            old, new = before["days"][date][kind], after["days"][date][kind]
+            a, b = {i["id"]: i for i in old}, {i["id"]: i for i in new}
+            for id in a.keys() | b.keys():
+                if a.get(id) != b.get(id):
+                    changes.append({"kind": kind, "date": date, "key": id, "before": a.get(id), "after": b.get(id),
+                                    "before_index": next((n for n, v in enumerate(old) if v["id"] == id), None)})
+    for kind in ("profile", "memories", "sessions"):
+        a, b = before[kind], after[kind]
+        if kind == "profile":
+            if a != b:
+                changes.append({"kind": kind, "key": "profile", "before": a, "after": b})
+        else:
+            for id in a.keys() | b.keys():
+                if a.get(id) != b.get(id):
+                    changes.append({"kind": kind, "key": id, "before": a.get(id), "after": b.get(id)})
+    return changes
+
+
+def _undo(db, user, thread, target, expected):
+    row = db.get(CoachTaskExecution, target["id"])
+    if row is None or row.user_id != user.id or row.thread != thread or row.status != "verified":
+        raise TaskFailure("scope", "该执行记录不可撤销。")
+    if row.domain=='workout_lifecycle':
+        raise TaskFailure('constraint','已发生的训练事实不能撤销成未发生；请使用训练记录修订能力。')
+    if row.domain=='day_revision':
+        raise TaskFailure('constraint','整日草案请取消待应用草案，或创建新的补偿草案；不能绕过完成事实保护直接撤销。')
+    later = db.scalars(select(CoachTaskExecution).where(CoachTaskExecution.user_id == user.id,
+                       CoachTaskExecution.created_at > row.created_at))
+    keys = {(c.get("date"), c["kind"], c["key"]) for c in row.resource_changes}
+    if any(keys & {(c.get("date"), c["kind"], c["key"]) for c in other.resource_changes} for other in later):
+        raise TaskFailure("conflict", "目标已有后续修改，需重新确认恢复内容。")
+    dirty_dates = set()
+    for change in row.resource_changes:
+        kind, key, old, new = (change[k] for k in ("kind", "key", "before", "after"))
+        if kind not in {"actions", "meals"}:
+            raise TaskFailure("capability", "此类型记录暂不支持自动补偿。")
+        date = change["date"]
+        if date not in expected["days"]:
+            raise TaskFailure("scope", "撤销日期未加载，请先加载原操作日期。")
+        items = expected["days"][date][kind]
+        actual = next((i for i in items if i["id"] == key), None)
+        if actual != new:
+            raise TaskFailure("conflict", "目标当前数据与历史操作后状态不一致。")
+        if actual is not None:
+            items.remove(actual)
+        if old is not None:
+            items.insert(min(change["before_index"], len(items)), copy.deepcopy(old))
+        dirty_dates.add(date)
+    for date in dirty_dates:
+        _save_day(db, user, date, expected, copy.deepcopy(expected["days"][date]))
+    row.status = "compensated"
+    return row
+
+
+def execute_tasks(db, user, snapshot, tasks, *, confirmed=False):
+    if snapshot.user_id != user.id:
+        raise TaskFailure("ownership_scope", "快照不属于当前用户。")
+    if any(capability(t.capability_id).execution_boundary != "local_database" for t in tasks):
+        raise TaskFailure("execution_boundary", "外部能力必须使用独立商务执行边界。")
+    objects = validate_tasks(tasks, snapshot)
+    results, successful = [], set()
+    for task in tasks:
+        base = {"task_id": task.task_id, "capability_id": task.capability_id, "operation": task.capability_id,
+                "user_goal": task.user_goal, "tool": REGISTRY[task.capability_id].executor,
+                "tool_arguments": {"target_id": task.resolution.selected_id, **task.arguments},
+                "state_history": ["bound", "validated"]}
+        if not set(task.dependencies) <= successful:
+            results.append({**base, "status": "blocked", "message": "前置任务未成功。"})
+            continue
+        try:
+            if not task.parameters_resolved:
+                raise TaskFailure("parameters", "操作或参数仍未明确，不能执行。")
+            if not task.resolution.selected_id or task.resolution.status not in {"resolved", "candidate"}:
+                raise TaskFailure("resolution", "仍需明确具体目标。")
+            if requires_confirmation(task, objects) and not confirmed:
+                raise TaskFailure("confirmation", "此任务尚未确认。")
+            with db.begin_nested():
+                before = business_state(db, user, snapshot.payload["dates"])
+                expected = copy.deepcopy(before)
+                target, cap = objects[task.resolution.selected_id], REGISTRY[task.capability_id]
+                undone = None
+                if cap.executor == "action":
+                    _action(db, user, task, target, objects, expected)
+                elif cap.executor == "food":
+                    _food(db, user, task, target, objects, expected)
+                elif cap.executor == "profile":
+                    args = cap.argument_model.model_validate(task.arguments).model_dump(exclude_none=True)
+                    if not args:
+                        raise TaskFailure("parameters", "没有指定档案更新内容。")
+                    row = db.get(Profile, user.id)
+                    for key, value in args.items():
+                        setattr(row, key, value)
+                    expected["profile"].update(args)
+                elif cap.executor == "memory":
+                    if task.capability_id == "memory.archive":
+                        row = db.get(Memory, target["id"])
+                        if row is None or row.user_id != user.id:
+                            raise TaskFailure("scope", "记忆不存在。")
+                        row.status = "archived"
+                        expected["memories"][row.id]["status"] = "archived"
+                    else:
+                        row = Memory(id=new_id(), user_id=user.id, kind="short_term", category=task.arguments.get("category", "note"),
+                                     key=new_id(), value=task.arguments["value"], structured={}, evidence=task.user_goal)
+                        db.add(row)
+                        expected["memories"][row.id] = {"category": row.category, "value": row.value, "status": "active", "structured": {}}
+                elif cap.executor == "undo":
+                    undone = _undo(db, user, snapshot.thread, target, expected)
+                db.flush()
+                db.expire_all()
+                after = business_state(db, user, snapshot.payload["dates"])
+                if after != expected:
+                    raise TaskFailure("verification", "数据库重读发现目标未达成或有超出范围的修改，已回滚本任务。")
+                changes = resource_changes(before, after)
+                execution_id = None
+                if cap.mutates_state:
+                    journal = CoachTaskExecution(user_id=user.id, thread=snapshot.thread,
+                        request_key=db.info.get("coach_request_key") or new_id(), task_id=task.task_id,
+                        effective_date=dt.date.fromisoformat(target.get("date") or snapshot.payload["dates"][0]),
+                        operation=task.capability_id, domain=cap.domain, scope=target["type"], goal=task.user_goal,
+                        tool=cap.executor, arguments=base["tool_arguments"], resource_changes=changes, status="verified")
+                    db.add(journal)
+                    db.flush()
+                    execution_id = journal.id
+                    if undone:
+                        undone.compensated_by = execution_id
+                message = ("已完成：" if cap.mutates_state else "已读取：") + task.user_goal
+                if not cap.mutates_state:
+                    if target['type']=='day':
+                        progress={i['action_id']:i for i in target.get('current_progress',{}).get('items',[])}
+                        message+='\n'+target['date']+' 当前有效安排（v'+str(target.get('plan_version'))+'）：'
+                        p=target.get('current_progress',{})
+                        message+='\n系统已记录 '+str(p.get('done_sets',0))+'/'+str(p.get('total_sets',0))+' 组。'
+                        if p.get('done_sets',0)<p.get('total_sets',0):message+='当前训练目标尚未全部完成。'
+                        else:message+='已有记录已达到当前目标；若与实际不符，可先核对记录。'
+                        for action in target.get('current_actions',[]):
+                            p=progress.get(action['id'],{})
+                            message+='\n'+str(action.get('name') or action['action_ref'])+'：'+str(action.get('sets') or 1)+' 组'
+                            if action.get('duration_min'):message+='，约 '+str(action['duration_min'])+' 分钟'
+                            message+='；已记录 '+str(p.get('completed_sets',0))+' 组，还差 '+str(p.get('remaining_sets',action.get('sets') or 1))+' 组'
+                        if target.get('previous_training'):
+                            records=target['previous_training']
+                            message+='\n重排前记录单独保留，不计入当前新方案进度：'+ '；'.join(i['name']+' '+str(i['completed_sets'])+'组' for i in records)+'；合计 '+str(sum(i['completed_sets'] for i in records))+' 组。'
+                        message+='\n你希望继续当前剩余安排，还是保留记录并重新制定目标？重排前会先确认是否放弃旧方案未完成部分。'
+                    else:message += "\n" + json.dumps(target, ensure_ascii=False, default=str)
+                results.append({**base, "status": "success", "message": message, "execution_id": execution_id,
+                                "actual_changes": changes, "unrelated_changes": [],
+                                "data": target if not cap.mutates_state else None,
+                                "state_history": base["state_history"] + ["executed", "reloaded", "verified"]})
+                successful.add(task.task_id)
+        except Exception as exc:
+            results.append({**base, "status": "failed", "stage": getattr(exc, "stage", "execution"),
+                            "message": str(exc)[:300], "actual_changes": [], "unrelated_changes": []})
+    return results

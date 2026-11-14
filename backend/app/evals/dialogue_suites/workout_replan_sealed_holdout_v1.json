@@ -1,0 +1,142 @@
+{
+  "id": "workout-replan-sealed-holdout-v1",
+  "split": "sealed_holdout",
+  "conversations": [
+    {
+      "id": "ended-not-complete-and-new-goals",
+      "turns": [
+        {
+          "text": "刚才把本场结束了，但不等于目标全做完吧？帮我核对今天还欠哪些。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop",
+              "confirmation_required"
+            ],
+            "done_sets": 7,
+            "completed": false,
+            "not_all_complete": true
+          }
+        },
+        {
+          "text": "剩下的旧内容先不练，已经做的留着，给今天另定一套十五分钟的新目标。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "done_sets": 7
+          }
+        },
+        {
+          "text": "对，只放弃没练的，之前那几组不要动，先看你排的。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "max_minutes": 15
+          }
+        },
+        {
+          "text": "先别应用，再缩短一点，改成十二分钟以内，旧记录仍单列。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "max_minutes": 12
+          }
+        },
+        {
+          "text": "这版行，就用这版新的安排。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "apply": true
+          }
+        },
+        {
+          "text": "换完后旧账和新目标分别是多少？我还没开始新这一套。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "live-one-set-replacement",
+      "fixture": "partial_active",
+      "turns": [
+        {
+          "text": "现在只有系统里那一组做过了。剩下那套作废，今天换成十八分钟，已经练的别丢。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "old_status": "active",
+            "done_sets": 1
+          }
+        },
+        {
+          "text": "同意保留已练记录，换目标，先让我看安排。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "old_status": "active",
+            "done_sets": 1,
+            "max_minutes": 18
+          }
+        },
+        {
+          "text": "新安排没问题，确认替换。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "old_status": "superseded",
+            "done_sets": 0,
+            "previous_sets": 1,
+            "completed": false,
+            "apply": true
+          }
+        },
+        {
+          "text": "我换计划前完成的那组还在吗？这一轮可别把它当已做的。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 1,
+            "completed": false
+          }
+        }
+      ]
+    }
+  ]
+}

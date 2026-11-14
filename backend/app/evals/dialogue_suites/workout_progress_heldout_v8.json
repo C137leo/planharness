@@ -1,0 +1,150 @@
+{
+  "id": "workout-progress-heldout-v8-final",
+  "split": "heldout",
+  "fixture": "progress",
+  "conversations": [
+    {
+      "id": "final-unseen-negative-edit-pushup",
+      "turns": [
+        {
+          "text": "热身那段已结束，先给它记上，后面三项还没开始。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "progress_percent": 10,
+            "logs": 0
+          }
+        },
+        {
+          "text": "正式动作今天每个都比现在少一组，热身别动。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "targets": [
+              1,
+              2,
+              2,
+              2
+            ],
+            "day_strength_sets": 2,
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "logs": 0
+          }
+        },
+        {
+          "text": "今天清单已经全部练过了，按现有安排整理一下让我确认，重量我没称也没记。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "logs": 0
+          }
+        },
+        {
+          "text": "先别保存，我刚说的整场完成仍有效；只把最后的俯卧撑实做改成一组，每组九次、四分钟，其余按刚才默认，请重给摘要。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "logs": 0
+          }
+        },
+        {
+          "text": "这份就对了，按你刚列的内容存好。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "item_sets": [
+              1,
+              2,
+              2,
+              1
+            ],
+            "sets": [
+              1,
+              2,
+              2,
+              1
+            ],
+            "reps": [
+              null,
+              10,
+              10,
+              9
+            ],
+            "weights": [
+              null,
+              null,
+              null,
+              null
+            ],
+            "actual_minutes": 33,
+            "logs": 4,
+            "status": "finished"
+          }
+        },
+        {
+          "text": "翻一下今天这次记录，复述总时长和最后动作完成几组；只查看，不改。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "item_sets": [
+              1,
+              2,
+              2,
+              1
+            ],
+            "sets": [
+              1,
+              2,
+              2,
+              1
+            ],
+            "reps": [
+              null,
+              10,
+              10,
+              9
+            ],
+            "weights": [
+              null,
+              null,
+              null,
+              null
+            ],
+            "actual_minutes": 33,
+            "logs": 4,
+            "status": "finished"
+          }
+        }
+      ]
+    }
+  ]
+}

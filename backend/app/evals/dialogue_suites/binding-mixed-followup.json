@@ -1,0 +1,8 @@
+{"id":"mixed-confirm-followup","split":"regression-new-incident","conversations":[{"id":"mixed-confirm-and-add","turns":[
+{"text":"把今天的山羊挺身和动态热身都移除。","expect":{"statuses":["confirmation_required"]}},
+{"text":"对，执行刚才两项。另外，把深蹲调成两组。","expect":{"statuses":["success"],"allow_actions":["山羊挺身","动态热身","深蹲"],"absent":["山羊挺身","动态热身"],"sets":[["深蹲",2]]}},
+{"text":"再给今天新增开合跳和哑铃弯举，不替换现在的动作。","expect":{"statuses":["success"],"allow_actions":["开合跳","哑铃弯举"],"present":["开合跳","哑铃弯举"],"sets":[["深蹲",2]]}},
+{"text":"把刚加的开合跳和哑铃弯举移除，其他照旧。","expect":{"statuses":["success","confirmation_required"],"allow_actions":["开合跳","哑铃弯举"]}},
+{"text":"对，只删它们；另外引体向上改成三组。","expect":{"statuses":["success"],"allow_actions":["开合跳","哑铃弯举","引体向上"],"absent":["开合跳","哑铃弯举"],"sets":[["引体向上",3],["深蹲",2]]}},
+{"text":"如果按75kg重新调整热量和训练量，还缺哪些信息？先只解释，不要保存任何东西。","expect":{"statuses":["noop","proposed","success"]}}
+]}]}

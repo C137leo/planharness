@@ -1,0 +1,133 @@
+{
+  "id": "workout-replan-sealed-holdout-v3",
+  "split": "sealed_holdout",
+  "conversations": [
+    {
+      "id": "finished-partial-replacement-and-query",
+      "turns": [
+        {
+          "text": "今天这场先结束了，我印象还有三个动作各一组没做，帮我确认当前目标别把结束当全做完。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop",
+              "confirmation_required"
+            ],
+            "done_sets": 7,
+            "completed": false,
+            "not_all_complete": true
+          }
+        },
+        {
+          "text": "已经练的都保留，但旧的剩余先不做了，帮我新排十四分钟。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "done_sets": 7
+          }
+        },
+        {
+          "text": "是的，保留之前的完成记录，放弃旧剩余，现在先给我预览新目标。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "max_minutes": 14
+          }
+        },
+        {
+          "text": "这个目标合适，确认让它生效。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "apply": true
+          }
+        },
+        {
+          "text": "新的一套我一组也没练，请把新进度和之前留档的组数分开给我看。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "explain_separation": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "active-one-set-archive-and-scope-query",
+      "fixture": "partial_active",
+      "turns": [
+        {
+          "text": "我在刚才的动作只练了一组，现在原来剩下的不练，另排十三分钟，已练的给我留底。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "old_status": "active",
+            "done_sets": 1
+          }
+        },
+        {
+          "text": "没错，换掉未做部分就行，做过的照存，先让我看十三分钟的目标。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "old_status": "active",
+            "done_sets": 1,
+            "max_minutes": 13
+          }
+        },
+        {
+          "text": "好，这份新安排现在应用吧。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "old_status": "superseded",
+            "done_sets": 0,
+            "previous_sets": 1,
+            "completed": false,
+            "apply": true
+          }
+        },
+        {
+          "text": "查查我留底的那组，再说下这次新目标目前到底做了多少，两个别混。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 1,
+            "completed": false,
+            "explain_separation": true
+          }
+        }
+      ]
+    }
+  ]
+}

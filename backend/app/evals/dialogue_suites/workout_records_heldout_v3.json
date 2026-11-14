@@ -1,0 +1,124 @@
+{
+  "id": "workout-records-heldout-v3",
+  "split": "heldout",
+  "conversations": [
+    {
+      "id": "training-final-v3",
+      "turns": [
+        {
+          "text": "今天不继续了，把现有记录存好然后结束，没录入的保持未知。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "status": "active",
+            "logs": 0
+          }
+        },
+        {
+          "text": "确认刚才那份摘要，可以结束。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "finished",
+            "sets": [
+              3
+            ],
+            "logs": 1
+          }
+        },
+        {
+          "text": "深蹲实做只有一组，后两组都是误点，请把总组数修掉。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "sets": [
+              3
+            ],
+            "audits": 0
+          }
+        },
+        {
+          "text": "暂不采纳这个更正，保留原来那份记录。",
+          "expect": {
+            "statuses": [
+              "cancelled",
+              "rejected"
+            ],
+            "sets": [
+              3
+            ],
+            "audits": 0
+          }
+        },
+        {
+          "text": "我只改第三组的重量为0公斤，算徒手，原次数和总组数都保持不动。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "weights": [
+              60
+            ],
+            "sets": [
+              3
+            ],
+            "audits": 0
+          }
+        },
+        {
+          "text": "确定，这次只改重量。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "weights": [
+              0
+            ],
+            "sets": [
+              3
+            ],
+            "logs": 1,
+            "audits": 1
+          }
+        },
+        {
+          "text": "查询这次最后存下来的实际训练情况。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "weights": [
+              0
+            ],
+            "sets": [
+              3
+            ],
+            "logs": 1,
+            "audits": 1
+          }
+        },
+        {
+          "text": "如果再说一次结束也别新增，核对原来的结束记录即可。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "status": "finished",
+            "weights": [
+              0
+            ],
+            "sets": [
+              3
+            ],
+            "logs": 1,
+            "audits": 1
+          }
+        }
+      ]
+    }
+  ]
+}

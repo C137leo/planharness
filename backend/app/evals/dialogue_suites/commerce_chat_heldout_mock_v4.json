@@ -1,0 +1,7 @@
+{"id":"commerce-chat-heldout-mock-v4","split":"heldout","conversations":[{"id":"mcd-mock-sealed-v4","turns":[
+{"text":"三里屯，北京的。帮我找附近营业的麦当劳，把最近那家菜单查了看看。","expect":{"statuses":["success"],"capabilities":["commerce.search_stores","commerce.menu"]}},
+{"text":"牛肉汉堡套餐先来三套，按官方默认组成，打包带走，先核对预览不要建单。","expect":{"statuses":["confirmation_required"],"capabilities":["commerce.prepare_order"],"checkout_status":["awaiting_confirmation"],"cart_quantities":[3],"take_way_title":"外带","total_cents":3000}},
+{"text":"刚才口误了，不是三套，留两套就够，取餐方式和配餐别变。重新给我核对，没让你下单。","expect":{"statuses":["confirmation_required"],"capabilities":["commerce.revise_order"],"checkout_status":["awaiting_confirmation"],"cart_quantities":[2],"take_way_title":"外带","same_checkout_as_turn":2,"total_cents":2000}},
+{"text":"可以，这次核对的两套外带没问题，我确认创建这单，健身安排别动。","expect":{"statuses":["success"],"checkout_status":["submitted"],"cart_quantities":[2],"same_checkout_as_turn":2,"total_mock_submits":1,"total_cents":2000}},
+{"text":"帮我核实刚点那两套的订单状态，不是让你重新点。","expect":{"statuses":["success"],"capabilities":["commerce.query_order"],"checkout_status":["submitted"],"cart_quantities":[2],"same_checkout_as_turn":2,"total_mock_submits":1}}
+]}]}

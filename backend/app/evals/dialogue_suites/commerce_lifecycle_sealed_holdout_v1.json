@@ -1,0 +1,21 @@
+{
+  "id":"commerce-lifecycle-sealed-holdout-v1","split":"heldout","conversations":[
+    {"id":"expired-order-plain-new-request","fixture":"expired","turns":[
+      {"text":"在三里屯帮我买份麦辣鸡翅，先给我核对这次要买的。","expect":{"statuses":["confirmation_required"],"submits":1,"new_preview":true}},
+      {"text":"这次的预览没问题，确定下单。","expect":{"statuses":["success"],"submits":2,"same_new":true,"no_conflict":true}},
+      {"text":"把刚下的单给我查一下就行，不要重复提交。","expect":{"statuses":["success"],"submits":2,"same_new":true,"no_conflict":true}}
+    ]},
+    {"id":"paid-history-does-not-require-time-window","fixture":"paid","turns":[
+      {"text":"我要另外买一份鸡翅，不是查上次那单，先看新的报价。","expect":{"statuses":["confirmation_required"],"submits":1,"new_preview":true}},
+      {"text":"确认购买新报价里的这份鸡翅。","expect":{"statuses":["success"],"submits":2,"same_new":true,"no_conflict":true}}
+    ]},
+    {"id":"unpaid-continue-pay-then-cancel-and-new","fixture":"unpaid","turns":[
+      {"text":"再来一份麦辣鸡翅吧，先准备报价。","expect":{"statuses":["confirmation_required"],"submits":1,"new_preview":true}},
+      {"text":"核对好了，确认这张新单。","expect":{"statuses":["existing_order"],"submits":1,"same_new":true,"conflict":true}},
+      {"text":"先不建新的，我想接着付之前没付的那单。","expect":{"statuses":["existing_order"],"submits":1,"same_new":true,"conflict":true}},
+      {"text":"我改变主意了，取消那笔未付的旧订单，新的先不要提交。","expect":{"statuses":["confirmation_required"],"submits":1,"same_new":true,"pending_cap":"commerce.cancel_order"}},
+      {"text":"确认，仅取消旧订单。","expect":{"statuses":["confirmation_required"],"submits":1,"cancels":1,"same_new":true,"pending_cap":"commerce.submit_order"}},
+      {"text":"现在确认刚才保留下来的新鸡翅订单。","expect":{"statuses":["success"],"submits":2,"cancels":1,"same_new":true,"no_conflict":true}}
+    ]}
+  ]
+}

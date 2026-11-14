@@ -1,0 +1,12 @@
+{"id":"commerce-chat-heldout-mock-v1","split":"heldout","conversations":[{"id":"mcd-mock-sealed-a1","turns":[
+{"text":"北京三里屯这边有开门的麦当劳吗？顺便把离得近的那家吃的列出来。","expect":{"statuses":["success"],"capabilities":["commerce.search_stores","commerce.menu"]}},
+{"text":"麦辣鸡翅来一份，先让我核对一遍单子，别急着建单。","expect":{"statuses":["success"],"capabilities":["commerce.prepare_order"],"checkout_status":["needs_selection"]}},
+{"text":"坐店里吃的。","expect":{"statuses":["confirmation_required"],"capabilities":["commerce.revise_order"],"checkout_status":["awaiting_confirmation"]}},
+{"text":"行，就这一单，帮我建待付款的；训练先别改。","expect":{"statuses":["success"],"checkout_status":["submitted"],"total_mock_submits":1}},
+{"text":"刚刚点的查一下有没有建好，可别再来一单。","expect":{"statuses":["success"],"capabilities":["commerce.query_order"],"checkout_status":["submitted"],"total_mock_submits":1}}
+]},{"id":"mcd-mock-sealed-b1","turns":[
+{"text":"想在北京三里屯吃麦当劳，先找营业的门店，看最近这家现在卖什么。","expect":{"statuses":["success"],"capabilities":["commerce.search_stores","commerce.menu"]}},
+{"text":"那牛肉汉堡套餐要一份，组成就用官方默认的，先报个价让我看看。","expect":{"statuses":["success"],"capabilities":["commerce.prepare_order"],"checkout_status":["needs_selection"]}},
+{"text":"拿走吃，先看预览，别帮我提交。","expect":{"statuses":["confirmation_required"],"capabilities":["commerce.revise_order"],"checkout_status":["awaiting_confirmation"]}},
+{"text":"别确认，鸡翅先别加，刚才那个套餐也暂时不点了，取消它。","expect":{"statuses":["cancelled","success"],"checkout_status":["cancelled"]}}
+]}]}

@@ -1,0 +1,17 @@
+{"id":"commerce-availability-sealed-holdout-v1","split":"heldout","conversations":[
+{"id":"closed-nearest-two-wings-consent","fixture":"nearest_closed","turns":[
+{"text":"我在地标，选距离最近那家麦当劳，给我点两份麦辣鸡翅，先看预览。","expect":{"statuses":["confirmation_required"],"store_choice":true,"no_menu":true}},
+{"text":"可以，就用你推荐的最近营业店继续。","expect":{"statuses":["confirmation_required"],"food":"麦辣鸡翅2块","quantity":2,"store":"合成河畔店"}},
+{"text":"先留着这张报价，我还没决定买，不提交。","expect":{"statuses":["confirmation_required","clarification_required","noop"],"food":"麦辣鸡翅2块","quantity":2,"store":"合成河畔店"}}
+]},
+{"id":"all-closed-no-hidden-retry","fixture":"all_closed","turns":[
+{"text":"帮我在地标找最近的麦当劳买一份鸡翅。","expect":{"statuses":["unavailable"],"reason":"no_open_store","no_menu":true,"no_confirmation":true}},
+{"text":"那就不买了，不要替我下单。","expect":{"statuses":["noop","success"],"no_menu":true,"no_confirmation":true}}
+]},
+{"id":"soldout-change-to-coffee","fixture":"stock_rejected","turns":[
+{"text":"还是地标那边，离我最近的店，先准备两份鸡翅的报价。","expect":{"statuses":["unavailable"],"reason":"provider_business_rejected"}},
+{"text":"既然没有了就不要鸡翅，改一杯热美式中杯，只看报价。","expect":{"statuses":["confirmation_required"],"food":"热美式中杯","quantity":1,"store":"合成近站店"}}
+]},
+{"id":"nearest-open-no-extra-switch-confirm","fixture":"open_nearest","turns":[
+{"text":"在地标最近的餐厅挑一份麦辣鸡翅给我看报价，不要先提交。","expect":{"statuses":["confirmation_required"],"food":"麦辣鸡翅2块","quantity":1,"store":"合成近站店"}}
+]}]}

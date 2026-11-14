@@ -1,0 +1,7 @@
+{"id":"commerce-chat-heldout-mock-v2","split":"heldout","conversations":[{"id":"mcd-mock-sealed-v2","turns":[
+{"text":"人在北京三里屯，帮忙查个营业中的麦当劳，看看最近店的菜单再说。","expect":{"statuses":["success"],"capabilities":["commerce.search_stores","commerce.menu"]}},
+{"text":"刚看中的牛肉汉堡套餐，要一套原配，拿走吃。先给单子核对一下，没让我确认之前别下单。","expect":{"statuses":["confirmation_required"],"capabilities":["commerce.prepare_order","commerce.revise_order"],"checkout_status":["awaiting_confirmation"]}},
+{"text":"先等等，还是两份好了，都用刚才的原配和取餐方式，更新单子让我核对。","expect":{"statuses":["confirmation_required"],"capabilities":["commerce.revise_order"],"checkout_status":["awaiting_confirmation"]}},
+{"text":"这回没问题了，就按最新的两份外带创建待支付订单，今天训练不用动。","expect":{"statuses":["success"],"checkout_status":["submitted"],"total_mock_submits":1}},
+{"text":"我想再核实下刚才那笔订单的状态，只查就行别重下。","expect":{"statuses":["success"],"capabilities":["commerce.query_order"],"checkout_status":["submitted"],"total_mock_submits":1}}
+]}]}

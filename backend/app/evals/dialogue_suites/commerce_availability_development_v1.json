@@ -1,0 +1,10 @@
+{"id":"commerce-availability-development-v1","split":"development","conversations":[
+{"id":"nearest-closed-consent","fixture":"nearest_closed","turns":[
+{"text":"我在地标，帮我从最近的餐厅点份鸡翅，先让我看报价。","expect":{"statuses":["confirmation_required"],"store_choice":true,"no_menu":true}},
+{"text":"那就改为你说的最近营业店，继续帮我选鸡翅。","expect":{"statuses":["confirmation_required"],"food":"麦辣鸡翅2块","quantity":1,"store":"合成河畔店"}},
+{"text":"改成两份，暂时不要提交。","expect":{"statuses":["confirmation_required"],"food":"麦辣鸡翅2块","quantity":2,"store":"合成河畔店"}}
+]},
+{"id":"stock-reason-change-food","fixture":"stock_rejected","turns":[
+{"text":"从地标最近的店帮我选一份麦辣鸡翅，先准备报价。","expect":{"statuses":["unavailable"],"reason":"provider_business_rejected"}},
+{"text":"那不买鸡翅了，换成一份牛肉汉堡给我看看，先别下单。","expect":{"statuses":["confirmation_required"],"food":"牛肉汉堡","quantity":1,"store":"合成近站店"}}
+]}]}

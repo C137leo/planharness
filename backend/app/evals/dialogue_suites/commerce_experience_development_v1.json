@@ -1,0 +1,10 @@
+{
+ "id":"commerce-experience-development-v1","split":"development","conversations":[
+ {"id":"saved-city-wings-and-dine-change","saved_location":{"city":"北京","keyword":"三里屯"},"turns":[
+ {"text":"我在三里屯，帮我从最近营业的餐厅点份鸡翅，先看报价。","expect":{"statuses":["confirmation_required"],"quote":true,"city":"北京","names":["麦辣鸡翅2块","原味鸡翅2块"],"quantity":1}},
+ {"text":"改堂食，还是刚才这份鸡翅，先别提交。","expect":{"statuses":["confirmation_required"],"quote":true,"same_quote":true,"way":"provider-dine-87","quantity":1}},
+ {"text":"鸡翅多来一份，堂食不变，只更新预览。","expect":{"statuses":["confirmation_required"],"quote":true,"same_quote":true,"way":"provider-dine-87","quantity":2}},
+ {"text":"先保留这份报价，别创建订单。","expect":{"statuses":["confirmation_required"],"quote":true,"same_quote":true,"way":"provider-dine-87","quantity":2}}
+ ]}
+ ]
+}

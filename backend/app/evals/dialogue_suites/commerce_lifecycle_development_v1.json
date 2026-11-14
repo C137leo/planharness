@@ -1,0 +1,12 @@
+{"id":"commerce-lifecycle-development-v1","split":"development","conversations":[
+{"id":"cancelled-incomplete-old-order","fixture":"cancelled_incomplete","turns":[
+{"text":"我想在三里屯再点一份鸡翅，先让我看新订单预览。","expect":{"statuses":["confirmation_required"],"submits":1,"new_preview":true}},
+{"text":"确认创建这份新的待支付订单。","expect":{"statuses":["success"],"submits":2,"same_new":true,"no_conflict":true}},
+{"text":"查一下刚刚这份新单的付款状态，别再下了。","expect":{"statuses":["success"],"submits":2,"same_new":true}}
+]},
+{"id":"active-old-keep-and-create","fixture":"unpaid","turns":[
+{"text":"帮我再买两份鸡翅，先给我新的预览。","expect":{"statuses":["confirmation_required"],"submits":1,"new_preview":true}},
+{"text":"确认这次的新订单。","expect":{"statuses":["existing_order"],"submits":1,"same_new":true,"conflict":true}},
+{"text":"旧单保留，我也要这份新单，请按刚才的新预览另下一单。","expect":{"statuses":["confirmation_required"],"submits":1,"same_new":true,"pending_cap":"commerce.submit_order"}},
+{"text":"对，确认保留旧单并创建这份新订单。","expect":{"statuses":["success"],"submits":2,"same_new":true}}
+]}]}

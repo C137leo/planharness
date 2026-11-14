@@ -1,0 +1,42 @@
+{
+  "id": "draft-selection-legacy-preview-development",
+  "split": "development",
+  "conversations": [
+    {
+      "id": "reduce-legacy-preview-and-choose-precisely",
+      "fixture": "preview",
+      "turns": [
+        {
+          "text": "新的安排动作太多了，保留3种动作即可，热身另算。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "draft_status": "awaiting_confirmation",
+            "formal_count": 3,
+            "quantity_limit": 3,
+            "same_draft": true
+          }
+        },
+        {
+          "text": "我就选高脚杯深蹲、哑铃卧推、哑铃俯身划船，其他正式动作去掉，先别应用。",
+          "expect": {
+            "statuses": [
+              "confirmation_required",
+              "noop"
+            ],
+            "draft_status": "awaiting_confirmation",
+            "formal_count": 3,
+            "refs": [
+              "goblet-squat",
+              "dumbbell-bench-press",
+              "dumbbell-bent-over-row"
+            ],
+            "same_draft": true,
+            "quantity_limit": 3
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{"id":"commerce-chat-heldout-real-v3","split":"heldout","conversations":[{"id":"mcd-real-sealed-v3","turns":[
+{"text":"想去上海人民广场这边的麦当劳吃点东西。先找附近还在营业的，挑最近的店查下菜单。","expect":{"statuses":["success"],"capabilities":["commerce.search_stores","commerce.menu"]}},
+{"text":"牛肉汉堡的套餐你替我挑一款在售的，一份原装搭配就行，我坐店里吃。先把总价和单子给我核对，暂时不要提交。","expect":{"statuses":["proposed"],"capabilities":["commerce.prepare_order"],"checkout_status":["awaiting_confirmation"],"cart_quantities":[1],"take_way_title":"堂食"}},
+{"text":"刚才这份还是打包拿走吧，别的别改，也先别下单，再出个预览。","expect":{"statuses":["proposed"],"capabilities":["commerce.revise_order"],"checkout_status":["awaiting_confirmation"],"cart_quantities":[1],"take_way_title":"外带","same_checkout_as_turn":2}},
+{"text":"我不点了，撤掉刚刚这个草稿。","expect":{"statuses":["success"],"capabilities":["commerce.cancel_checkout"],"checkout_status":["cancelled"],"same_checkout_as_turn":2}}
+]}]}

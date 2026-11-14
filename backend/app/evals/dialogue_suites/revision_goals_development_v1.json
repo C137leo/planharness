@@ -1,0 +1,10 @@
+{
+ "id":"revision-goals-development-v1","split":"development","conversations":[
+  {"id":"fifty-then-dinner-beef","turns":[
+   {"text":"两个改动，训练时长给我提升到50","expect":{"statuses":["confirmation_required"],"minutes":50,"target":50,"scope":["workout"]}},
+   {"text":"然后餐食晚上我想吃牛肉","expect":{"statuses":["confirmation_required"],"minutes":50,"target":50,"scope":["workout","dinner"],"contains":{"dinner":["牛肉"]}}},
+   {"text":"晚餐牛肉改成180克，刚才训练50分钟和其他内容不变，先别应用。","expect":{"statuses":["confirmation_required"],"minutes":50,"target":50,"foods":{"dinner":{"牛肉":180}}}},
+   {"text":"确认应用这份训练和晚餐草案。","expect":{"statuses":["success"],"draft_status":"applied","minutes":50,"target":50,"foods":{"dinner":{"牛肉":180}},"apply":true,"allowed_meals":["dinner"]}}
+  ]}
+ ]
+}

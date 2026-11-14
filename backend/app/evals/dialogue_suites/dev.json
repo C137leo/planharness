@@ -1,0 +1,244 @@
+{
+  "id": "coach-dialogues-v1-dev",
+  "split": "dev",
+  "conversations": [
+    {
+      "id": "dev-relative-after-meal",
+      "turns": [
+        {
+          "text": "今天划船改成三组，其他动作照旧。",
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "刚调的那个再少一组。",
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "腿的安排别动，我只是想把晚饭鸡胸肉改成牛肉。",
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "contains_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "鸡胸肉"
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "之前减组数的那项，改成一组就行。",
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 1
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "dev-meal-correction",
+      "turns": [
+        {
+          "text": "把晚饭的鸡胸肉换成牛肉，午饭不用改。",
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "contains_food",
+                "value": "牛肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "contains_food",
+                "value": "鸡胸肉"
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "不，牛肉也不要，刚才那顿改成豆腐。",
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "contains_food",
+                "value": "豆腐"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "excludes_food",
+                "value": "牛肉"
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "午餐别跟着改，保持原样就好。",
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/lunch/items",
+                "kind": "contains_food",
+                "value": "鸡胸肉"
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        },
+        {
+          "text": "晚餐还是恢复成一开始的鸡胸肉吧，米饭照旧。",
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "contains_food",
+                "value": "鸡胸肉"
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "contains_food",
+                "value": "米饭"
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "dev-renumbering",
+      "turns": [
+        {
+          "text": "第一个跳过，第三个改拉伸，只调整今天。",
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/goblet-squat",
+                "kind": "absent"
+              },
+              {
+                "path": "/days/2026-11-11/actions/push-up",
+                "kind": "absent"
+              },
+              {
+                "path": "/days/2026-11-11/actions/full_body_stretch/name",
+                "value": "全身拉伸"
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/",
+              "/days/2026-11-11/action_order"
+            ],
+            "reference_to_previous": false,
+            "completion": true
+          }
+        },
+        {
+          "text": "现在剩下的第一个做到两组。",
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "别再减了，刚才那项恢复成四组。",
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "reference_to_previous": true,
+            "completion": true
+          }
+        },
+        {
+          "text": "就保持这样，不要修改明天，也不要修改长期计划。",
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 4
+              }
+            ],
+            "allowed_changes": [],
+            "reference_to_previous": false,
+            "completion": false
+          }
+        }
+      ]
+    }
+  ],
+  "oracle_revision_note": "Authorized action order change for skip/replace was omitted; original raw 11/12 report retained."
+}

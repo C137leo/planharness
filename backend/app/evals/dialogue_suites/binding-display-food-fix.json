@@ -1,0 +1,6 @@
+{"id":"display-food-fix","split":"regression","conversations":[{"id":"localized-food-regression","turns":[
+{"text":"给今天新增一个开合跳动作，原来的动作保留。","expect":{"statuses":["success"],"allow_actions":["开合跳"],"present":["开合跳"]}},
+{"text":"午饭的鸡胸肉再加100克，别改其他食物和晚饭。","expect":{"statuses":["success"],"allow_meals":["lunch"],"grams":[["lunch","鸡胸肉",250]],"present":["开合跳"]}},
+{"text":"刚才午饭鸡胸肉的增量撤回，开合跳别动。","expect":{"statuses":["confirmation_required"]}},
+{"text":"确认，只撤回午饭鸡胸肉刚加的部分。","expect":{"statuses":["success"],"allow_meals":["lunch"],"grams":[["lunch","鸡胸肉",150]],"present":["开合跳"]}}
+]}]}

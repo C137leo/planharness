@@ -1,0 +1,76 @@
+{
+  "id": "day-revision-development-v1",
+  "split": "development",
+  "conversations": [
+    {
+      "id": "draft-edit-confirm",
+      "turns": [
+        {
+          "text": "今天最多练20分钟，晚餐改成豆腐180克加150克米饭，训练和晚餐一起重新安排，先给我草案。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "scope": [
+              "workout",
+              "dinner"
+            ],
+            "draft_status": "awaiting_confirmation",
+            "food": {
+              "豆腐": 180,
+              "米饭": 150
+            }
+          }
+        },
+        {
+          "text": "训练部分就保持这份，晚餐米饭不要动，豆腐换成210克三文鱼，先别应用。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "same_draft": true,
+            "keep_workout": true,
+            "draft_status": "awaiting_confirmation",
+            "food": {
+              "三文鱼": 210,
+              "米饭": 150
+            }
+          }
+        },
+        {
+          "text": "新版没问题，现在确认应用。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "same_draft": true,
+            "draft_status": "applied",
+            "apply": true,
+            "food": {
+              "三文鱼": 210,
+              "米饭": 150
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "rollback-current",
+      "fixture": "rollback",
+      "turns": [
+        {
+          "text": "刚回滚了版本，读一下现在每项要做几组，还差多少，别把旧记录当计划。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "reply_contains": [
+              "3 组",
+              "还差 1 组"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

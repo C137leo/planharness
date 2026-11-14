@@ -1,0 +1,29 @@
+{
+  "suite_file": "holdout-final.json",
+  "sha256": "85c109b5fb2742057e67a983e7c97d255aaf752861adc350fe14e944e7c7a9ba",
+  "conversations": 3,
+  "turns": 15,
+  "author": "independent_test_agent",
+  "state": "retired_after_exposing_business_boundary_issue",
+  "used_for_development_or_debugging": true,
+  "actor_may_receive": [
+    "turn.text",
+    "actual_conversation_history",
+    "actual_business_context"
+  ],
+  "evaluator_only": [
+    "expect",
+    "tags",
+    "theme",
+    "future_turns"
+  ],
+  "real_model_pass_rate": null,
+  "first_pass_rate": 0.9333333333333333,
+  "first_pass_count": 14,
+  "first_turn_count": 15,
+  "conversation_rate": 0.6666666666666666,
+  "first_conversation_pass_count": 2,
+  "first_conversation_count": 3,
+  "retirement_reason": "First live evaluation exposed an arbitrary minimum portion-size boundary. Its result informed a general positive-quantity validation fix.",
+  "reuse_notice": "Retired into regression. A repeat score is a regression score, never an unseen holdout score."
+}

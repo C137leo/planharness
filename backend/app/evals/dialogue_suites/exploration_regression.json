@@ -1,0 +1,191 @@
+{
+  "id": "adaptive-exploration-permanent-regression",
+  "split": "regression",
+  "source": "Real adaptive trajectory, never a held-out score",
+  "conversations": [
+    {
+      "id": "adaptive-exploration-regression",
+      "turns": [
+        {
+          "text": "会议拖到现在，划船今天给我留两组，另外两个动作先照旧。",
+          "tags": [],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "completion": true,
+            "reference_to_previous": false
+          }
+        },
+        {
+          "text": "想了想两组太少，刚才那项加回一组，但不是恢复到最初四组。",
+          "tags": [],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 3
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "completion": true,
+            "reference_to_previous": true
+          }
+        },
+        {
+          "text": "训练先这样。晚上想多吃七十克牛肉，原来那份鸡胸肉和米饭我都还要，中午吃的别跟着变。",
+          "tags": [],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 70
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/meals/dinner"
+            ],
+            "completion": true,
+            "reference_to_previous": false
+          }
+        },
+        {
+          "text": "你一直说保存了，给我核对下刚才实际改了哪几个地方，我想知道现在最后留下的结果，别再做新修改。",
+          "tags": [
+            "audit_query"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 70
+              }
+            ],
+            "allowed_changes": [],
+            "completion": true,
+            "reference_to_previous": true,
+            "requires_current_state": true
+          }
+        },
+        {
+          "text": "晚饭我还在犹豫要不要把牛肉加到一百克，你先给个建议，说明一下利弊，先别改数据。",
+          "tags": [
+            "advice_only"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 70
+              }
+            ],
+            "allowed_changes": [],
+            "completion": false,
+            "reference_to_previous": false,
+            "requires_advice": true
+          }
+        },
+        {
+          "text": "我问的是利弊，你刚才只是重复了我的目标。先不考虑加到一百克了，把这个未执行的提议取消，晚饭保留已经加好的七十克。",
+          "tags": [
+            "cancel",
+            "no_mutation"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 3
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 70
+              }
+            ],
+            "allowed_changes": [],
+            "completion": false,
+            "reference_to_previous": false
+          }
+        },
+        {
+          "text": "回到训练，前面划船从两组加回三组那一步我又反悔了，只撤销那一步，让它回到两组；晚饭不要回退。",
+          "tags": [
+            "correction"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 70
+              }
+            ],
+            "allowed_changes": [
+              "/days/2026-11-11/actions/one-arm-dumbbell-row/sets"
+            ],
+            "completion": true,
+            "reference_to_previous": true
+          }
+        },
+        {
+          "text": "我被你这句加回三组弄糊涂了。别再操作，只告诉我当前划船到底是几组，晚餐牛肉有多少克。",
+          "tags": [
+            "audit_query"
+          ],
+          "expect": {
+            "assertions": [
+              {
+                "path": "/days/2026-11-11/actions/one-arm-dumbbell-row/sets",
+                "value": 2
+              },
+              {
+                "path": "/days/2026-11-11/meals/dinner/items",
+                "kind": "food_grams",
+                "name": "牛肉",
+                "value": 70
+              }
+            ],
+            "allowed_changes": [],
+            "completion": true,
+            "reference_to_previous": true,
+            "requires_current_state": true
+          }
+        }
+      ]
+    }
+  ],
+  "oracle_note": "Turn 6 abandons and cancels the proposal; requiring renewed advice was an evaluator authoring error. Original 7/8 trace retained."
+}

@@ -1,0 +1,188 @@
+{
+  "id": "revision-goals-sealed-holdout-v1",
+  "split": "sealed_holdout",
+  "conversations": [
+    {
+      "id": "exact-duration-and-protein-replacement",
+      "turns": [
+        {
+          "text": "这份训练给我练满四十八分钟，正式动作还是选好的那三种，先看预览。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "minutes": 48,
+            "target": 48,
+            "scope": [
+              "workout"
+            ]
+          }
+        },
+        {
+          "text": "晚餐主蛋白换成牛肉，原来的鸡肉不要了，其余两餐不动，训练沿用刚才那版。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "minutes": 48,
+            "target": 48,
+            "scope": [
+              "workout",
+              "dinner"
+            ],
+            "contains": {
+              "dinner": [
+                "牛肉"
+              ]
+            },
+            "excludes": {
+              "dinner": [
+                "鸡胸肉"
+              ]
+            }
+          }
+        },
+        {
+          "text": "还别生效，晚餐牛肉用160克，米饭120克，其他都照旧。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "minutes": 48,
+            "target": 48,
+            "foods": {
+              "dinner": {
+                "牛肉": 160,
+                "米饭": 120
+              }
+            },
+            "excludes": {
+              "dinner": [
+                "鸡胸肉"
+              ]
+            }
+          }
+        },
+        {
+          "text": "确认应用这份四十八分钟训练和晚餐安排。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "draft_status": "applied",
+            "minutes": 48,
+            "target": 48,
+            "foods": {
+              "dinner": {
+                "牛肉": 160,
+                "米饭": 120
+              }
+            },
+            "apply": true,
+            "allowed_meals": [
+              "dinner"
+            ]
+          }
+        },
+        {
+          "text": "核对一下现在实际训练安排多长，晚餐的牛肉和米饭各是多少克，不要修改。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "draft_status": "applied",
+            "minutes": 48,
+            "target": 48,
+            "foods": {
+              "dinner": {
+                "牛肉": 160,
+                "米饭": 120
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "ceiling-range-and-lunch-constraints",
+      "turns": [
+        {
+          "text": "先把时长上限放到55分钟，不用练满，原来的动作和每项时间保持原样。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "minutes": 29,
+            "scope": [
+              "workout"
+            ]
+          }
+        },
+        {
+          "text": "再把午餐安排上虾，别放牛肉，晚餐照旧，先给我看。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "minutes": 29,
+            "scope": [
+              "workout",
+              "lunch"
+            ],
+            "contains": {
+              "lunch": [
+                "虾"
+              ]
+            },
+            "excludes": {
+              "lunch": [
+                "牛肉"
+              ]
+            }
+          }
+        },
+        {
+          "text": "训练至少35分钟、但不能超过40分钟，还是这三个正式动作；午餐虾改为180克，其他不变。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "min_minutes": 35,
+            "max_minutes": 40,
+            "foods": {
+              "lunch": {
+                "虾": 180
+              }
+            },
+            "excludes": {
+              "lunch": [
+                "牛肉"
+              ]
+            }
+          }
+        },
+        {
+          "text": "现在应用这份训练加午餐的方案。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "draft_status": "applied",
+            "min_minutes": 35,
+            "max_minutes": 40,
+            "foods": {
+              "lunch": {
+                "虾": 180
+              }
+            },
+            "apply": true,
+            "allowed_meals": [
+              "lunch"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "id": "commerce-selection-heldout-v3",
+  "split": "heldout",
+  "conversations": [
+    {
+      "id": "coffee-fresh-v3",
+      "turns": [
+        {
+          "text": "我在北京三里屯，给我看看附近还开门的麦当劳，最近一家有啥能点的？暂不购买。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "capabilities": [
+              "commerce.search_stores",
+              "commerce.menu"
+            ],
+            "no_checkout": true
+          }
+        },
+        {
+          "text": "来个中杯热美式。先核对真实详情，确实是热的再做预览，不许换成冰的。",
+          "expect": {
+            "statuses": [
+              "clarification_required",
+              "success",
+              "noop"
+            ],
+            "capabilities": [
+              "commerce.product_detail"
+            ],
+            "no_checkout": true,
+            "reply_contains": [
+              "冰"
+            ]
+          }
+        },
+        {
+          "text": "好吧，改成店里那款冰美式中杯，两杯默认，带走。仅预览哈。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "checkout_status": [
+              "awaiting_confirmation"
+            ],
+            "cart_names": [
+              "麦咖啡™冰美式中杯"
+            ],
+            "cart_quantities": [
+              2
+            ],
+            "take_way_title": "外带",
+            "cart_matches_detail": true
+          }
+        },
+        {
+          "text": "朋友不喝了，只留我那一杯，别动品种和取餐方式，也别提交。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "checkout_status": [
+              "awaiting_confirmation"
+            ],
+            "cart_names": [
+              "麦咖啡™冰美式中杯"
+            ],
+            "cart_quantities": [
+              1
+            ],
+            "take_way_title": "外带",
+            "same_checkout_as_turn": 3
+          }
+        },
+        {
+          "text": "还是在餐厅喝，其他都按刚才的，给我重新看下报价就行。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "checkout_status": [
+              "awaiting_confirmation"
+            ],
+            "cart_names": [
+              "麦咖啡™冰美式中杯"
+            ],
+            "cart_quantities": [
+              1
+            ],
+            "take_way_title": "堂食",
+            "same_checkout_as_turn": 3
+          }
+        },
+        {
+          "text": "这杯也不要了，取消尚未提交的那份。今天的训练饮食别碰。",
+          "expect": {
+            "statuses": [
+              "success",
+              "cancelled"
+            ],
+            "checkout_status": [
+              "cancelled"
+            ],
+            "same_checkout_as_turn": 3
+          }
+        }
+      ]
+    }
+  ]
+}

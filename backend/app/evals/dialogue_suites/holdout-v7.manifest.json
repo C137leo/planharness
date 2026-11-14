@@ -1,0 +1,32 @@
+{
+  "suite_file": "holdout-v7.json",
+  "sha256": "4d93cf5166e3e50dfa8e9c91e37ab672d538478319aec8377bd0b2975747c9a0",
+  "conversations": 3,
+  "turns": 15,
+  "author": "independent_test_agent",
+  "state": "first_frozen_live_run_complete",
+  "used_for_development_or_debugging": false,
+  "real_model_pass_rate": 1.0,
+  "oracle_extensions": [
+    "requires_advice",
+    "requires_current_state"
+  ],
+  "oracle_ingredient_identity": "canonical nutrition-library keys",
+  "actor_may_receive": [
+    "turn.text",
+    "actual_conversation_history",
+    "actual_business_context"
+  ],
+  "evaluator_only": [
+    "expect",
+    "tags",
+    "future_turns"
+  ],
+  "predecessor": "holdout-v6.json (old fingerprint trial only; final code replaced after an independent unit-test regression)",
+  "sealing_notice": "No text or expected parameters disclosed to production developer; not run before sealing.",
+  "turns_passed": 15,
+  "conversations_passed": 3,
+  "unauthorized_mutation_turns": 0,
+  "production_code_sha256": "4d52b653f35c80fef1b745e1e03a63bbfb091aab2259224cf5d80fdec7a8f8e4",
+  "evidence": "docs/evidence/coach-dialogues/holdout-v7-live.json"
+}

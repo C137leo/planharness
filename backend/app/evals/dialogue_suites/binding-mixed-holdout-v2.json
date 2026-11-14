@@ -1,0 +1,5 @@
+{"id":"mixed-fresh-v2","split":"holdout-first-run","conversations":[{"id":"fresh-combined","turns":[
+{"text":"动态热身今天不要安排了。","expect":{"statuses":["confirmation_required"]}},
+{"text":"好的，就这样执行，顺便把引体向上调为两组。","expect":{"statuses":["success"],"allow_actions":["动态热身","引体向上"],"absent":["动态热身"],"sets":[["引体向上",2]]}},
+{"text":"深蹲再少做一组，别碰刚调好的其他项。","expect":{"statuses":["success"],"allow_actions":["深蹲"],"sets":[["深蹲",3],["引体向上",2]]}}
+]}]}

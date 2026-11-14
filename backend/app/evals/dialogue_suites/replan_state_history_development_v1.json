@@ -1,0 +1,51 @@
+{
+  "id": "replan-state-history-development-v1",
+  "split": "development",
+  "conversations": [
+    {
+      "id": "continue-existing-failed-thread",
+      "expired_approval": true,
+      "failed_history": true,
+      "turns": [
+        {
+          "text": "我确认放弃原来的部分",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "done_sets": 7,
+            "fresh_consent": true
+          }
+        },
+        {
+          "text": "对，按刚才的要求来",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "max_minutes": 20
+          }
+        },
+        {
+          "text": "确认应用这个新目标",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "apply": true
+          }
+        }
+      ]
+    }
+  ]
+}

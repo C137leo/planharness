@@ -1,0 +1,5 @@
+{"id":"mixed-blind-final-v4","split":"holdout-first-run","conversations":[{"id":"blind-approval-extension","turns":[
+{"text":"这次训练先去掉动态热身。","expect":{"statuses":["confirmation_required"]}},
+{"text":"嗯，请按刚才的方案执行，另将全身拉伸改为五组。","expect":{"statuses":["success"],"allow_actions":["动态热身","全身拉伸"],"absent":["动态热身"],"sets":[["全身拉伸",5]]}},
+{"text":"山羊挺身和深蹲都维持原样，不要跟着改。","expect":{"statuses":["noop","success"],"sets":[["山羊挺身",4],["深蹲",4],["全身拉伸",5]]}}
+]}]}

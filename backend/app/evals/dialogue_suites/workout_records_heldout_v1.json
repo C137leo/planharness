@@ -1,0 +1,198 @@
+{
+  "id": "workout-records-heldout-v1",
+  "split": "heldout",
+  "conversations": [
+    {
+      "id": "training-fresh-a",
+      "turns": [
+        {
+          "text": "先别结束，核对一下今天已经记进去的训练。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "active",
+            "logs": 0
+          }
+        },
+        {
+          "text": "今天收工了，没按过的组就空着，不要帮我补。存一下实际训练。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "status": "active",
+            "logs": 0
+          }
+        },
+        {
+          "text": "可以，按刚才展示的实际情况结束。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "finished",
+            "sets": [
+              3
+            ],
+            "logs": 1
+          }
+        },
+        {
+          "text": "深蹲第三组不是六十，应该是六十五公斤，其余保持原记录。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "weights": [
+              60
+            ],
+            "audits": 0
+          }
+        },
+        {
+          "text": "先不改这处，取消这个纠错。",
+          "expect": {
+            "statuses": [
+              "cancelled"
+            ],
+            "weights": [
+              60
+            ],
+            "audits": 0
+          }
+        },
+        {
+          "text": "其实深蹲只做了两组，第三组是误点了，请只纠正这项实际组数。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "sets": [
+              3
+            ],
+            "audits": 0
+          }
+        },
+        {
+          "text": "确认这一项。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "sets": [
+              2
+            ],
+            "weights": [
+              55
+            ],
+            "logs": 1,
+            "audits": 1
+          }
+        },
+        {
+          "text": "现在把刚才最后保存的日志拿给我看。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "sets": [
+              2
+            ],
+            "weights": [
+              55
+            ],
+            "logs": 1,
+            "audits": 1
+          }
+        },
+        {
+          "text": "刚才那场再结束一遍，会重复吗？别新建日志。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "sets": [
+              2
+            ],
+            "logs": 1,
+            "audits": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "training-fresh-b",
+      "turns": [
+        {
+          "text": "不往下练了，剩下没做的动作跳过，今天实际练了二十二分钟，帮我保存结束。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "status": "active",
+            "logs": 0
+          }
+        },
+        {
+          "text": "是的，就按这个摘要结束。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "finished",
+            "sets": [
+              3
+            ],
+            "logs": 1
+          }
+        },
+        {
+          "text": "刚才深蹲最后一组重量应该是零公斤，算徒手，次数仍旧不变，帮我更正。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "weights": [
+              60
+            ],
+            "audits": 0
+          }
+        },
+        {
+          "text": "确认改成零，别改其他数据。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "sets": [
+              3
+            ],
+            "weights": [
+              0
+            ],
+            "audits": 1
+          }
+        },
+        {
+          "text": "再核对一下结束记录，以及那个改过的重量。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "finished",
+            "sets": [
+              3
+            ],
+            "weights": [
+              0
+            ],
+            "logs": 1,
+            "audits": 1
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+{
+  "id": "draft-selection-sealed-holdout-v1",
+  "split": "sealed_holdout",
+  "conversations": [
+    {
+      "id": "choose-correct-and-query-new-progress",
+      "fixture": "clarification",
+      "turns": [
+        {
+          "text": "选好了：哑铃卧推、高脚杯深蹲、哑铃俯身划船，其他正式动作都不要，热身不算在这三个里，先预览。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "draft_status": "awaiting_confirmation",
+            "formal_count": 3,
+            "refs": [
+              "dumbbell-bench-press",
+              "goblet-squat",
+              "dumbbell-bent-over-row"
+            ],
+            "same_draft": true,
+            "quantity_limit": 3
+          }
+        },
+        {
+          "text": "别保存，我改个选择：深蹲换死虫式，其余两项不变。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "draft_status": "awaiting_confirmation",
+            "formal_count": 3,
+            "refs": [
+              "dumbbell-bench-press",
+              "dead-bug",
+              "dumbbell-bent-over-row"
+            ],
+            "same_draft": true,
+            "quantity_limit": 3
+          }
+        },
+        {
+          "text": "现在确认应用刚才改选的版本。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "draft_status": "applied",
+            "formal_count": 3,
+            "same_draft": true,
+            "apply": true
+          }
+        },
+        {
+          "text": "查一下新目标里三个正式动作有没有记录完成，我还没做。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "draft_status": "applied",
+            "formal_count": 3,
+            "same_draft": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "new-goal-delegated-choice-and-deferred-apply",
+      "turns": [
+        {
+          "text": "重新给今天排个训练，最多35分钟，三餐照旧，我想先选方案。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "draft_status": null
+          }
+        },
+        {
+          "text": "放弃旧的未做部分，保留留档，先生成预览。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "draft_status": "awaiting_confirmation",
+            "max_formal": 3,
+            "quantity_limit": 3
+          }
+        },
+        {
+          "text": "两个正式动作就够了，你在这份里挑，热身照留，别有卧推类动作。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "draft_status": "awaiting_confirmation",
+            "formal_count": 2,
+            "same_draft": true,
+            "quantity_limit": 2,
+            "excluded_refs": [
+              "dumbbell-bench-press",
+              "incline-dumbbell-bench-press",
+              "barbell-bench-press",
+              "bench_press"
+            ]
+          }
+        },
+        {
+          "text": "暂时不应用，先保留这个选择。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "draft_status": "awaiting_confirmation",
+            "formal_count": 2,
+            "same_draft": true
+          }
+        },
+        {
+          "text": "就这个，确认应用。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "draft_status": "applied",
+            "formal_count": 2,
+            "same_draft": true,
+            "apply": true
+          }
+        }
+      ]
+    }
+  ]
+}

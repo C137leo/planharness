@@ -1,0 +1,5 @@
+{"id":"mixed-fresh-final","split":"holdout-first-run","conversations":[{"id":"final-fresh","turns":[
+{"text":"今天全身拉伸和动态热身都拿掉。","expect":{"statuses":["confirmation_required"]}},
+{"text":"是的，按那两项执行，再把山羊挺身改成三组。","expect":{"statuses":["success"],"allow_actions":["全身拉伸","动态热身","山羊挺身"],"absent":["全身拉伸","动态热身"],"sets":[["山羊挺身",3]]}},
+{"text":"引体向上也减成两组，深蹲别变。","expect":{"statuses":["success"],"allow_actions":["引体向上"],"sets":[["引体向上",2],["深蹲",4],["山羊挺身",3]]}}
+]}]}

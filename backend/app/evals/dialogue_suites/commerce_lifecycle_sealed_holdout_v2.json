@@ -1,0 +1,19 @@
+{
+  "id":"commerce-lifecycle-sealed-holdout-v2","split":"heldout","conversations":[
+    {"id":"fallback-expiry-new-cart","fixture":"expired_fallback","turns":[
+      {"text":"今晚再买两份麦辣鸡翅，还是三里屯附近，报价先发我。","expect":{"statuses":["confirmation_required"],"submits":1,"new_preview":true}},
+      {"text":"这份新报价我确认，创建订单吧。","expect":{"statuses":["success"],"submits":2,"same_new":true,"no_conflict":true}}
+    ]},
+    {"id":"recent-paid-history-new-order","fixture":"paid","turns":[
+      {"text":"上次那份和这次分开算，再准备一份新的鸡翅订单给我看看。","expect":{"statuses":["confirmation_required"],"submits":1,"new_preview":true}},
+      {"text":"就按新的预览下单，确认。","expect":{"statuses":["success"],"submits":2,"same_new":true,"no_conflict":true}}
+    ]},
+    {"id":"unpaid-cancel-old-keep-new","fixture":"unpaid","turns":[
+      {"text":"想再要一份麦辣鸡翅，给我一张新的报价预览。","expect":{"statuses":["confirmation_required"],"submits":1,"new_preview":true}},
+      {"text":"好的，确认新单的餐品和金额，提交。","expect":{"statuses":["existing_order"],"submits":1,"same_new":true,"conflict":true}},
+      {"text":"那先把未付款的原订单取消掉，新预览留着别提交。","expect":{"statuses":["confirmation_required"],"submits":1,"same_new":true,"pending_cap":"commerce.cancel_order"}},
+      {"text":"对，只确认取消原来的未付款订单。","expect":{"statuses":["confirmation_required"],"submits":1,"cancels":1,"same_new":true,"pending_cap":"commerce.submit_order"}},
+      {"text":"现在我确认购买留下的新预览，请创建新订单。","expect":{"statuses":["success"],"submits":2,"cancels":1,"same_new":true,"no_conflict":true}}
+    ]}
+  ]
+}

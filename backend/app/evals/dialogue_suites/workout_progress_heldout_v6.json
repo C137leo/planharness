@@ -1,0 +1,127 @@
+{
+  "id": "workout-progress-heldout-v6",
+  "split": "heldout",
+  "fixture": "progress",
+  "conversations": [
+    {
+      "id": "progress-final-v6",
+      "turns": [
+        {
+          "text": "暖身我已经完成了，先把当前训练的这一项算进去。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "progress_percent": 10,
+            "logs": 0
+          }
+        },
+        {
+          "text": "今天后续三项力量的计划各减一组，完成的暖身照旧。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "targets": [
+              1,
+              2,
+              2,
+              2
+            ],
+            "day_strength_sets": 2,
+            "progress_percent": 14
+          }
+        },
+        {
+          "text": "整场做完了，按今天最新的默认组数次数和用时出摘要，给我确认后再保存。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "logs": 0
+          }
+        },
+        {
+          "text": "摘要中深蹲应为实际一组七次，两分钟，另外两项仍按默认完成。请改好摘要。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "logs": 0
+          }
+        },
+        {
+          "text": "改好的摘要就是实际情况，现在确认保存结束。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "finished",
+            "item_sets": [
+              1,
+              1,
+              2,
+              2
+            ],
+            "logs": 4,
+            "progress_percent": 86,
+            "actual_minutes": 31,
+            "reps": [
+              null,
+              7,
+              10,
+              10
+            ],
+            "weights": [
+              null,
+              null,
+              null,
+              null
+            ]
+          }
+        },
+        {
+          "text": "读回刚保存的那一份，确认没有重复写入。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "item_sets": [
+              1,
+              1,
+              2,
+              2
+            ],
+            "logs": 4,
+            "actual_minutes": 31,
+            "reps": [
+              null,
+              7,
+              10,
+              10
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

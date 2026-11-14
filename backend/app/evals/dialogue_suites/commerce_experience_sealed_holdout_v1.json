@@ -1,0 +1,139 @@
+{
+  "id": "commerce-experience-sealed-holdout-v1",
+  "split": "sealed_holdout",
+  "conversations": [
+    {
+      "id": "saved-place-plain-wings-and-edit",
+      "saved_location": {
+        "city": "北京",
+        "keyword": "三里屯"
+      },
+      "turns": [
+        {
+          "text": "三里屯附近帮我挑家最近还营业的店，来一份原味鸡翅，不要辣的，先给我核对。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "quote": true,
+            "city": "北京",
+            "names": [
+              "原味鸡翅2块"
+            ],
+            "quantity": 1
+          }
+        },
+        {
+          "text": "这份改堂食，再来一份同样的，暂时别提交。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "quote": true,
+            "same_quote": true,
+            "way": "provider-dine-87",
+            "names": [
+              "原味鸡翅2块"
+            ],
+            "quantity": 2
+          }
+        },
+        {
+          "text": "保留这份报价，我再考虑一下，不创建订单。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "quote": true,
+            "same_quote": true,
+            "way": "provider-dine-87",
+            "quantity": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "explicit-city-overrides-default-and-change-food",
+      "saved_location": {
+        "city": "北京",
+        "keyword": "三里屯"
+      },
+      "turns": [
+        {
+          "text": "我现在在上海人民广场，找最近营业的餐厅给我选一份鸡翅，先让我看报价。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "quote": true,
+            "city": "上海",
+            "names": [
+              "原味鸡翅2块",
+              "麦辣鸡翅2块"
+            ],
+            "quantity": 1
+          }
+        },
+        {
+          "text": "先不下单，鸡翅不要了，改成一份牛肉汉堡，外带就好，门店别换。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "quote": true,
+            "same_quote": true,
+            "city": "上海",
+            "names": [
+              "牛肉汉堡"
+            ],
+            "quantity": 1
+          }
+        },
+        {
+          "text": "当前这份预览留着，别提交。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "quote": true,
+            "same_quote": true,
+            "names": [
+              "牛肉汉堡"
+            ],
+            "quantity": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": "missing-city-clarified-before-search",
+      "turns": [
+        {
+          "text": "我在老街，帮我找最近的店点份鸡翅。",
+          "expect": {
+            "statuses": [
+              "noop",
+              "clarification_required",
+              "confirmation_required"
+            ],
+            "no_search": true
+          }
+        },
+        {
+          "text": "是杭州的老街，我要一份原味鸡翅，打包，先预览。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "quote": true,
+            "city": "杭州",
+            "names": [
+              "原味鸡翅2块"
+            ],
+            "quantity": 1
+          }
+        }
+      ]
+    }
+  ]
+}

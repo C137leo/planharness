@@ -1,0 +1,132 @@
+{
+  "id": "workout-replan-sealed-holdout-v6",
+  "split": "sealed_holdout",
+  "conversations": [
+    {
+      "id": "retain-preview-and-independent-progress",
+      "turns": [
+        {
+          "text": "留着以前练过的，没完成的老目标就不补了，我今天要换成十六分钟的新训练。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "done_sets": 7
+          }
+        },
+        {
+          "text": "可以，放弃老方案没做的那部分，原记录不变，把十六分钟的备选先给我看。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "max_minutes": 16
+          }
+        },
+        {
+          "text": "方案我还要看一会儿，先别实施，也别丢掉这个预览。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "max_minutes": 16
+          }
+        },
+        {
+          "text": "已经看完，就正式应用眼前这份新计划吧。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "apply": true
+          }
+        },
+        {
+          "text": "旧记录一共留下几组？新的这一套还没练，当前进度也请单列。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "explain_separation": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "partial-record-preserved-before-new-goals",
+      "fixture": "partial_active",
+      "turns": [
+        {
+          "text": "目前仅练了已登记的一组，旧计划其余的不要了，保留已练记录，另排二十一分钟的新安排。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "old_status": "active",
+            "done_sets": 1
+          }
+        },
+        {
+          "text": "同意保留已做、放弃未做，接下来只让我预览新目标，等我再确认应用。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "old_status": "active",
+            "done_sets": 1,
+            "max_minutes": 21
+          }
+        },
+        {
+          "text": "现在确认用这一版，应用吧。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "old_status": "superseded",
+            "done_sets": 0,
+            "previous_sets": 1,
+            "completed": false,
+            "apply": true
+          }
+        },
+        {
+          "text": "把旧留档和这次的新进度各自查出来，我还没开始本轮。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 1,
+            "completed": false,
+            "explain_separation": true
+          }
+        }
+      ]
+    }
+  ]
+}

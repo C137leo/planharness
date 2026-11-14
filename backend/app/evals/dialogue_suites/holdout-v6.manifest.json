@@ -1,0 +1,30 @@
+{
+  "suite_file": "holdout-v6.json",
+  "sha256": "2a8d5bb5efaa3801793cf90e93adecc9ae904472b746f130011c8afb546bbfc3",
+  "conversations": 3,
+  "turns": 15,
+  "author": "independent_test_agent",
+  "state": "superseded_after_independent_unit_test_regression",
+  "used_for_development_or_debugging": false,
+  "real_model_pass_rate": null,
+  "oracle_extensions": [
+    "requires_advice",
+    "requires_current_state"
+  ],
+  "oracle_ingredient_identity": "canonical nutrition-library keys",
+  "actor_may_receive": [
+    "turn.text",
+    "actual_conversation_history",
+    "actual_business_context"
+  ],
+  "evaluator_only": [
+    "expect",
+    "tags",
+    "future_turns"
+  ],
+  "sealing_notice": "No future utterances or expected parameters disclosed to production developer.",
+  "predecessor": "holdout-v5.json (retired after ambiguous undo authorization issue; raw first score retained)",
+  "results_used_for_debugging": false,
+  "supersession_reason": "An existing local unit test independently revealed that the undo ambiguity guard mistook multiple resource references from one atomic regeneration/replacement task for multiple candidate tasks. The production fix replaced the acceptance fingerprint before v6 results or utterances were reviewed.",
+  "result_notice": "Preserve any raw v6 run only as an old-fingerprint trial. Do not attribute the independently found regression to v6 or present v6 as the final production acceptance result."
+}

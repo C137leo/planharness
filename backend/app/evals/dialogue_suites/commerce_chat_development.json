@@ -1,0 +1,6 @@
+{"id":"commerce-chat-development","split":"development","conversations":[{"id":"commerce-real-dev","turns":[
+{"text":"我在北京三里屯，查附近麦当劳，再看距离最近且营业的那家菜单。现在先别下单。","expect":{"statuses":["success"],"capabilities":["commerce.search_stores","commerce.menu"]}},
+{"text":"从刚才菜单里选一个在售的牛肉汉堡套餐，按官方默认搭配，一份，帮我准备报价看看，不要提交。","expect":{"statuses":["success","proposed"],"capabilities":["commerce.prepare_order"],"checkout_status":["needs_selection","awaiting_confirmation"]}},
+{"text":"外带，看看最终多少钱。","expect":{"statuses":["proposed","success"],"capabilities":["commerce.revise_order"],"checkout_status":["awaiting_confirmation"]}},
+{"text":"先不买了，把这张草案取消。","expect":{"statuses":["success"],"capabilities":["commerce.cancel_checkout"],"checkout_status":["cancelled"]}}
+]}]}

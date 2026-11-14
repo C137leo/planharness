@@ -1,0 +1,278 @@
+{
+  "id": "binding-development-v2",
+  "split": "development",
+  "conversations": [
+    {
+      "id": "binding-required",
+      "turns": [
+        {
+          "text": "把山羊挺身和全身拉伸都改成三组。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "allow_actions": [
+              "山羊挺身",
+              "全身拉伸"
+            ],
+            "sets": [
+              [
+                "山羊挺身",
+                3
+              ],
+              [
+                "全身拉伸",
+                3
+              ]
+            ]
+          }
+        },
+        {
+          "text": "今天不做蹲腿，然后减少一个热身动作。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "bound_names": [
+              "深蹲",
+              "动态热身"
+            ]
+          }
+        },
+        {
+          "text": "对。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "allow_actions": [
+              "深蹲",
+              "动态热身"
+            ],
+            "absent": [
+              "深蹲",
+              "动态热身"
+            ]
+          }
+        },
+        {
+          "text": "把刚才删掉的深蹲恢复，热身不用恢复。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ]
+          }
+        },
+        {
+          "text": "确认，只恢复深蹲。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "allow_actions": [
+              "深蹲"
+            ],
+            "present": [
+              "深蹲"
+            ],
+            "absent": [
+              "动态热身"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "binding-partial",
+      "turns": [
+        {
+          "text": "深蹲和动态热身都删掉。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ]
+          }
+        },
+        {
+          "text": "不是，热身保留，只删深蹲。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "allow_actions": [
+              "深蹲"
+            ],
+            "absent": [
+              "深蹲"
+            ],
+            "present": [
+              "动态热身"
+            ]
+          }
+        },
+        {
+          "text": "前面活动身体的那个也去掉吧。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "candidate_names_required": [
+              "动态热身"
+            ],
+            "candidate_names_allowed": [
+              "动态热身",
+              "全身拉伸"
+            ]
+          }
+        },
+        {
+          "text": "算了，都别改。",
+          "expect": {
+            "statuses": [
+              "cancelled"
+            ],
+            "present": [
+              "动态热身"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "binding-cross-domain",
+      "turns": [
+        {
+          "text": "晚餐加一百克牛肉，别碰午饭。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "allow_meals": [
+              "dinner"
+            ],
+            "food": [
+              [
+                "dinner",
+                "牛肉",
+                true
+              ]
+            ]
+          }
+        },
+        {
+          "text": "今天第一个正式训练动作也跳过。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "allow_actions": [
+              "山羊挺身"
+            ],
+            "absent": [
+              "山羊挺身"
+            ]
+          }
+        },
+        {
+          "text": "刚才那份牛肉还是不要加了，训练那次跳过保留。",
+          "expect": {
+            "statuses": [
+              "success",
+              "confirmation_required"
+            ],
+            "allow_meals": [
+              "dinner"
+            ],
+            "food_after_success": [
+              [
+                "dinner",
+                "牛肉",
+                false
+              ]
+            ]
+          }
+        },
+        {
+          "text": "对，就撤销牛肉那一次。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "allow_meals": [
+              "dinner"
+            ],
+            "food": [
+              [
+                "dinner",
+                "牛肉",
+                false
+              ]
+            ],
+            "absent": [
+              "山羊挺身"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "binding-ambiguous",
+      "extra_warmup": true,
+      "turns": [
+        {
+          "text": "热身少来一个。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "ambiguous": true
+          }
+        },
+        {
+          "text": "对。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "ambiguous": true
+          }
+        },
+        {
+          "text": "只去掉肩部绕环，动态热身要留。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "allow_actions": [
+              "肩部绕环"
+            ],
+            "absent": [
+              "肩部绕环"
+            ],
+            "present": [
+              "动态热身"
+            ]
+          }
+        },
+        {
+          "text": "最后那个动作改成两组。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "allow_actions": [
+              "引体向上"
+            ],
+            "sets": [
+              [
+                "引体向上",
+                2
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

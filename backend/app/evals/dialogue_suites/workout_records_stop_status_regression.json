@@ -1,0 +1,115 @@
+{
+  "id": "workout-stop-status-regression",
+  "split": "regression",
+  "conversations": [
+    {
+      "id": "training-final-v2",
+      "turns": [
+        {
+          "text": "我想核实当前进度，先不要结束训练。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "active",
+            "logs": 0
+          }
+        },
+        {
+          "text": "好了今天停这儿，只有记过的那些算练了，其他保持没记，帮我存档结束。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "status": "active",
+            "logs": 0
+          }
+        },
+        {
+          "text": "同意，照刚才的实际记录保存，不补任何组。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "finished",
+            "sets": [
+              3
+            ],
+            "logs": 1
+          }
+        },
+        {
+          "text": "深蹲的最后一组实际是57.5公斤，并不是60；次数和组数照旧。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "weights": [
+              60
+            ],
+            "audits": 0
+          }
+        },
+        {
+          "text": "先撤掉这次改动，原来的先留着。",
+          "expect": {
+            "statuses": [
+              "cancelled",
+              "rejected"
+            ],
+            "weights": [
+              60
+            ],
+            "audits": 0
+          }
+        },
+        {
+          "text": "重新确认过了，深蹲实际只有前两组，第三组误记，请更正实际总组数。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "sets": [
+              3
+            ],
+            "audits": 0
+          }
+        },
+        {
+          "text": "对，只确认这项组数修订。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "sets": [
+              2
+            ],
+            "weights": [
+              55
+            ],
+            "logs": 1,
+            "audits": 1
+          }
+        },
+        {
+          "text": "核对一下最终日志，然后重复结束也别重复写入。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "status": "finished",
+            "sets": [
+              2
+            ],
+            "weights": [
+              55
+            ],
+            "logs": 1,
+            "audits": 1
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "suite_file": "holdout-v3.json",
+  "sha256": "6eebab61d092424efd808bdf663a90305e3a60db20dd8c325d5f8105f58b6cb6",
+  "conversations": 3,
+  "turns": 15,
+  "author": "independent_test_agent",
+  "state": "retired_after_oracle_identity_issue",
+  "used_for_development_or_debugging": true,
+  "real_model_pass_rate": null,
+  "actor_may_receive": [
+    "turn.text",
+    "actual_conversation_history",
+    "actual_business_context"
+  ],
+  "evaluator_only": [
+    "expect",
+    "tags",
+    "theme",
+    "future_turns"
+  ],
+  "predecessor": "holdout-final.json (retired; first live result retained separately)",
+  "first_raw_pass_rate": 0.7333333333333333,
+  "first_raw_pass_count": 11,
+  "first_turn_count": 15,
+  "first_conversation_rate": 0.6666666666666666,
+  "first_conversation_pass_count": 2,
+  "first_conversation_count": 3,
+  "retirement_reason": "Four failed turns shared one ingredient display-name versus canonical-key oracle mismatch; the model-selected business changes and quantities were correct. This is not four independent semantic understanding failures.",
+  "calibration_notice": "Any canonical-identity recalculation of this run is calibrated data, not a new first unseen result. Later reruns are regression results only."
+}

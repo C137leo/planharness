@@ -1,0 +1,133 @@
+{
+  "id": "workout-replan-sealed-holdout-v4",
+  "split": "sealed_holdout",
+  "conversations": [
+    {
+      "id": "legacy-history-and-new-cycle",
+      "turns": [
+        {
+          "text": "今天原来没做的先作废吧，热身和各项两组的旧记录留档，重新安排十九分钟。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "done_sets": 7
+          }
+        },
+        {
+          "text": "同意放弃原方案未练部分，只把已练的保留下来，新目标先给预览。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "max_minutes": 19
+          }
+        },
+        {
+          "text": "预览我认可了，确认应用这份新目标。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "apply": true
+          }
+        },
+        {
+          "text": "我还没动新安排，旧完成记录总共几组，新方案的进度几组？请分别列。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "explain_separation": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "live-partial-preview-defer-and-apply",
+      "fixture": "partial_active",
+      "turns": [
+        {
+          "text": "只做了已记录那组，其他旧目标取消，已做照常留档，换一套十五分钟的新目标。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "old_status": "active",
+            "done_sets": 1
+          }
+        },
+        {
+          "text": "对，保留那组，旧未完成部分放弃，先预览新的，应用另说。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "old_status": "active",
+            "done_sets": 1,
+            "max_minutes": 15
+          }
+        },
+        {
+          "text": "先放着别应用，我再看下，旧的现在先别改。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "old_status": "active",
+            "done_sets": 1,
+            "max_minutes": 15
+          }
+        },
+        {
+          "text": "我看完了，现在确认应用这套十五分钟的。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "old_status": "superseded",
+            "done_sets": 0,
+            "previous_sets": 1,
+            "completed": false,
+            "apply": true
+          }
+        },
+        {
+          "text": "留档那组和新目标分别怎么记录的？我还没有开始新这套。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 1,
+            "completed": false,
+            "explain_separation": true
+          }
+        }
+      ]
+    }
+  ]
+}

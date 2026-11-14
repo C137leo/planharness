@@ -1,0 +1,6 @@
+{"id":"commerce-chat-heldout-real-v2","split":"heldout","conversations":[{"id":"mcd-real-sealed-v2","turns":[
+{"text":"我这会儿在北京国贸，想去麦当劳自取。附近哪家还营业？把离得最近且营业的那家菜单查出来。","expect":{"statuses":["success"],"capabilities":["commerce.search_stores","commerce.menu"]}},
+{"text":"你从刚才那家在售菜单里替我定一款牛肉汉堡套餐就好，一份，标准搭配。我是在店里吃，先把订单预览和总金额列给我，暂时别建单。","expect":{"statuses":["proposed"],"capabilities":["commerce.prepare_order","commerce.revise_order"],"checkout_status":["awaiting_confirmation"]}},
+{"text":"刚那一份改成带走，数量和套餐搭配都不改，重新让我看看。","expect":{"statuses":["proposed"],"capabilities":["commerce.revise_order"],"checkout_status":["awaiting_confirmation"]}},
+{"text":"这单先撤销，我今天不买了。","expect":{"statuses":["success"],"capabilities":["commerce.cancel_checkout"],"checkout_status":["cancelled"]}}
+]}]}

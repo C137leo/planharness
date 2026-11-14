@@ -1,0 +1,203 @@
+{
+  "id": "coordinated-replan-sealed-holdout-v1",
+  "split": "sealed_holdout",
+  "conversations": [
+    {
+      "id": "empty-day-coordinated-three-meals-edit",
+      "fixture": "empty_day",
+      "turns": [
+        {
+          "text": "今天重新安排18分钟训练和三餐，先看整体方案。早餐只吃玉米80克、鸡蛋100克；午餐鸡胸肉140克、米饭180克、西兰花160克；晚餐豆腐200克、菠菜140克、红薯160克。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "done_sets": 0
+          }
+        },
+        {
+          "text": "确定放弃原来的安排，接着制定新目标，先让我预览。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 0,
+            "max_minutes": 18,
+            "foods": {
+              "breakfast": {
+                "玉米": 80,
+                "鸡蛋": 100
+              },
+              "lunch": {
+                "鸡胸肉": 140,
+                "米饭": 180,
+                "西兰花": 160
+              },
+              "dinner": {
+                "豆腐": 200,
+                "菠菜": 140,
+                "红薯": 160
+              }
+            }
+          }
+        },
+        {
+          "text": "训练和午晚餐都照原草案，早餐玉米改为50克燕麦，鸡蛋仍然100克，先别应用。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 0,
+            "max_minutes": 18,
+            "foods": {
+              "breakfast": {
+                "燕麦": 50,
+                "鸡蛋": 100
+              },
+              "lunch": {
+                "鸡胸肉": 140,
+                "米饭": 180,
+                "西兰花": 160
+              },
+              "dinner": {
+                "豆腐": 200,
+                "菠菜": 140,
+                "红薯": 160
+              }
+            },
+            "same_draft": true
+          }
+        },
+        {
+          "text": "修改后的这版没问题，现在确认应用。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "done_sets": 0,
+            "previous_sets": 0,
+            "completed": false,
+            "max_minutes": 18,
+            "foods": {
+              "breakfast": {
+                "燕麦": 50,
+                "鸡蛋": 100
+              },
+              "lunch": {
+                "鸡胸肉": 140,
+                "米饭": 180,
+                "西兰花": 160
+              },
+              "dinner": {
+                "豆腐": 200,
+                "菠菜": 140,
+                "红薯": 160
+              }
+            },
+            "same_draft": true,
+            "apply": true,
+            "meal_scopes": [
+              "breakfast",
+              "lunch",
+              "dinner"
+            ]
+          }
+        },
+        {
+          "text": "再核对一下早餐的燕麦几克，以及新训练当前完成了几组。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 0,
+            "completed": false,
+            "reply_contains": [
+              "燕麦",
+              "50",
+              "0"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "preserved-records-workout-only",
+      "turns": [
+        {
+          "text": "旧计划没练完的先不补，练过的记录别删，今天换成14分钟的新训练，餐食全都别动。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "pending",
+            "draft_status": null,
+            "done_sets": 7
+          }
+        },
+        {
+          "text": "同意保留实际记录并放弃旧剩余，给我看看新的训练目标。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "max_minutes": 14
+          }
+        },
+        {
+          "text": "等一下，先留着这份预览，暂时不应用。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "authorization_status": "approved",
+            "draft_status": "awaiting_confirmation",
+            "done_sets": 7,
+            "max_minutes": 14,
+            "same_draft": true
+          }
+        },
+        {
+          "text": "这回看好了，就应用刚才保留的那版。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "authorization_status": "applied",
+            "draft_status": "applied",
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "apply": true,
+            "same_draft": true
+          }
+        },
+        {
+          "text": "分开告诉我旧记录合计多少组、新训练现在做了多少组，我还没开始新这套。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "done_sets": 0,
+            "previous_sets": 7,
+            "completed": false,
+            "explain_separation": true
+          }
+        }
+      ]
+    }
+  ]
+}

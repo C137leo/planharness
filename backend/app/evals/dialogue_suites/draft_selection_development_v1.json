@@ -1,0 +1,16 @@
+{
+  "id":"draft-selection-development-v1","split":"development",
+  "conversations":[
+    {"id":"explicit-choice-after-clarification","fixture":"clarification","turns":[
+      {"text":"高脚杯深蹲、哑铃卧推、哑铃俯身划船这三个保留即可","expect":{"statuses":["confirmation_required"],"draft_status":"awaiting_confirmation","formal_count":3,"refs":["goblet-squat","dumbbell-bench-press","dumbbell-bent-over-row"],"same_draft":true,"quantity_limit":3}},
+      {"text":"先别应用，热身也算在三个里面，去掉卧推，其他保留。","expect":{"statuses":["confirmation_required"],"draft_status":"awaiting_confirmation","formal_count":2,"all_count":3,"refs":["goblet-squat","dumbbell-bent-over-row"],"same_draft":true,"quantity_limit":3}},
+      {"text":"确认应用刚才精简的这一版。","expect":{"statuses":["success"],"draft_status":"applied","formal_count":2,"all_count":3,"same_draft":true,"apply":true}}
+    ]},
+    {"id":"default-count-and-delegated-reduction","turns":[
+      {"text":"今天重新制定45分钟以内的训练目标，餐食都不改，先让我看方案。","expect":{"statuses":["confirmation_required"],"draft_status":null}},
+      {"text":"确认放弃原来没做的，记录保留，开始生成新目标预览。","expect":{"statuses":["confirmation_required"],"draft_status":"awaiting_confirmation","max_formal":3,"quantity_limit":3}},
+      {"text":"再简单一点，只要两个正式动作，热身另算，你帮我选，别安排划船。先看预览。","expect":{"statuses":["confirmation_required"],"draft_status":"awaiting_confirmation","formal_count":2,"same_draft":true,"quantity_limit":2,"excluded_refs":["dumbbell-bent-over-row","one-arm-dumbbell-row","row"]}},
+      {"text":"可以，应用现在这份。","expect":{"statuses":["success"],"draft_status":"applied","formal_count":2,"same_draft":true,"apply":true}}
+    ]}
+  ]
+}

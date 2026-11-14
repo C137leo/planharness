@@ -1,0 +1,7 @@
+{"id":"commerce-selection-heldout-v1","split":"heldout","conversations":[{"id":"selected-sku-live-v1","turns":[
+{"text":"人在上海人民广场，想喝美式，帮我找营业的麦当劳和最近那家的菜单。先只看，别下单。","expect":{"statuses":["success"],"capabilities":["commerce.search_stores","commerce.menu"]}},
+{"text":"就热美式中杯，默认选项。请读一下详情再给我报价，不要提交。","expect":{"statuses":["success","proposed"],"checkout_status":["needs_selection","awaiting_confirmation"],"cart_quantities":[1],"cart_names":["麦咖啡™热美式中杯"]}},
+{"text":"确认前面这一款，只做报价，堂食。","expect":{"statuses":["proposed"],"checkout_status":["awaiting_confirmation"],"cart_quantities":[1],"cart_names":["麦咖啡™热美式中杯"],"take_way_title":"堂食","same_checkout_as_turn":2}},
+{"text":"还是这一杯，改外带，规格和份数都别动，只更新报价。","expect":{"statuses":["proposed"],"checkout_status":["awaiting_confirmation"],"cart_quantities":[1],"cart_names":["麦咖啡™热美式中杯"],"take_way_title":"外带","same_checkout_as_turn":2}},
+{"text":"不买了，取消它，今天训练和餐食都保持原样。","expect":{"statuses":["success"],"checkout_status":["cancelled"],"same_checkout_as_turn":2}}
+]}]}

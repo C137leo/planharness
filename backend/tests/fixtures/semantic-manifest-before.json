@@ -1,0 +1,834 @@
+[
+  {
+    "capability_id": "workout.remove_action",
+    "domain": "training",
+    "description": "移除指定日期的一个动作；热身也合法。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "workout_action"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "action",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "workout_action"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "workout.skip_action",
+    "domain": "training",
+    "description": "跳过某日动作（只从该日移除，不改长期计划）或标记当前训练条目 skipped。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "workout_action",
+      "session_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "action",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "workout_action",
+          "session_item"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "workout.update_action",
+    "domain": "training",
+    "description": "调整目标组数/次数，支持相对变化。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "sets": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets"
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps"
+        },
+        "sets_delta": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": -9,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets Delta"
+        },
+        "reps_delta": {
+          "anyOf": [
+            {
+              "maximum": 99,
+              "minimum": -99,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps Delta"
+        }
+      },
+      "title": "ActionValues",
+      "type": "object"
+    },
+    "target_types": [
+      "workout_action",
+      "session_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "action",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "workout_action",
+          "session_item"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "workout.replace_action",
+    "domain": "training",
+    "description": "用目录动作替换一个动作，保留实例 ID。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "sets": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets"
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps"
+        },
+        "sets_delta": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": -9,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets Delta"
+        },
+        "reps_delta": {
+          "anyOf": [
+            {
+              "maximum": 99,
+              "minimum": -99,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps Delta"
+        },
+        "exercise_id": {
+          "title": "Exercise Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "exercise_id"
+      ],
+      "title": "ExerciseArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "workout_action",
+      "session_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "action",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "workout_action",
+          "session_item"
+        ]
+      },
+      "arguments.exercise_id": {
+        "role": "source_catalog_exercise",
+        "types": [
+          "exercise"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "workout.add_action",
+    "domain": "training",
+    "description": "在指定日期新增一个目录动作。selected_id 必须是 day ID（添加目的地），exercise ID 只能填 arguments.exercise_id。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "sets": {
+          "anyOf": [
+            {
+              "maximum": 10,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets"
+        },
+        "reps": {
+          "anyOf": [
+            {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps"
+        },
+        "sets_delta": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": -9,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sets Delta"
+        },
+        "reps_delta": {
+          "anyOf": [
+            {
+              "maximum": 99,
+              "minimum": -99,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reps Delta"
+        },
+        "exercise_id": {
+          "title": "Exercise Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "exercise_id"
+      ],
+      "title": "ExerciseArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "day"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "action",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "day"
+        ]
+      },
+      "arguments.exercise_id": {
+        "role": "source_catalog_exercise",
+        "types": [
+          "exercise"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "meal.add_food",
+    "domain": "nutrition",
+    "description": "在一餐新增目录食材；保留原有食物。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "ingredient_id": {
+          "title": "Ingredient Id",
+          "type": "string"
+        },
+        "grams": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "le": 500,
+          "title": "Grams"
+        }
+      },
+      "required": [
+        "ingredient_id",
+        "grams"
+      ],
+      "title": "FoodArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "meal"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "food",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "meal"
+        ]
+      },
+      "arguments.ingredient_id": {
+        "role": "source_catalog_ingredient",
+        "types": [
+          "ingredient"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "meal.remove_food",
+    "domain": "nutrition",
+    "description": "从一餐移除一个具体食物实例。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "food_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "food",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "food_item"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "meal.replace_food",
+    "domain": "nutrition",
+    "description": "将具体食物换成目录食材及份量。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "ingredient_id": {
+          "title": "Ingredient Id",
+          "type": "string"
+        },
+        "grams": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "le": 500,
+          "title": "Grams"
+        }
+      },
+      "required": [
+        "ingredient_id",
+        "grams"
+      ],
+      "title": "FoodArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "food_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "food",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "food_item"
+        ]
+      },
+      "arguments.ingredient_id": {
+        "role": "source_catalog_ingredient",
+        "types": [
+          "ingredient"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "meal.set_quantity",
+    "domain": "nutrition",
+    "description": "调整具体食物克数，按原比例重算营养。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "grams": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "gt": 0,
+          "le": 1000,
+          "title": "Grams"
+        }
+      },
+      "required": [
+        "grams"
+      ],
+      "title": "QuantityArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "food_item"
+    ],
+    "mutates_state": true,
+    "confirmation": "uncertain",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "food",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "food_item"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "profile.update",
+    "domain": "profile",
+    "description": "更新长期档案，必须确认。仅更新档案值，不会自动重算热量、食物份量或训练负荷。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "goal": {
+          "anyOf": [
+            {
+              "enum": [
+                "fat_loss",
+                "muscle_gain",
+                "cardio",
+                "health"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Goal"
+        },
+        "weight_kg": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 30,
+              "le": 300
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weight Kg"
+        },
+        "weekly_days": {
+          "anyOf": [
+            {
+              "maximum": 7,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Weekly Days"
+        },
+        "session_minutes": {
+          "anyOf": [
+            {
+              "maximum": 180,
+              "minimum": 5,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Minutes"
+        },
+        "preferred_time_window": {
+          "anyOf": [
+            {
+              "maxLength": 24,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preferred Time Window"
+        },
+        "preferred_location": {
+          "anyOf": [
+            {
+              "maxLength": 24,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Preferred Location"
+        },
+        "dislikes": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dislikes"
+        },
+        "likes": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Likes"
+        },
+        "allergies": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Allergies"
+        },
+        "diet_preferences": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diet Preferences"
+        }
+      },
+      "title": "ProfileArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "profile"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "profile",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "profile"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "memory.create",
+    "domain": "memory",
+    "description": "保存用户明确要求记住的备注或近期反馈。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "default": "note",
+          "enum": [
+            "note",
+            "food_like",
+            "food_dislike",
+            "food_allergy",
+            "training_state"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "NoteArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "profile"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "memory",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "profile"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "memory.archive",
+    "domain": "memory",
+    "description": "归档一个真实记忆条目。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "memory"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "memory",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "memory"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "history.undo",
+    "domain": "history",
+    "description": "补偿某一次实际执行；逐资源校验，无后续重叠更改才能恢复。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "execution"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "undo",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "execution"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "context.inspect",
+    "domain": "read",
+    "description": "查看目标对象或日期的真实数据，不修改。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {},
+      "title": "NoArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "day",
+      "workout_action",
+      "meal",
+      "food_item",
+      "profile",
+      "memory",
+      "execution",
+      "session",
+      "session_item"
+    ],
+    "mutates_state": false,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "inspect",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "day",
+          "workout_action",
+          "meal",
+          "food_item",
+          "profile",
+          "memory",
+          "execution",
+          "session",
+          "session_item"
+        ]
+      }
+    }
+  }
+]

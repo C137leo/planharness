@@ -1,0 +1,140 @@
+{
+  "id": "day-revision-heldout-final-v1",
+  "split": "heldout",
+  "conversations": [
+    {
+      "id": "unseen-draft-edit-delay-apply-cancel",
+      "turns": [
+        {
+          "text": "今晚挤不出太多时间，连热身在内十八分钟封顶。晚饭想要160克豆腐配170克米饭；把今天练和晚饭统筹成一份待选方案，午餐不要动。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "scope": [
+              "workout",
+              "dinner"
+            ],
+            "draft_status": "awaiting_confirmation",
+            "food": {
+              "豆腐": 160,
+              "米饭": 170
+            }
+          }
+        },
+        {
+          "text": "练的那部分照这份，主食的量也锁住。把豆腐改成220克虾，还是只改草案，不要落地。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "same_draft": true,
+            "keep_workout": true,
+            "draft_status": "awaiting_confirmation",
+            "food": {
+              "虾": 220,
+              "米饭": 170
+            }
+          }
+        },
+        {
+          "text": "先等一下，不要应用，保留现在的方案让我再看一眼。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "same_draft": true,
+            "keep_workout": true,
+            "draft_status": "awaiting_confirmation",
+            "food": {
+              "虾": 220,
+              "米饭": 170
+            }
+          }
+        },
+        {
+          "text": "这版我核对好了，可以按它更新今天的安排了。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "same_draft": true,
+            "draft_status": "applied",
+            "apply": true,
+            "food": {
+              "虾": 220,
+              "米饭": 170
+            }
+          }
+        },
+        {
+          "text": "现在只另做个晚饭备选：鸡胸肉200克、米饭150克。训练沿用已经保存的，不包含在这次修改里。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "scope": [
+              "dinner"
+            ],
+            "draft_status": "awaiting_confirmation",
+            "food": {
+              "鸡胸肉": 200,
+              "米饭": 150
+            }
+          }
+        },
+        {
+          "text": "不要这个备选了，撤掉它，刚保存的虾那份留着。",
+          "expect": {
+            "statuses": [
+              "cancelled",
+              "rejected",
+              "success"
+            ],
+            "draft_status": "cancelled"
+          }
+        },
+        {
+          "text": "把今天已经生效的训练安排再读给我，只读，不改。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "draft_status": "cancelled"
+          }
+        }
+      ]
+    },
+    {
+      "id": "unseen-rolled-back-progress",
+      "fixture": "rollback",
+      "turns": [
+        {
+          "text": "我刚把长期版本退回去了。现在每个正式动作到底要几组，已经记了多少，还欠几组？以退回后的安排为准。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "reply_contains": [
+              "3 组",
+              "还差 1 组"
+            ]
+          }
+        },
+        {
+          "text": "刚才这些记录先别动，再核对一次今天的目标。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "reply_contains": [
+              "3 组",
+              "还差 1 组"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

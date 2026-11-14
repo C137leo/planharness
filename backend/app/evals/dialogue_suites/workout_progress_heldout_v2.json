@@ -1,0 +1,212 @@
+{
+  "id": "workout-progress-heldout-v2",
+  "split": "heldout",
+  "fixture": "progress",
+  "conversations": [
+    {
+      "id": "progress-final-a",
+      "turns": [
+        {
+          "text": "热身已经结束了，请同步我这场训练的进度。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "progress_percent": 10,
+            "logs": 0
+          }
+        },
+        {
+          "text": "接下来的三项力量动作每项从三组降为两组，已经做好的热身保留。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "targets": [
+              1,
+              2,
+              2,
+              2
+            ],
+            "day_strength_sets": 2,
+            "progress_percent": 14
+          }
+        },
+        {
+          "text": "都做完啦，就按现在这个安排记录，给个摘要让我确认。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "logs": 0
+          }
+        },
+        {
+          "text": "除了划船其实只有一组，共七分钟，另外两项跟刚才默认一样。先调整确认信息。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "item_sets": [
+              1,
+              0,
+              0,
+              0
+            ],
+            "logs": 0
+          }
+        },
+        {
+          "text": "照新版保存，确认。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "finished",
+            "item_sets": [
+              1,
+              2,
+              1,
+              2
+            ],
+            "logs": 4,
+            "progress_percent": 86,
+            "actual_minutes": 36,
+            "weights": [
+              null,
+              null,
+              null,
+              null
+            ]
+          }
+        },
+        {
+          "text": "回看最后保存的那份就行，别重复记录。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "item_sets": [
+              1,
+              2,
+              1,
+              2
+            ],
+            "logs": 4,
+            "actual_minutes": 36
+          }
+        }
+      ]
+    },
+    {
+      "id": "progress-final-b",
+      "turns": [
+        {
+          "text": "我练完了，热身和三个动作都按今日计划默认完成，给我确认，重量不用填写。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "item_sets": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "logs": 0
+          }
+        },
+        {
+          "text": "这份默认组数和时间没问题，确认结束保存。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "finished",
+            "item_sets": [
+              1,
+              3,
+              3,
+              3
+            ],
+            "progress_percent": 100,
+            "logs": 4,
+            "actual_minutes": 41,
+            "weights": [
+              null,
+              null,
+              null,
+              null
+            ]
+          }
+        },
+        {
+          "text": "再查一次完成情况，不重新生成日志。",
+          "expect": {
+            "statuses": [
+              "success",
+              "noop"
+            ],
+            "logs": 4,
+            "item_sets": [
+              1,
+              3,
+              3,
+              3
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "progress-final-c",
+      "turns": [
+        {
+          "text": "今天连热身都还没做，结束这场就好，别记成已经完成。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "item_sets": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "logs": 0
+          }
+        },
+        {
+          "text": "对，按照没有完成的实际情况收尾。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "status": "finished",
+            "item_sets": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "logs": 0,
+            "actual_minutes": 0
+          }
+        }
+      ]
+    }
+  ]
+}

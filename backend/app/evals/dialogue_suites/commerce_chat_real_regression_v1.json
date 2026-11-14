@@ -1,0 +1,68 @@
+{
+  "id": "commerce-chat-real-regression-v1",
+  "split": "regression",
+  "conversations": [
+    {
+      "id": "mcd-real-sealed-v1",
+      "turns": [
+        {
+          "text": "人在上海人民广场，想看看麦当劳。找离这里近、还开着的店，把最近那家的菜单给我瞧瞧，暂时不用买。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "capabilities": [
+              "commerce.search_stores",
+              "commerce.menu"
+            ]
+          }
+        },
+        {
+          "text": "就从这份菜单里挑一款现在卖的鸡肉汉堡套餐，一份，按店里的原配搭配。给我做个订单报价就行，别提交。",
+          "expect": {
+            "statuses": [
+              "success",
+              "proposed"
+            ],
+            "capabilities": [
+              "commerce.prepare_order"
+            ],
+            "checkout_status": [
+              "needs_selection",
+              "awaiting_confirmation"
+            ]
+          }
+        },
+        {
+          "text": "拿走吃，不在店里吃。把刚才那份的最终金额列一下。",
+          "expect": {
+            "statuses": [
+              "success",
+              "proposed"
+            ],
+            "capabilities": [
+              "commerce.revise_order"
+            ],
+            "checkout_status": [
+              "awaiting_confirmation"
+            ]
+          }
+        },
+        {
+          "text": "算了，这份先不买，把刚刚那个订单草稿撤掉吧。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "capabilities": [
+              "commerce.cancel_checkout"
+            ],
+            "checkout_status": [
+              "cancelled"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

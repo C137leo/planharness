@@ -1,0 +1,89 @@
+{
+  "id": "commerce-selection-diagnostic-v2",
+  "split": "regression",
+  "conversations": [
+    {
+      "id": "generic-coffee-regression",
+      "turns": [
+        {
+          "text": "北京三里屯，查一下最近营业的麦当劳，顺便把它的菜单拿来，先不下单。",
+          "expect": {
+            "statuses": [
+              "success"
+            ],
+            "capabilities": [
+              "commerce.search_stores",
+              "commerce.menu"
+            ],
+            "no_checkout": true
+          }
+        },
+        {
+          "text": "要杯热的中号美式，照默认。先读商品详情，能满足再报价，别提交。",
+          "expect": {
+            "statuses": [
+              "success",
+              "clarification_required",
+              "noop"
+            ],
+            "capabilities": [
+              "commerce.product_detail"
+            ],
+            "no_checkout": true,
+            "reply_contains": [
+              "冰"
+            ]
+          }
+        },
+        {
+          "text": "那就接受你查到的冰美式中杯，默认选项，外带，只做预览。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "checkout_status": [
+              "awaiting_confirmation"
+            ],
+            "cart_names": [
+              "麦咖啡™冰美式中杯"
+            ],
+            "cart_matches_detail": true,
+            "cart_quantities": [
+              1
+            ],
+            "take_way_title": "外带"
+          }
+        },
+        {
+          "text": "不是外带，我在店里喝，数量跟规格保持刚才那样，别提交。",
+          "expect": {
+            "statuses": [
+              "confirmation_required"
+            ],
+            "checkout_status": [
+              "awaiting_confirmation"
+            ],
+            "cart_names": [
+              "麦咖啡™冰美式中杯"
+            ],
+            "take_way_title": "堂食",
+            "same_checkout_as_turn": 3
+          }
+        },
+        {
+          "text": "先不买了，把这份预览取消，训练和吃饭都不用改。",
+          "expect": {
+            "statuses": [
+              "success",
+              "cancelled"
+            ],
+            "checkout_status": [
+              "cancelled"
+            ],
+            "same_checkout_as_turn": 3
+          }
+        }
+      ]
+    }
+  ]
+}

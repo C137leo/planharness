@@ -1,0 +1,26 @@
+{
+  "suite_file": "holdout-v4.json",
+  "sha256": "69aad6256fdee9795f0a0a4eebf2a0eb6dcdcc7f40b9f012727890da46d36dc6",
+  "conversations": 3,
+  "turns": 15,
+  "author": "independent_test_agent",
+  "state": "first_live_run_complete",
+  "used_for_development_or_debugging": false,
+  "real_model_pass_rate": 1.0,
+  "oracle_ingredient_identity": "canonical nutrition-library ingredient keys, separate from display names",
+  "actor_may_receive": [
+    "turn.text",
+    "actual_conversation_history",
+    "actual_business_context"
+  ],
+  "evaluator_only": [
+    "expect",
+    "tags",
+    "future_turns"
+  ],
+  "predecessor": "holdout-v3.json (retired after oracle identity calibration issue)",
+  "turns_passed": 15,
+  "conversations_passed": 3,
+  "unauthorized_mutation_turns": 0,
+  "evidence": "docs/evidence/coach-dialogues/holdout-v4-live.json"
+}

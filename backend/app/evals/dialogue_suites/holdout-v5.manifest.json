@@ -1,0 +1,37 @@
+{
+  "suite_file": "holdout-v5.json",
+  "sha256": "a4a7770e269f8c91119c7af646007e1c4e85f1bee0b0ee850bc5e30ba79425e1",
+  "conversations": 3,
+  "turns": 15,
+  "author": "independent_test_agent",
+  "state": "retired_after_ambiguous_undo_authorization_issue",
+  "used_for_development_or_debugging": true,
+  "real_model_pass_rate": null,
+  "oracle_extensions": [
+    "requires_advice",
+    "requires_current_state"
+  ],
+  "oracle_ingredient_identity": "canonical nutrition-library keys",
+  "actor_may_receive": [
+    "turn.text",
+    "actual_conversation_history",
+    "actual_business_context"
+  ],
+  "evaluator_only": [
+    "expect",
+    "tags",
+    "future_turns"
+  ],
+  "predecessor": "holdout-v4.json (first real result 15/15 retained; later code changes arose from separate adaptive exploration)",
+  "sealing_notice": "New set designed independently without revealing its text or outcome parameters to the production developer.",
+  "first_raw_pass_count": 13,
+  "first_turn_count": 15,
+  "first_raw_pass_rate": 0.8666666666666667,
+  "first_conversation_pass_count": 2,
+  "first_conversation_count": 3,
+  "first_conversation_rate": 0.6666666666666666,
+  "first_scope_violation_turns": 2,
+  "retirement_reason": "One ambiguous multi-candidate reference led the model to supply two undo execution IDs; model-generated IDs were incorrectly treated as user authorization. The following correction turn suffered a cascading trajectory/scope failure.",
+  "failure_attribution": "One primary authorization failure plus a downstream correction failure, not two independent misunderstanding causes.",
+  "calibration_notice": "Keep the first raw score unchanged. Any rerun after the authorization fix is regression evidence, not a new unseen result."
+}
