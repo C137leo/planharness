@@ -172,7 +172,9 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
     )
     db.add(user)
     db.flush()
-    db.add(Profile(user_id=user.id))  # 必须同时建画像，否则 /me/profile 404
+    # 新账号不预填 178/78/1997：那会让用户误把示例值当自己的数据（评审 P-019）。
+    # 0 表示"未填写"，前端显示空值；生成计划前会要求补齐。
+    db.add(Profile(user_id=user.id, birth_year=0, height_cm=0, weight_kg=0))
     db.commit()
 
     # 写入成功才记"成功配额"：失败请求不占用注册额度

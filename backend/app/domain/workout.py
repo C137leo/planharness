@@ -66,7 +66,8 @@ def latest_session(db: Session, user: User, day: date) -> WorkoutSession | None:
 
 
 def _item_name(action: dict) -> str:
-    return str(action.get("name") or action.get("action_ref") or "动作")
+    from app.domain.catalog import display_action_name
+    return display_action_name(action)
 
 
 def _target_sets(action: dict) -> int:
@@ -80,6 +81,9 @@ def _item_from_action(action: dict, index: int) -> dict:
     ref = str(action.get("action_ref") or "unknown")
     return {
         "id": new_id(),
+        "source_action_id": action.get('id'),
+        "workout_cycle_id": action.get('workout_cycle_id'),
+        "source_plan": {k: action.get(k) for k in ('action_ref','sets','reps','duration_min','slot','name','equipment')},
         "position": index,
         "slot_key": action.get("slot_key") or f"session:{index}",
         "action_ref": ref,
@@ -114,16 +118,62 @@ def start_session(
     fallback_next: bool = True,
 ) -> WorkoutSession:
     """开始（或恢复）今天的训练。已有 active 会话时直接返回，避免重置进度。"""
-    existing = active_session(db, user, day)
+    from app.domain.workout_records import lock
+    lock(db,user)
+    existing = active_session(db, user, day) or db.scalar(select(WorkoutSession).where(
+        WorkoutSession.user_id==user.id,WorkoutSession.date==day,WorkoutSession.status=='completed').order_by(WorkoutSession.started_at.desc()))
     if existing is not None:
-        return existing
+        # 计划升版后，旧会话的动作/时长已经过时：作废并重新开一场，
+        # 不能把用户送回上一版的训练里（评审：版本切换一致性）。
+        day_plan = effective_day(db, user, day, fallback_next=fallback_next)
+        current_version = day_plan.get("plan_version")
+        from app.domain.workout_replan import session_cycle
+        if session_cycle(existing)!=day_plan.get('workout_cycle_id'):
+            existing.status='superseded'
+            db.flush()
+        elif (existing.plan_version is not None and current_version is not None
+                and int(existing.plan_version) != int(current_version)):
+            existing.status = "abandoned"
+            existing.note = (
+                (existing.note or "")
+                + f"（计划已更新到 v{current_version}，本次训练会话作废）"
+            )[:1000]
+            db.flush()
+        else:
+            sync_session_plan(existing,day_plan['actions'])
+            db.commit()
+            db.refresh(existing)
+            return existing
 
     day_plan = effective_day(db, user, day, fallback_next=fallback_next)
     actions = day_plan.get("actions") or []
     if not actions:
         raise ValueError("今天没有可执行的训练动作，先让教练生成计划")
 
-    items = [_item_from_action(action, index) for index, action in enumerate(actions)]
+    prior=latest_session(db,user,day)
+    from app.domain.workout_replan import session_cycle
+    continuation=None
+    remaining=None
+    if prior and prior.status in {'finished','abandoned'} and session_cycle(prior)==day_plan.get('workout_cycle_id'):
+        prior_progress=progress_for_day(prior,actions)
+        if prior_progress['total_sets'] and prior_progress['done_sets']==prior_progress['total_sets']:
+            raise ValueError('当前目标已有完整记录；如需新的训练目标，请先确认重排并预览新方案。')
+        continuation=prior
+        remaining={i['action_id']:i for i in prior_progress['items']}
+    items=[]
+    for action in actions:
+        if remaining is not None:
+            facts=remaining[action['id']]
+            if facts['remaining_sets']==0:continue
+            from app.domain.day_plan import _estimated_minutes
+            full=_item_from_action(action,len(items))
+            entry=_item_from_action({**action,'sets':facts['remaining_sets'],
+                'duration_min':max(1,round(_estimated_minutes(action)*facts['remaining_sets']/facts['target_sets']))},len(items))
+            entry['source_plan']=full['source_plan']
+            entry['carried_completed_sets']=facts['completed_sets']
+            entry['carried_from_session_id']=prior.id
+            items.append(entry)
+        else:items.append(_item_from_action(action,len(items)))
     session = WorkoutSession(
         id=new_id(),
         user_id=user.id,
@@ -135,6 +185,8 @@ def start_session(
         current_index=0,
         items=items,
         planned_minutes=sum(int(item["duration_min"]) for item in items),
+        agent_log=[{'kind':'continuation','session_id':continuation.id,'workout_cycle_id':day_plan.get('workout_cycle_id'),
+                    'credits':prior_progress['items']}] if continuation else [],
     )
     db.add(session)
     db.flush()
@@ -149,6 +201,60 @@ def start_session(
     return session
 
 
+def sync_session_plan(session: WorkoutSession, actions: list[dict]) -> bool:
+    """Synchronize dated targets; completed facts and stable session item IDs survive."""
+    import copy
+    if session.status not in ('active','paused','completed'):return False
+    old=copy.deepcopy(session.items or []);used=set();items=[]
+    for position,action in enumerate(actions):
+        matches=[i for i in old if i['id'] not in used and i.get('source_action_id') and i['source_action_id'] in {action.get('id'),action.get('source_object_id')}]
+        if not matches:
+            # Compatibility for sessions predating source_action_id. Never guess
+            # between repeated occurrences of the same catalog action.
+            pool=[i for i in old if i['id'] not in used and not i.get('source_action_id') and i.get('action_ref')==action.get('action_ref')]
+            if len(pool)==1 and sum(a.get('action_ref')==action.get('action_ref') for a in actions)==1:matches=pool
+        if matches:
+            item=copy.deepcopy(matches[0]);used.add(item['id'])
+            if item.get('status') in ('done','skipped'):
+                items.append(item);continue
+            if int(item.get('completed_sets') or 0)>0 and item.get('action_ref')!=action.get('action_ref'):
+                raise ValueError('不能用计划替换覆盖已记录组数的训练条目。')
+            updated=_item_from_action(action,position)
+            if item.get('source_plan')==updated['source_plan']:
+                items.append(item);continue
+            if item.get('carried_completed_sets'):
+                updated['target_sets']=max(0,updated['target_sets']-int(item['carried_completed_sets']))
+                if updated['target_sets']==0 and not item.get('completed_sets'):continue
+            if int(updated['target_sets'])<int(item.get('completed_sets') or 0):
+                raise ValueError('新目标组数不能低于已记录的实际组数。')
+            for key,value in updated.items():
+                if key not in {'id','completed_sets','status','reason','guidance'}:item[key]=value
+        else:
+            item=_item_from_action(action,position)
+        item['position']=len(items);items.append(item)
+    # Removing a planned action must not delete its already recorded work.
+    for item in old:
+        if item['id'] not in used and (int(item.get('completed_sets') or 0)>0 or item.get('status') in ('done','skipped')):
+            item['outside_current_plan']=True;items.append(item)
+    if items==old:return False
+    paused=session.status=='paused'
+    if session.status=='completed':session.status='active'
+    session.items=items;session.planned_minutes=sum(int(i.get('duration_min') or 0) for i in items if not i.get('outside_current_plan'))
+    _advance(session)
+    if paused and session.status!='completed':session.status='paused'
+    return True
+
+
+def sync_day_sessions(db: Session,user: User,day: date,actions: list[dict]) -> list[WorkoutSession]:
+    changed=[]
+    for session in db.scalars(select(WorkoutSession).where(WorkoutSession.user_id==user.id,WorkoutSession.date==day,WorkoutSession.status.in_(('active','paused','completed')))):
+        from app.domain.workout_replan import active_cycle,session_cycle
+        if session_cycle(session)!=active_cycle(db,user,day):continue
+        if sync_session_plan(session,actions):changed.append(session)
+    db.flush()
+    return changed
+
+
 def _current_index(session: WorkoutSession) -> int | None:
     for index, item in enumerate(session.items or []):
         if item.get("status") in ("pending", "active"):
@@ -160,11 +266,11 @@ def _progress(session: WorkoutSession) -> dict:
     items = session.items or []
     total_sets = sum(max(1, int(item.get("target_sets") or 1)) for item in items)
     done_sets = sum(int(item.get("completed_sets") or 0) for item in items)
-    done_actions = sum(1 for item in items if item.get("status") == "done")
+    done_actions = sum(1 for item in items if int(item.get('completed_sets') or 0)>=max(1,int(item.get('target_sets') or 1)))
     skipped = sum(1 for item in items if item.get("status") == "skipped")
     remaining_minutes = 0
     for item in items:
-        if item.get("status") in ("done", "skipped"):
+        if item.get("status") == "skipped" or int(item.get('completed_sets') or 0)>=max(1,int(item.get('target_sets') or 1)):
             continue
         target = max(1, int(item.get("target_sets") or 1))
         left = max(0, target - int(item.get("completed_sets") or 0)) / target
@@ -180,8 +286,65 @@ def _progress(session: WorkoutSession) -> dict:
     }
 
 
+def progress_for_day(session: WorkoutSession | None, actions: list[dict]) -> dict:
+    """Read-only progress against the displayed dated plan, including legacy finishes.
+
+    Historical session targets/logs remain facts. Credit only matching actions;
+    extra work is reported separately rather than inflating the denominator.
+    """
+    items = (session.items or []) if session else []
+    item_progress = []
+    used = set()
+    total = done = done_actions = skipped = remaining = 0
+    absent_credit=0
+    credits={(event.get('workout_cycle_id'),i['action_id']):i for event in ((session.agent_log or []) if session else []) if event.get('kind')=='continuation' for i in event.get('credits',[])}
+    for action in actions:
+        target = max(1, int(action.get('sets') or 1))
+        total += target
+        refs = {action.get('id'), action.get('source_object_id')} - {None, ''}
+        eligible=[i for i in items if i.get('workout_cycle_id')==action.get('workout_cycle_id')]
+        candidates = [i for i in eligible if i['id'] not in used
+                      and i.get('action_ref') == action.get('action_ref')
+                      and i.get('source_action_id') in refs]
+        if not candidates:
+            pool = [i for i in eligible if i['id'] not in used and i.get('action_ref') == action.get('action_ref')]
+            if len(pool) == 1 and sum(a.get('action_ref') == action.get('action_ref') for a in actions) == 1:
+                candidates = pool
+        item = candidates[0] if len(candidates) == 1 else None
+        carried=max(0,int(item.get('carried_completed_sets') or 0)) if item else 0
+        extra=credits.get((action.get('workout_cycle_id'),action.get('id')), {})
+        credit=int(extra.get('completed_sets') or 0) if item is None else 0
+        absent_credit+=credit
+        actual=(max(0,int(item.get('completed_sets') or 0))+carried) if item else credit
+        count = min(target, actual)
+        if item:
+            used.add(item['id'])
+            skipped += int(item.get('status') == 'skipped')
+        item_progress.append({'action_id':action.get('id'),'action_ref':action.get('action_ref'),
+            'target_sets':target,'completed_sets':count,'remaining_sets':target-count,
+            'actual_sets':actual,
+            'session_item_id':item['id'] if item else None,'recorded':item is not None or bool(credit)})
+        done += count
+        done_actions += int(count == target)
+        from app.domain.day_plan import _estimated_minutes
+        remaining += _estimated_minutes(action) * (target - count) / target
+    actual = sum(max(0, int(i.get('completed_sets') or 0))+max(0,int(i.get('carried_completed_sets') or 0)) for i in items)
+    actual+=absent_credit
+    return {'scope': 'effective_day', 'done_sets': done, 'total_sets': total,
+            'done_actions': done_actions, 'total_actions': len(actions), 'skipped_actions': skipped,
+            'percent': round(done / total * 100) if total else 0,
+            'remaining_minutes': max(0, round(remaining)),
+            'actual_done_sets': actual, 'additional_recorded_sets': max(0, actual - done), 'items':item_progress}
+
+
 def session_payload(session: WorkoutSession, *, include_items: bool = True) -> dict:
-    items = list(session.items or [])
+    from app.domain.catalog import display_action_name
+    from app.domain.workout_records import revision
+    items = [{**item, "name": display_action_name(item)} for item in (session.items or [])]
+    for item in items:
+        if item.get('status')=='done' and int(item.get('completed_sets') or 0)<max(1,int(item.get('target_sets') or 1)):
+            item['stored_status']=item['status']
+            item['status']='partial' if item.get('completed_sets') else 'unrecorded'
     current_index = _current_index(session)
     current = items[current_index] if current_index is not None else None
     elapsed = 0
@@ -195,6 +358,7 @@ def session_payload(session: WorkoutSession, *, include_items: bool = True) -> d
         elapsed = max(0, int((end - started).total_seconds() // 60))
     return {
         "session_id": session.id,
+        "record_revision": revision(session),
         "date": session.date.isoformat(),
         "status": session.status,
         "source": session.source,
@@ -203,7 +367,8 @@ def session_payload(session: WorkoutSession, *, include_items: bool = True) -> d
         "current_item": current,
         "items": items if include_items else [],
         "planned_minutes": session.planned_minutes,
-        "actual_minutes": session.actual_minutes or elapsed,
+        "actual_minutes": session.actual_minutes if session.status=="finished" else session.actual_minutes or elapsed,
+        "actual_minutes_known": any(x.get('kind')=='fact_finish' and x.get('actual_minutes_known') for x in session.agent_log or []),
         "elapsed_minutes": elapsed,
         "completion_pct": session.completion_pct,
         "difficulty": session.difficulty,
@@ -219,6 +384,15 @@ def _session(db: Session, user: User, session_id: str) -> WorkoutSession:
     session = db.get(WorkoutSession, session_id)
     if session is None or session.user_id != user.id:
         raise ValueError("session not found")
+    return session
+
+
+def _editable_session(db: Session, user: User, session_id: str) -> WorkoutSession:
+    from app.domain.workout_records import lock
+    lock(db,user)
+    session=_session(db,user,session_id)
+    if session.status not in ACTIVE_STATUSES:
+        raise ValueError("训练已经结束或不可编辑，请使用独立的训练记录修订能力")
     return session
 
 
@@ -242,8 +416,10 @@ def _advance(session: WorkoutSession) -> None:
     session.updated_at = _now()
 
 
-def complete_set(db: Session, user: User, session_id: str) -> dict:
-    session = _session(db, user, session_id)
+def complete_set(db: Session, user: User, session_id: str, *,
+                 reps: int | None = None, weight_kg: float | None = None,
+                 rpe: int | None = None) -> dict:
+    session = _editable_session(db, user, session_id)
     if session.status == "finished":
         raise ValueError("这组训练已经结束了")
     if session.status == "completed":
@@ -254,6 +430,15 @@ def complete_set(db: Session, user: User, session_id: str) -> dict:
     items = list(session.items or [])
     item = dict(items[index])
     item["completed_sets"] = int(item.get("completed_sets") or 0) + 1
+    # 记录这一组实际做了什么；不填也能完成，但填了才能支撑渐进超负荷。
+    set_logs = list(item.get("set_logs") or [])
+    set_logs.append({
+        "set_no": item["completed_sets"],
+        "reps": int(reps) if reps is not None else None,
+        "weight_kg": float(weight_kg) if weight_kg is not None else None,
+        "rpe": int(rpe) if rpe is not None else None,
+    })
+    item["set_logs"] = set_logs
     target = max(1, int(item.get("target_sets") or 1))
     if item["completed_sets"] >= target:
         item["completed_sets"] = target
@@ -271,7 +456,7 @@ def complete_set(db: Session, user: User, session_id: str) -> dict:
 
 
 def skip_action(db: Session, user: User, session_id: str, *, reason: str = "") -> dict:
-    session = _session(db, user, session_id)
+    session = _editable_session(db, user, session_id)
     index = _current_index(session)
     if index is None:
         raise ValueError("没有可跳过的动作")
@@ -300,7 +485,7 @@ def replace_action(
     minutes_remaining: int | None = None,
 ) -> tuple[dict, list[str]]:
     """替换当前动作并重新评估剩余任务；已完成动作原样保留。"""
-    session = _session(db, user, session_id)
+    session = _editable_session(db, user, session_id)
     items = list(session.items or [])
     index = _current_index(session)
     if index is None:
@@ -430,11 +615,12 @@ def adjust_session(
     session_id: str,
     *,
     easier: bool = False,
+    harder: bool = False,
     minutes_remaining: int | None = None,
     injured_regions: list[str] | None = None,
 ) -> tuple[dict, list[str]]:
-    """只调整"当前 + 剩余"：减组、压时间、避开不适部位，不换已完成动作。"""
-    session = _session(db, user, session_id)
+    """只调整"当前 + 剩余"：加减组、压时间、避开不适部位，不换已完成动作。"""
+    session = _editable_session(db, user, session_id)
     items = list(session.items or [])
     index = _current_index(session)
     if index is None:
@@ -470,10 +656,17 @@ def adjust_session(
                 entry["reason"] = "避开今天不舒服的部位"
                 used.add(replacement["ref"])
                 changes.append(f"「{old_name}」→「{replacement['name']}」（避开不适部位）")
-        if easier:
+        if easier and entry.get("slot") == "strength":
             current = max(1, int(entry.get("target_sets") or 1))
             entry["target_sets"] = max(1, current - 1)
             if entry["target_sets"] != current:
+                changes.append(f"「{entry.get('name')}」组数 {current} → {entry['target_sets']}")
+        if harder and entry.get("slot") == "strength":
+            current = max(1, int(entry.get("target_sets") or 1))
+            entry["target_sets"] = min(5, current + 1)
+            if entry["target_sets"] != current:
+                entry["source"] = "agent"
+                entry["reason"] = "按你今天的状态加一组"
                 changes.append(f"「{entry.get('name')}」组数 {current} → {entry['target_sets']}")
         items[cursor] = entry
 
@@ -516,7 +709,7 @@ def update_guidance(
     source_ids: list[str] | None = None,
 ) -> dict:
     """把动作指导写进当前训练任务（不是只回一段文字）。"""
-    session = _session(db, user, session_id)
+    session = _editable_session(db, user, session_id)
     items = list(session.items or [])
     index = _current_index(session)
     if index is None:
@@ -536,6 +729,8 @@ def update_guidance(
 
 
 def pause_session(db: Session, user: User, session_id: str) -> dict:
+    from app.domain.workout_records import lock
+    lock(db,user)
     session = _session(db, user, session_id)
     if session.status in ("active", "paused"):
         session.status = "paused" if session.status == "active" else "active"
@@ -558,50 +753,33 @@ def finish_session(
     *,
     completed: bool = True,
     completion_pct: int | None = None,
-    difficulty: int = 3,
-    fatigue: int = 3,
+    difficulty: int | None = None,
+    fatigue: int | None = None,
     actual_minutes: int | None = None,
     note: str = "",
+    completion_basis: str = 'recorded_only',
+    expected_revision: str | None = None,
 ) -> dict:
     """结束训练：写真实训练记录 + 更新短期记忆。
 
-    completed=True 表示"用户说完成了"：把剩余动作按用户自述记为完成，
-    但不伪造组数——它记录的是 user_reported 完成，而不是系统观察到每组都点过。
+    completed/completion_pct仅作为反馈保留，不生成未记录的组数或计划次数。
+    日志和会话在同一个事务内持久化。
     """
     session = _session(db, user, session_id)
     if session.status == "finished":
         return finish_payload(db, user, session)
 
-    items = [dict(item) for item in (session.items or [])]
-    if completed:
-        for item in items:
-            if item.get("status") in ("pending", "active"):
-                item["completed_sets"] = max(1, int(item.get("target_sets") or 1))
-                item["status"] = "done"
-                item["completed_at"] = _now().isoformat(timespec="seconds")
-                item["user_reported"] = True
-        session.completion_pct = 100.0
-    elif completion_pct is not None:
-        session.completion_pct = max(0.0, min(100.0, float(completion_pct)))
-    else:
-        session.completion_pct = _score_completion(items)
-
-    elapsed = 0
-    if session.started_at:
-        started = session.started_at
-        if started.tzinfo is None:
-            started = started.replace(tzinfo=dt.timezone.utc)
-        elapsed = max(0, int((_now() - started).total_seconds() // 60))
-    session.actual_minutes = int(actual_minutes or elapsed or session.planned_minutes)
-    session.difficulty = max(1, min(5, int(difficulty or 3)))
-    session.fatigue = max(1, min(5, int(fatigue or 3)))
-    session.note = (note or "")[:1000]
-    session.status = "finished"
-    session.finished_at = _now()
-    session.items = items
-    session.current_index = len(items)
-
-    logs = _write_workout_logs(db, user, session)
+    # The legacy endpoint now uses the same fact-preserving close operation.
+    # A broad "completed" flag is feedback, not per-set completion evidence.
+    from app.domain import workout_records
+    from app.agent.workout_capabilities import FinishSession
+    workout_records.finish(db,user,session_id,FinishSession(
+        expected_revision=expected_revision or workout_records.revision(session),actual_minutes=actual_minutes,
+        completion_basis=completion_basis,
+        difficulty=difficulty,fatigue=fatigue,note=note))
+    session = _session(db,user,session_id)
+    session.agent_log=[*(session.agent_log or []),{'kind':'legacy_finish_feedback','completed':completed,'self_reported_pct':completion_pct}]
+    logs=list(db.scalars(select(WorkoutLog).where(WorkoutLog.user_id==user.id,WorkoutLog.session_id==session_id)))
     upsert_memory(
         db, user,
         kind=SHORT_TERM,
@@ -609,7 +787,7 @@ def finish_session(
         key=f"session:{session.id}",
         value=(
             f"{session.date.isoformat()} 完成 {session.completion_pct:.0f}% · "
-            f"难度 {session.difficulty}/5 · 疲劳 {session.fatigue}/5"
+            f"难度 {str(session.difficulty)+'/5' if session.difficulty is not None else '未记录'} · 疲劳 {str(session.fatigue)+'/5' if session.fatigue is not None else '未记录'}"
         ),
         structured={
             "session_id": session.id,
@@ -640,42 +818,11 @@ def finish_session(
 
 
 def _write_workout_logs(db: Session, user: User, session: WorkoutSession) -> list[WorkoutLog]:
-    logs: list[WorkoutLog] = []
-    weight, _source = _weight_for(db, user)
+    from app.domain.workout_records import sync_item
     for item in session.items or []:
-        done = int(item.get("completed_sets") or 0)
-        if done <= 0:
-            continue
-        target = max(1, int(item.get("target_sets") or 1))
-        duration = max(1, round(int(item.get("duration_min") or 8) * min(done, target) / target))
-        kind = "strength"
-        if item.get("slot") == "cardio":
-            kind = "cardio"
-        elif item.get("slot") in ("warmup", "mobility"):
-            kind = "flexibility"
-        intensity = "normal"
-        if int(session.difficulty or 3) >= 4:
-            intensity = "hard"
-        elif int(session.difficulty or 3) <= 2:
-            intensity = "light"
-        log = WorkoutLog(
-            user_id=user.id,
-            date=session.date,
-            action_ref=str(item.get("action_ref") or "unknown"),
-            kind=kind,
-            duration_min=duration,
-            sets=done,
-            reps=item.get("target_reps"),
-            intensity=intensity,
-            note=f"训练会话 {session.id}",
-        )
-        db.add(log)
-        logs.append(log)
+        sync_item(db,user,session,item)
     db.flush()
-    for log in logs:
-        # 触发一次热量估算，确保记录写入的是可复算的 MET 口径
-        calorie_stats.burn_for_log(log, weight)
-    return logs
+    return list(db.scalars(select(WorkoutLog).where(WorkoutLog.user_id==user.id,WorkoutLog.session_id==session.id)))
 
 
 def _weight_for(db: Session, user: User) -> tuple[float, str]:
@@ -694,7 +841,7 @@ def finish_payload(
             select(WorkoutLog).where(
                 WorkoutLog.user_id == user.id,
                 WorkoutLog.date == session.date,
-                WorkoutLog.note == f"训练会话 {session.id}",
+                ((WorkoutLog.session_id == session.id) | ((WorkoutLog.session_id.is_(None)) & (WorkoutLog.note == f"训练会话 {session.id}"))),
             )
         ).all())
     burned = [calorie_stats.burn_for_log(log, weight) for log in logs]
@@ -713,6 +860,7 @@ def finish_payload(
         "session": session_payload(session),
         "summary": {
             "actual_minutes": session.actual_minutes,
+            "actual_minutes_known": any(x.get('kind')=='fact_finish' and x.get('actual_minutes_known') for x in session.agent_log or []),
             "completion_pct": session.completion_pct,
             "difficulty": session.difficulty,
             "fatigue": session.fatigue,

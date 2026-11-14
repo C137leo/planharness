@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StableScroll from '../../components/StableScroll.vue'
 /**
  * 训练执行页：从「今天练什么」进入「现在练到哪一组」。
  *
@@ -8,7 +9,7 @@
  * - 结束 → POST /finish，写 WorkoutLog + 短期记忆
  * 训练中的 Agent 入口和今天页共用同一个 /agent/chat，只是多带 session_id。
  */
-import { computed, onUnmounted, reactive, ref } from 'vue'
+import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import {
   api,
@@ -24,9 +25,13 @@ import { slotLabel } from '../../styles/copy'
 import { thumbOf } from '../../styles/thumbs'
 import { todayStr } from '../../styles/dates'
 
+const equipmentNames:Record<string,string>={bodyweight:'徒手',dumbbell:'哑铃',barbell:'杠铃',band:'弹力带',bench:'训练凳',treadmill:'跑步机',mat:'瑜伽垫',kettlebell:'壶铃'}
 const date = ref(todayStr())
 const sessionId = ref('')
 const session = ref<WorkoutSession | null>(null)
+// 组记录：默认带出计划次数，重量留空；换动作时重置，避免把上一个动作的重量带过去。
+const setReps = ref<number | null>(null)
+const setWeight = ref<number | null>(null)
 const day = ref<AgentDay | null>(null)
 const loading = ref(true)
 const busy = ref(false)
@@ -58,6 +63,15 @@ const currentItem = computed(() => {
   if (session.value.current_item) return session.value.current_item
   return session.value.items.find((item) => item.status === 'pending' || item.status === 'active') || null
 })
+// currentItem 声明之后再监听，避免在 setup 阶段读到 TDZ。
+watch(
+  () => currentItem.value?.action_ref,
+  () => {
+    setReps.value = currentItem.value?.target_reps ?? null
+    setWeight.value = null
+  },
+  { immediate: true },
+)
 const progress = computed(() => session.value?.progress || null)
 const isFinished = computed(
   () => !!finishResult.value || session.value?.status === 'finished',
@@ -121,6 +135,7 @@ async function load() {
         finishResult.value = {
           summary: {
             actual_minutes: payload.actual_minutes,
+            actual_minutes_known: payload.actual_minutes_known,
             completion_pct: payload.completion_pct,
             difficulty: payload.difficulty,
             fatigue: payload.fatigue,
@@ -166,7 +181,10 @@ async function completeSet() {
   busy.value = true
   error.value = ''
   try {
-    const result = await api.completeWorkoutSet(session.value.session_id)
+    const result = await api.completeWorkoutSet(session.value.session_id, {
+      reps: setReps.value,
+      weight_kg: setWeight.value,
+    })
     session.value = result.session
     toast.value = previous ? `「${previous.name}」完成一组` : '完成一组'
     if (result.session.status !== 'completed' && result.session.status !== 'finished') {
@@ -257,7 +275,7 @@ function openFinish() {
   finishForm.completed = true
   finishForm.difficulty = session.value.difficulty || 3
   finishForm.fatigue = session.value.fatigue || 3
-  finishForm.actual_minutes = String(session.value.elapsed_minutes || session.value.planned_minutes || '')
+  finishForm.actual_minutes = ''
   finishForm.note = ''
   finishOpen.value = true
 }
@@ -269,10 +287,12 @@ async function submitFinish() {
   try {
     const result = await api.finishWorkout(session.value.session_id, {
       completed: finishForm.completed,
+      completion_basis: finishForm.completed ? 'confirm_current_plan' : 'recorded_only',
+      expected_revision: session.value.record_revision,
       completion_pct: finishForm.completed ? 100 : session.value.progress.percent,
       difficulty: finishForm.difficulty,
       fatigue: finishForm.fatigue,
-      actual_minutes: Number(finishForm.actual_minutes) || undefined,
+      actual_minutes: finishForm.actual_minutes.trim() ? Number(finishForm.actual_minutes) : undefined,
       note: finishForm.note,
     })
     session.value = result.session
@@ -320,11 +340,14 @@ onUnmounted(stopRest)
 <template>
   <view class="page workout-page with-sidebar">
     <DesktopSidebar active="" />
+    <view class="workout-header"><view>
     <view class="eyebrow">TRAINING · {{ date }}</view>
     <view class="title">{{ isFinished ? '这次练完了。' : '现在，练这一组。' }}</view>
     <view class="subtitle">
       {{ isFinished ? '记录已经保存，下一次安排会参考这次完成度和难度。' : '只记录事实：完成一组点一下，其他的交给我调整。' }}
     </view>
+
+    </view><view v-if="progress" class="workout-overview"><text>{{ progress.done_sets }}/{{ progress.total_sets }}</text><text>组已记录 · {{ progress.percent }}%</text></view></view>
 
     <view v-if="loading" class="card muted">正在准备训练…</view>
     <view v-else-if="error" class="error">{{ error }}</view>
@@ -338,7 +361,7 @@ onUnmounted(stopRest)
         </view>
         <view class="hero-title">训练记录已保存</view>
         <view class="hero-sub">
-          {{ summary.actual_minutes || 0 }} 分钟 · 难度 {{ summary.difficulty || '—' }}/5
+          {{ summary.actual_minutes_known===false ? '实际时长未记录' : `${summary.actual_minutes || 0} 分钟` }} · 难度 {{ summary.difficulty || '—' }}/5
           · 疲劳 {{ summary.fatigue || '—' }}/5
         </view>
       </view>
@@ -366,13 +389,17 @@ onUnmounted(stopRest)
       </view>
     </template>
 
-    <template v-else-if="session">
+    <view v-else-if="session" class="workout-layout">
       <!-- 当前动作 -->
       <view class="card train-card">
         <view class="row">
-          <text class="section-title">当前动作</text>
+          <text class="section-title">
+            {{ session.status === 'completed' || session.status === 'finished' ? '训练完成' : '当前动作' }}
+          </text>
           <text class="chip">
-            {{ (session.current_index ?? 0) + 1 }} / {{ session.items.length }}
+            {{ session.status === 'completed' || session.status === 'finished'
+              ? `${session.items.length} / ${session.items.length}`
+              : `${(session.current_index ?? 0) + 1} / ${session.items.length}` }}
           </text>
         </view>
         <view v-if="currentItem" class="train-head">
@@ -382,7 +409,7 @@ onUnmounted(stopRest)
           <view class="train-titles">
             <text class="train-name">{{ currentItem.name }}</text>
             <text class="list-meta">
-              {{ slotLabel(currentItem.slot) }} · {{ currentItem.equipment || '徒手' }}
+              {{ slotLabel(currentItem.slot) }} · {{ equipmentNames[currentItem.equipment || 'bodyweight'] || currentItem.equipment || '徒手' }}
               <text v-if="currentItem.replaced_from"> · 已替换</text>
             </text>
             <text class="list-meta">
@@ -416,6 +443,16 @@ onUnmounted(stopRest)
           <text class="list-meta">休息时间是建议值，觉得够了就直接下一组。</text>
         </view>
 
+        <view v-if="currentItem && !showRest && currentItem.slot === 'strength'" class="set-log-row">
+          <view class="set-log-field">
+            <text class="list-meta">实际次数</text>
+            <input v-model.number="setReps" class="input" type="number" placeholder="例如 12" />
+          </view>
+          <view class="set-log-field">
+            <text class="list-meta">重量 kg（可选）</text>
+            <input v-model.number="setWeight" class="input" type="number" placeholder="例如 8" />
+          </view>
+        </view>
         <view v-if="currentItem && !showRest" class="btn-row">
           <view class="btn-sm primary train-set-btn" @click="completeSet">
             {{ busy ? '记录中…' : `完成第 ${(currentItem.completed_sets || 0) + 1} 组` }}
@@ -436,11 +473,12 @@ onUnmounted(stopRest)
       </view>
 
       <!-- 接下来 -->
-      <view class="card">
+      <view class="card workout-queue">
         <view class="row">
-          <view class="section-title">接下来</view>
+          <view class="section-title">本场安排</view>
           <text class="list-meta">{{ nextItems.length }} 个待完成</text>
         </view>
+        <StableScroll scroll-y chain-to-parent class="workout-queue-scroll" aria-label="本场动作列表">
         <view v-for="item in session.items" :key="item.id" class="list-row train-item" :class="item.status">
           <view class="list-body">
             <view class="thumb train-mini-thumb">
@@ -449,7 +487,7 @@ onUnmounted(stopRest)
             <view class="list-main">
               <text class="list-title">{{ item.name }}</text>
               <text class="list-meta">
-                {{ item.completed_sets }}/{{ item.target_sets }} 组 · 约 {{ item.duration_min }} 分钟
+                已做 {{ item.completed_sets }}/{{ item.target_sets }} 组 · 还差 {{ Math.max(0,item.target_sets-item.completed_sets) }} 组
                 <text v-if="item.replaced_from"> · 从 {{ item.replaced_from }} 替换</text>
               </text>
             </view>
@@ -458,10 +496,11 @@ onUnmounted(stopRest)
             {{ item.status === 'done' ? '完成' : item.status === 'skipped' ? '跳过' : item.status === 'active' ? '进行中' : '待做' }}
           </text>
         </view>
+        </StableScroll>
       </view>
 
-      <view v-if="toast" class="notice">{{ toast }}</view>
-    </template>
+      <view v-if="toast" class="notice workout-toast">{{ toast }}</view>
+    </view>
 
     <!-- 结束反馈 -->
     <view v-if="finishOpen">
@@ -474,6 +513,11 @@ onUnmounted(stopRest)
         <view class="finish-choice">
           <view class="chip" :class="{ active: finishForm.completed }" @click="finishForm.completed = true">完成了</view>
           <view class="chip" :class="{ active: !finishForm.completed }" @click="finishForm.completed = false">只完成一部分</view>
+        </view>
+        <view v-if="finishForm.completed" class="notice">
+          <text>按当前安排确认完成，重量可留空：</text>
+          <view v-for="item in session?.items || []" :key="item.id">{{ item.name }} · {{ item.status==='skipped' ? '已跳过' : `${item.target_sets}组` }} · 约 {{ item.duration_min }} 分钟</view>
+          <text>提交后按以上默认值保存；实际不同可改选“只完成一部分”，或在聊天中修改摘要。</text>
         </view>
         <view class="field">
           <text class="label">主观难度 {{ finishForm.difficulty }}/5</text>
@@ -529,9 +573,9 @@ onUnmounted(stopRest)
   </view>
 </template>
 
-<style>
+<style scoped>
 .workout-page {
-  max-width: 980px;
+  max-width: none;
 }
 .train-card {
   border-color: var(--primary-soft);
@@ -652,4 +696,13 @@ onUnmounted(stopRest)
   font-size: 12px;
   margin-bottom: 6px;
 }
+
+.workout-header{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:22px;border:1px solid #efdfd1;border-radius:22px;background:linear-gradient(115deg,#fff6e9,#fffdf9)}
+.workout-overview{display:flex;flex-direction:column;gap:5px;align-items:flex-end;flex-shrink:0}.workout-overview>text:first-child{font-size:30px;color:var(--primary);font-weight:800}.workout-overview>text:last-child{font-size:11px;color:var(--muted)}
+.workout-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.85fr);gap:18px;align-items:start;margin-top:18px}.workout-layout>.card{margin:0;min-width:0;border-color:#efdfd1;box-shadow:0 5px 18px #7d482805}.workout-toast{grid-column:1/-1}
+.train-card{padding:24px}.train-head{gap:18px;margin:20px 0}.train-thumb{height:112px;width:112px;border-radius:22px;flex-shrink:0}.train-name{font-size:26px}.train-titles{gap:7px}.train-card .btn-row{gap:9px;margin-top:14px}.train-set-btn{text-align:center;cursor:pointer;border-radius:16px;box-shadow:0 5px 14px #ec552323}.train-progress{padding:14px;background:#fff8ef;border-radius:14px}.train-progress .list-meta{display:block;margin-top:8px}
+.workout-queue-scroll{max-height:490px;padding-right:5px;margin-top:12px}.train-item.active{background:#fff5e9;border-radius:12px;padding:12px;border-color:transparent}.workout-queue .chip{font-size:10px;padding:4px 8px;white-space:nowrap}.train-item .list-body{min-width:0}.train-item .list-main{min-width:0}.train-mini-thumb{flex-shrink:0;width:46px;height:46px}.set-log-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}.set-log-field .input{margin-top:6px}
+@media(min-width:1500px){.workout-layout{grid-template-columns:minmax(0,1.35fr) minmax(330px,.85fr)}.train-thumb{width:136px;height:136px}}
+@media(max-width:1100px){.workout-layout{grid-template-columns:1fr}.workout-header{padding:16px}.workout-header .title{font-size:24px}.workout-header .subtitle{font-size:12px}.train-card{padding:18px}.train-thumb{width:80px;height:80px}.train-name{font-size:23px}.workout-overview>text:first-child{font-size:24px}.workout-queue-scroll{max-height:340px}}
+@media(max-width:520px){.workout-header{align-items:flex-start}.workout-overview{display:none}.train-thumb{width:72px;height:72px}.train-head{gap:13px}.train-name{font-size:21px}.workout-header .eyebrow{font-size:10px}}
 </style>

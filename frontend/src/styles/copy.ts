@@ -72,6 +72,7 @@ export const ACTION_NAMES: Record<string, string> = {
   run: '跑步',
   kettlebell_swing: '壶铃摆',
   burpee: '波比',
+  'jumping-jack': '开合跳',
   full_body_stretch: '全身拉伸',
   stretch: '拉伸',
   chicken_rice_bowl: '鸡胸糙米碗',
@@ -106,14 +107,14 @@ export function actionName(ref: string): string {
 }
 
 /** 优先用计划里带的 meta.name_zh（skill 生成的动作名都在那里）。 */
-export function actionLabel(action: { action_ref: string; meta?: Record<string, unknown> }): string {
-  const named = (action.meta || {}).name_zh
-  // 1) 先查 ref 映射：最可靠（meta 里可能存了 slug 或英文名）
-  if (ACTION_NAMES[action.action_ref]) return ACTION_NAMES[action.action_ref]
-  // 2) 再查 meta：它可能是 slug 或中文名
-  if (typeof named === 'string' && named.trim()) return ACTION_NAMES[named] || named
+export function actionLabel(action: { action_ref: string; name?: string; meta?: Record<string, unknown> }): string {
+  const candidates = [action.name, (action.meta || {}).name_zh, ACTION_NAMES[action.action_ref]]
+  for (const name of candidates) {
+    if (typeof name === 'string' && /[\u4e00-\u9fff]/.test(name)) return name
+  }
   return actionName(action.action_ref)
 }
+
 
 export function slotLabel(slot: string): string {
   return SLOT_LABELS[slot] || slot

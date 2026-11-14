@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -25,7 +26,7 @@ from app.audit import append_event
 from app.config import get_settings
 from app.food import mcd_order
 from app.food.mcd_mcp import resolve_token
-from app.models import AuditEvent, Plan, User
+from app.models import AuditEvent, ExternalOperation, Plan, User
 
 router = APIRouter(prefix="/api/v1")
 
@@ -172,7 +173,8 @@ def mcd_create_order(
     append_event(
         db, _audit_stream(db, user), "mcd_order_created",
         {"order_id": data["order_id"], "total": data["total"],
-         "store_name": data["store_name"], "status": data["status"]},
+         "store_name": data["store_name"], "status": data["status"],
+         "account_key": _account_key(token)},
         actor_type="user", actor_id=user.id,
     )
     db.commit()
@@ -183,10 +185,12 @@ def mcd_create_order(
 def mcd_get_order(
     request: Request,
     order_id: str,
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
     token: str = Depends(_mcd_token),
 ):
     _guard()
+    _owned_order(db, user, token, order_id)
     result = mcd_order.get_order(order_id, token=token)
     if result["status"] != "ok":
         _fail(result)
@@ -202,6 +206,7 @@ def mcd_cancel_order(
     token: str = Depends(_mcd_token),
 ):
     _guard()
+    _owned_order(db, user, token, order_id)
     result = mcd_order.cancel_order(order_id, token=token)
     if result["status"] != "ok":
         _fail(result)
@@ -245,3 +250,24 @@ def _check_cooldown(db: Session, user: User) -> None:
     if elapsed < ORDER_COOLDOWN_S:
         raise HTTPException(
             429, f"刚刚已经建过一单了，{int(ORDER_COOLDOWN_S - elapsed)} 秒后再试")
+
+
+def _account_key(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _owned_order(db: Session, user: User, token: str, order_id: str) -> None:
+    # Shared provider credentials must not allow reading/cancelling others' orders.
+    rows = db.scalars(select(AuditEvent).where(AuditEvent.actor_id == user.id,
+                      AuditEvent.action == "mcd_order_created"))
+    for row in rows:
+        if row.payload.get("order_id") == order_id and row.payload.get("account_key") == _account_key(token):
+            return
+    # Unified chat claims include the endpoint/account fingerprint. Their scoped
+    # query path remains the preferred entry; never trust a client-supplied ID alone.
+    from app.food.mcd_mcp import MCD_MCP_URL
+    account = hashlib.sha256((MCD_MCP_URL + "\0" + token).encode()).hexdigest()
+    claim = db.scalar(select(ExternalOperation).where(ExternalOperation.user_id == user.id,
+                      ExternalOperation.provider == "mcd:" + account[:16], ExternalOperation.remote_id == order_id))
+    if claim is None:
+        raise HTTPException(404, "订单不存在或不属于当前用户及麦当劳账号；旧订单请到官方账号核对。")

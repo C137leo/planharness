@@ -243,7 +243,7 @@ class TraceEntryOut(BaseModel):
 
     node: str
     status: str
-    ts: str
+    ts: str | None = None
     detail: dict | None = None
 
 
@@ -302,6 +302,39 @@ class WorkoutLogIn(BaseModel):
     reps: int | None = Field(default=None, ge=0, le=200)
     intensity: Literal["light", "normal", "hard"] = "normal"
     note: str = ""
+
+
+class WorkoutSetIn(BaseModel):
+    """一组训练的实际完成情况；两项都可选，不填就只记"完成"。"""
+
+    reps: int | None = Field(default=None, ge=0, le=200)
+    weight_kg: float | None = Field(default=None, ge=0, le=500)
+    rpe: int | None = Field(default=None, ge=1, le=10)
+
+
+class MealLogIn(BaseModel):
+    """一条饮食记录：餐次 + 描述 + 估算热量/蛋白。"""
+
+    date: date_type | None = None
+    slot: Literal["breakfast", "lunch", "dinner", "snack"] = "lunch"
+    title: str = Field(min_length=1, max_length=80)
+    kcal: int = Field(ge=0, le=3000)
+    protein_g: float = Field(default=0, ge=0, le=300)
+    note: str = Field(default="", max_length=300)
+
+
+class MealLogOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    date: date_type
+    slot: str
+    title: str
+    kcal: int
+    protein_g: float
+    note: str
+    source: str
+    created_at: datetime
 
 
 class ProfileUpdateIn(BaseModel):

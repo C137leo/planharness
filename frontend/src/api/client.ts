@@ -1,5 +1,6 @@
 import { resetCoachWorkspace } from '../composables/coachWorkspace'
 import type {
+  MealLogItem,
   AgentChatResult,
   AgentConversation,
   AgentAdjustment,
@@ -279,6 +280,18 @@ export const api = {
     request<PlanPatch>('POST', `/patches/${patchId}/reject`, { comment }),
   saveCheckin: (payload: CheckinPayload) =>
     request<{ id: string; date: string }>('POST', '/checkins', payload),
+  listMealLogs: (day = '') =>
+    request<MealLogItem[]>('GET', `/meal-logs${day ? `?day=${day}` : ''}`),
+  createMealLog: (payload: {
+    date?: string
+    slot: 'breakfast' | 'lunch' | 'dinner' | 'snack'
+    title: string
+    kcal: number
+    protein_g?: number
+    note?: string
+  }) => request<MealLogItem>('POST', '/meal-logs', payload),
+  deleteMealLog: (id: string) =>
+    request<{ deleted: string }>('DELETE', `/meal-logs/${id}`),
   getAudit: (streamId: string) => request<AuditEvent[]>('GET', `/audit/${streamId}`),
   verifyAudit: (streamId: string) => request<AuditVerify>('GET', `/audit/${streamId}/verify`),
   compareKneeModes: () => request<CompareResult>('POST', '/compare/knee-patch'),
@@ -410,11 +423,22 @@ export const api = {
   rejectPlanDraft: (draftId: string, comment = '') =>
     request<PlanDraft>('POST', `/plans/drafts/${draftId}/reject`, { comment }),
   listPatchPresets: () => request<PatchPreset[]>('GET', '/patch-presets'),
+  runtimeConversations: () => request<any[]>('GET', '/agent/runtime/conversations'),
+  runtimeCreate: () => request<any>('POST', '/agent/runtime/conversations', {}),
+  runtimeMessages: (thread: string, before = '') => request<any>('GET', `/agent/runtime/conversations/${encodeURIComponent(thread)}?before=${encodeURIComponent(before)}`),
+  runtimeTurn: (id: string) => request<any>('GET', `/agent/runtime/turns/${encodeURIComponent(id)}`),
   listRuns: (limit = 20, status = '') =>
     request<RunSummary[]>('GET', `/runs?limit=${limit}${status ? `&status=${status}` : ''}`),
   getRun: (runId: string) => request<RunDetail>('GET', `/runs/${runId}`),
 
   // ---- 统一教练 Agent：所有页面共用同一个入口 ----
+  commerceStatus: () => request<{ status: 'ready' | 'token_required'; guide_url: string; allow_order: boolean }>('GET', '/agent/commerce/status', undefined, mcdHeaders(getStoredMcdToken())),
+  commerceOrders: (group: import('./types').CommerceOrderGroup = 'active', cursor = '') => request<import('./types').CommerceOrderPage>('GET', `/agent/commerce/orders?group=${group}&limit=20&cursor=${encodeURIComponent(cursor)}`, undefined, mcdHeaders(getStoredMcdToken())),
+  commerceOrderDetail: (id: string) => request<import('./types').CommerceHistoryOrder>('GET', `/agent/commerce/orders/${encodeURIComponent(id)}`, undefined, mcdHeaders(getStoredMcdToken())),
+  refreshCommerceOrder: (id: string) => request<import('./types').CommerceHistoryOrder>('POST', `/agent/commerce/orders/${encodeURIComponent(id)}/refresh`, {}, mcdHeaders(getStoredMcdToken())),
+  syncCommerceOrders: () => request<{checked:number;failed:number;remaining:number;synced_at:string}>('POST', '/agent/commerce/orders/sync', {}, mcdHeaders(getStoredMcdToken())),
+  commercePreferences: () => request<{city: string; keyword: string}>('GET', '/agent/commerce/preferences'),
+  saveCommercePreferences: (city: string, keyword: string) => request<{city: string; keyword: string}>('PUT', '/agent/commerce/preferences', {city,keyword}),
   agentChat: (
     text: string,
     page = 'today',
@@ -422,15 +446,23 @@ export const api = {
     sessionId = '',
     context: Record<string, unknown> = {},
     thread = '',
+    requestId = `coach-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    confirmation?: { action: 'confirm' | 'cancel'; pending_id: string; version: number },
+    checkoutAction?: import('./types').CheckoutAction,
+    commerceAction?: import('./types').CommerceAction,
   ) =>
     request<AgentChatResult>('POST', '/agent/chat', {
+      request_id: requestId,
+      confirmation,
+      checkout_action: checkoutAction,
+      commerce_action: commerceAction,
       text,
       page,
       date: date || undefined,
       session_id: sessionId || undefined,
       context,
       thread: thread || undefined,
-    }),
+    }, mcdHeaders(getStoredMcdToken())),
   agentMessages: (limit = 20, thread = 'coach') =>
     request<AgentMessageItem[]>(
       'GET',
@@ -443,8 +475,10 @@ export const api = {
       'DELETE',
       `/agent/conversations/${encodeURIComponent(thread)}`,
     ),
-  getAgentDay: (date = '') =>
-    request<AgentDay>('GET', `/agent/day${date ? `?date=${date}` : ''}`),
+  getDayRevision: (id: string) => request<import('./types').DayRevision>('GET', `/agent/day-revisions/${encodeURIComponent(id)}`),
+  getWorkoutReplan: (id: string) => request<import('./types').WorkoutReplanState>('GET', `/agent/workout-replans/${encodeURIComponent(id)}`),
+  getAgentDay: (date = '', fallbackNext = true) =>
+    request<AgentDay>('GET', `/agent/day?date=${encodeURIComponent(date)}&fallback_next=${fallbackNext}`),
   resetAgentDay: (date = '') =>
     request<AgentDay>('POST', '/agent/day/reset', { date: date || undefined }),
   listAdjustments: (start = '', end = '', limit = 60) =>
@@ -484,10 +518,13 @@ export const api = {
     ),
   getWorkout: (sessionId: string) =>
     request<WorkoutSession>('GET', `/workout-sessions/${sessionId}`),
-  completeWorkoutSet: (sessionId: string) =>
-    request<{ session: WorkoutSession }>(
-      'POST', `/workout-sessions/${sessionId}/sets`, {},
-    ),
+  completeWorkoutSet: (sessionId: string, payload?: {
+    reps?: number | null
+    weight_kg?: number | null
+    rpe?: number | null
+  }) => request<{ session: WorkoutSession }>(
+    'POST', `/workout-sessions/${sessionId}/sets`, payload || {},
+  ),
   skipWorkoutAction: (sessionId: string, reason = '') =>
     request<{ session: WorkoutSession }>(
       'POST', `/workout-sessions/${sessionId}/skip`, { reason },
@@ -514,6 +551,8 @@ export const api = {
     sessionId: string,
     payload: {
       completed: boolean
+      completion_basis?: 'recorded_only' | 'confirm_current_plan'
+      expected_revision?: string
       completion_pct?: number
       difficulty: number
       fatigue: number

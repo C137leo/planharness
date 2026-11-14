@@ -13,12 +13,22 @@ const form = reactive({
   sleep: '',
   hunger: 3,
   soreness: 2,
-  adherence: '80',
+  adherence: '',
   note: '',
 })
 
 function today(): string {
   return todayStr()
+}
+
+// 评审 P-011：打卡页不是 tab 页，必须给一个明确的返回入口，不能只靠浏览器后退。
+function goBack() {
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack()
+    return
+  }
+  uni.switchTab({ url: '/pages/today/index' })
 }
 
 function numberOrNull(value: string): number | null {
@@ -95,6 +105,14 @@ async function loadTodayPlan() {
     selectedRefs.value = exerciseOptions.value.map((option) => option.ref)
     workout.duration_min = String(exerciseOptions.value[0].duration)
     planHint.value = `已按今天的计划预填 ${exerciseOptions.value.length} 个动作（默认全选）`
+    // 执行率从今天已完成的训练会话带入，不再默认 80。
+    try {
+      const day = await api.getAgentDay(today())
+      const percent = day.session?.progress?.percent
+      if (typeof percent === 'number') form.adherence = String(Math.round(percent))
+    } catch {
+      // 没有会话就留空，让用户自己填
+    }
   } catch {
     // 没有计划就保留兜底列表
   }
@@ -140,10 +158,20 @@ async function logWorkout() {
   workoutError.value = ''
   try {
     const created: WorkoutLogItem[] = []
+    const day = form.date || today()
+    // 同一天同一动作已经记过就跳过，避免训练会话已落库后又手动补记一次造成重复。
+    const existing = new Set(
+      workoutLogs.value.filter((item) => item.date === day).map((item) => item.action_ref),
+    )
+    let skipped = 0
     for (const option of options) {
+      if (existing.has(option.ref)) {
+        skipped += 1
+        continue
+      }
       created.push(
         await api.logWorkout({
-          date: form.date || today(),
+          date: day,
           action_ref: option.ref,
           kind: option.kind,
           // 每个动作用计划里的时长，用户手填的时长作为统一覆盖
@@ -153,7 +181,12 @@ async function logWorkout() {
     }
     workoutLogs.value = [...created, ...workoutLogs.value]
     const kcal = created.reduce((sum, item) => sum + item.kcal, 0)
-    uni.showToast({ title: `记下 ${created.length} 项 · ${Math.round(kcal)} kcal`, icon: 'none' })
+    uni.showToast({
+      title: created.length
+        ? `记下 ${created.length} 项 · ${Math.round(kcal)} kcal${skipped ? `（跳过 ${skipped} 项已记录）` : ''}`
+        : '这些动作今天已经记过了',
+      icon: 'none',
+    })
   } catch (err) {
     workoutError.value = err instanceof Error ? err.message : '记录失败'
   } finally {
@@ -179,6 +212,10 @@ onLoad(() => {
 
 <template>
   <view class="page">
+    <view class="page-topbar">
+      <text class="link" @click="goBack">← 返回</text>
+      <text class="list-meta">打卡</text>
+    </view>
     <view class="eyebrow">CHECK-IN</view>
     <view class="title">今天感觉怎么样？</view>
     <view class="subtitle">数据不用完美，真实比完美有用。</view>
@@ -267,6 +304,13 @@ onLoad(() => {
 </template>
 
 <style>
+.page-topbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
 .field {
   border-bottom: 1px solid var(--line-soft);
   padding: 12px 0;

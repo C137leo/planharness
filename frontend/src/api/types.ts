@@ -799,6 +799,13 @@ export interface AgentActionChip {
   draft_id?: string
   request_id?: string
   question?: string
+  checkout_id?: string
+  take_way_code?: string
+  existing_checkout_id?: string
+  decision_fingerprint?: string
+  target_id?: string
+  pending_id?: string
+  version?: number
 }
 
 export interface AgentDayAction {
@@ -866,6 +873,8 @@ export interface WorkoutProgress {
 }
 
 export interface WorkoutSession {
+  record_revision?: string
+  actual_minutes_known?: boolean
   session_id: string
   date: string
   status: 'active' | 'paused' | 'completed' | 'finished' | 'abandoned'
@@ -886,7 +895,36 @@ export interface WorkoutSession {
   finished_at: string
 }
 
+export interface MealLogItem {
+  id: string
+  date: string
+  slot: 'breakfast' | 'lunch' | 'dinner' | 'snack'
+  title: string
+  kcal: number
+  protein_g: number
+  note: string
+  source: string
+  created_at?: string
+}
+
+export interface AgentDayIntake {
+  kcal: number
+  protein_g: number
+  target_kcal: number
+  target_protein_g: number
+  remaining_kcal: number
+  remaining_protein_g: number
+}
+
 export interface AgentDay {
+  workout_cycle_id?: string | null
+  previous_training?: Array<{ name: string; completed_sets: number; source: string }>
+  day_progress?: WorkoutSession['progress'] & {
+    scope: 'effective_day'
+    actual_done_sets: number
+    additional_recorded_sets: number
+    items: Array<{ action_id: string; action_ref: string; target_sets: number; completed_sets: number; remaining_sets: number; actual_sets: number; recorded: boolean }>
+  } | null
   date: string
   weekday: number
   plan_id: string | null
@@ -902,6 +940,9 @@ export interface AgentDay {
   adjustment?: AgentAdjustment | null
   temporary_context?: Record<string, Record<string, unknown>>
   meals: AgentDayMeal[]
+  meal_logs?: MealLogItem[]
+  intake?: AgentDayIntake
+  nutrition?: Record<string, unknown>
   total_minutes: number
   session: WorkoutSession | null
   has_active_session: boolean
@@ -1012,7 +1053,151 @@ export interface AgentGuidance {
   sources: Array<{ id: string; title: string; source_url: string }>
 }
 
+export interface AgentTaskResult {
+  task_id: string
+  status: string
+  message: string
+  changes: string[]
+  failure_stage?: string
+  execution_id?: string | null
+  actual_changes?: Array<{ kind: string; date?: string; key?: string }>
+  capability_id?: string
+  selected_tool?: string
+  tool_arguments?: Record<string, unknown>
+  verification?: { passed: boolean | null; method?: string }
+  state_history?: string[]
+  latency_ms?: number
+}
+
+export interface CommerceAction {
+  action: 'connect' | 'nutrition' | 'search_stores' | 'menu' | 'product_detail' | 'prepare_order' | 'checkout_menu' | 'revise_order'
+  target_id?: string
+  city?: string
+  keyword?: string
+  items?: Array<{ product_id: string; quantity: number; use_default_options: boolean; selections?: Array<{option_id: string; quantity: number}> }>
+  take_way_code?: string
+  version?: number
+  checkout_id?: string
+}
+export interface McdOfficialNutrition {
+  name: string; portion: string; kcal: number; protein_g: number; fat_g: number; carb_g: number
+}
+export interface CommerceCatalogItem {
+  id: string; name: string; address?: string; distance_m?: number | null; hours?: string; open?: boolean; availability?: 'open'|'closed'|'unknown'
+  menu_price?: string | number | null; round_name?: string; product_type?: number; store_id?: string
+  search?: {city: string; keyword: string}
+  nutrition?: McdOfficialNutrition | null
+}
+
+export interface CheckoutAction {
+  action: 'choose_take_way' | 'query' | 'cancel' | 'query_existing' | 'cancel_existing' | 'place_new'
+  checkout_id: string
+  version: number
+  take_way_code?: string
+  existing_checkout_id?: string
+  decision_fingerprint?: string
+}
+
+export interface CommerceOrderObservation {
+  order_id?: string; status?: string; status_code?: string; total_cents?: number; pay_url?: string; verified?: boolean; expire_at?: string
+  status_verified?: boolean; lifecycle?: 'unpaid' | 'paid' | 'cancelled' | 'expired' | 'unknown'
+  payment_deadline?: string; payment_expired?: boolean; active_unpaid?: boolean; created_at?: string; observed_at?: string
+}
+
+export interface ExistingOrderConflict {
+  fingerprint: string; can_create_separately: boolean
+  orders: Array<{checkout_id: string; version: number; order: CommerceOrderObservation; cart: Array<{name:string;quantity:number}>; store_name: string; in_flight: boolean; can_cancel: boolean}>
+}
+
+export interface AgentCheckout {
+  id: string
+  version: number
+  status: string
+  take_way_code: string
+  store_id?: string
+  order?: CommerceOrderObservation | null
+  order_conflict?: ExistingOrderConflict | null
+  operation_id?: string | null
+  expires_at: string
+  cart: Array<{ product_id: string; name: string; quantity: number; specifications: Array<{ name: string; quantity: number }>; selection?: {product_id: string; quantity: number; use_default_options: boolean; selections?: Array<{option_id: string; quantity: number}>} }>
+  quote: {
+    total_cents: number
+    currency: string
+    store: { name: string; address: string }
+    fulfillment: string
+    tableware: boolean
+    take_ways: Array<{ code: string; title: string }>
+    fees_note: string
+    take_way_source?: 'default_takeaway' | 'explicit_preference'
+  }
+}
+
+export interface DayRevision {
+  workout_policy?: 'preserve_current' | 'replace_remaining'
+  previous_training?: Array<{ name: string; completed_sets: number }>
+  workout_minutes_before: number
+  workout_minutes_after: number
+  revision_id: string
+  version: number
+  etag: string
+  date: string
+  status: string
+  scope: string[]
+  expires_at: string
+  base_matches_current?: boolean
+  target_plan: { actions: AgentDayAction[]; meals: AgentDayMeal[] }
+  changes: Array<{domain: string; object_id: string | null; kind: string; before: Record<string, unknown> | string[] | null; after: Record<string, unknown> | string[] | null}>
+}
+
+export interface WorkoutReplanState {
+  authorization_id: string
+  etag: string
+  status: string
+  date: string
+  remaining_sets: number
+  total_sets?: number
+  recorded: Array<{ name: string; completed_sets: number }>
+  base_matches_current?: boolean
+}
+
 export interface AgentChatResult {
+  workout_replan?: WorkoutReplanState
+  day_revision?: DayRevision | null
+  workout_records?: {
+    session: { session_id: string; date: string; status: string; actual_minutes: number | null; items: Array<{id:string; name:string; completed_sets:number; target_sets:number; status:string}> }
+    record_revision: string
+    actual_minutes_known: boolean
+    actual_minutes_source?: string
+    legacy_records_unlinked: boolean
+    unrecorded_items: Array<{id:string; name:string; completed_sets:number; status:string}>
+    logs: Array<{id:string; session_item_id:string; sets:number; revision:number; details:{name:string; completion_state:string; set_logs:Array<{set_no:number; reps:number|null; weight_kg:number|null}>}}>
+  }
+  checkout?: AgentCheckout
+  commerce_view?: 'edit_menu'
+  commerce_connection?: { status: 'ready' | 'token_required'; guide_url: string }
+  commerce_nutrition?: { items: McdOfficialNutrition[]; fetched_at: string; source: string; portion_note: string }
+  order?: CommerceOrderObservation
+  order_conflict?: ExistingOrderConflict
+  commerce_availability?: {code:string;message:string;provider_code?:string|number|null;store?:CommerceCatalogItem|null;product?:{id:string;name:string}|null;choice?:{store_id:string;search_revision:string;store:CommerceCatalogItem;nearest:CommerceCatalogItem}|null}
+  commerce_catalog?: { kind: 'stores' | 'products' | 'options' | 'detail'; items: CommerceCatalogItem[]; product?: CommerceCatalogItem; detail?: { option_group_count: number; round_groups: Array<{ id: string; name: string; choices: Array<{id: string; name: string; default: boolean}> }>; modification_groups: Array<{name: string; choices: Array<{name: string; selected_quantity: number; price_cents?: number}>}> };  store_id?: string; store?: { name: string; address: string; hours?: string } }
+
+  unfulfilled_goals?: string[]
+  pending_confirmation?: {
+    pending_id: string
+    version: number
+    snapshot_id: string
+    status: string
+    expires_at: string
+    question: string
+    tasks: Array<Record<string, unknown>>
+  }
+  context_used?: { snapshot_id: string; revision: string }
+  confirmation_replayed?: boolean
+  execution_history?: Array<Record<string, unknown>>
+  overall_status?: string
+  task_plan?: Array<Record<string, unknown>>
+  task_results?: AgentTaskResult[]
+  latency_ms?: number
   intent: string
   intent_label: string
   scope: string
@@ -1069,4 +1254,18 @@ export interface AgentConversation {
   preview: string
   message_count: number
   updated_at: string
+}
+
+
+export type CommerceOrderGroup = 'active' | 'paid' | 'inactive' | 'unknown'
+export interface CommerceHistoryOrder {
+  id: string; source: 'chat' | 'legacy'; group: CommerceOrderGroup; status_label: string
+  order: CommerceOrderObservation
+  created_at: string; store: {name: string; address: string; hours: string}
+  items: Array<{name: string; quantity: number | null; specifications: Array<{name:string;quantity:number|null}>}>
+  total_cents: number | null; amount_label: string; take_way: string
+  can_refresh: boolean; needs_connection: boolean; details_complete: boolean; sync_note: string
+}
+export interface CommerceOrderPage {
+  items: CommerceHistoryOrder[]; counts: Record<CommerceOrderGroup,number>; next_cursor: string; as_of: string; scope: string
 }

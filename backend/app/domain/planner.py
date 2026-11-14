@@ -112,8 +112,10 @@ CN_NUMBERS = {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六":
 def _find_days(text: str) -> int | None:
     import re
 
-    # 「2 天」「两天」「每周练 3 天」
-    match = re.search(r"([1-7]|[一二两三四五六七])\s*天", text)
+    # 「2 天」「两天」「每周练 3 天」「一周只能练两次」
+    # 用户口语里「两次/两回」和「两天」是同一件事；只认「天」会把
+    # “一周只能练两次”判成无法执行（评审 P-001 的减天场景）。
+    match = re.search(r"([1-7]|[一二两三四五六七])\s*[天次回]", text)
     if not match:
         return None
     raw = match.group(1)

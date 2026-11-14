@@ -3,6 +3,16 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { api, type PlanPatch, type PlanPatchSummary } from '../../api'
 
+// 评审 P-011：审批页目前只能从 URL 进入，也缺少返回入口。
+function goBack() {
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack()
+    return
+  }
+  uni.switchTab({ url: '/pages/plan/index' })
+}
+
 const pending = ref<PlanPatch | null>(null)
 const history = ref<PlanPatchSummary[]>([])
 const loading = ref(true)
@@ -27,6 +37,7 @@ const STATUS_LABEL: Record<string, string> = {
   committed: '已提交',
   rejected: '已拒绝',
   draft: '草稿',
+  superseded: '已失效',
 }
 
 const changes = computed(() => {
@@ -55,7 +66,9 @@ function label(status: string): string {
 
 function clock(iso?: string | null): string {
   if (!iso) return '—'
-  const d = new Date(iso)
+  // SQLite 可能返回没有时区的 UTC 字符串；直接 new Date 会当成本地时间。
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(iso)
+  const d = new Date(hasZone ? iso : `${iso}Z`)
   if (Number.isNaN(d.getTime())) return iso
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
@@ -65,9 +78,14 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    // 服务端是唯一真相：先看待审批，再看历史
-    const list = await api.listPatches(50)
-    const waiting = list.find((item) => item.status === 'pending_approval')
+    // 服务端是唯一真相：先看待审批，再看历史。
+    // 只认基于当前版本的补丁：v2 上的补丁不能拿去审批已经是 v3 的计划。
+    const [list, plan] = await Promise.all([
+      api.listPatches(50),
+      api.getCurrentPlan().catch(() => null),
+    ])
+    const waiting = list.find((item) => item.status === 'pending_approval'
+      && (!plan || item.base_version === plan.version))
     history.value = list.filter((item) => item.status !== 'pending_approval')
     pending.value = waiting ? await api.getPatch(waiting.id) : null
     confirmed.value = false
@@ -84,6 +102,10 @@ async function load() {
 
 async function approve() {
   if (!pending.value || busy.value) return
+  if (!confirmed.value) {
+    notice.value = '先勾选「我已核对以上变更」，再提交。'
+    return
+  }
   const accepted = await new Promise<boolean>((resolve) => {
     uni.showModal({
       title: '确认提交新版本？',
@@ -143,6 +165,10 @@ onShow(load)
 
 <template>
   <view class="page">
+    <view class="page-topbar">
+      <text class="link" @click="goBack">← 返回</text>
+      <text class="list-meta">计划变更审批</text>
+    </view>
     <view class="eyebrow">APPROVAL</view>
     <view class="title">{{ pending ? '这次只改 3 个槽位。' : '没有待审批的补丁。' }}</view>
     <view class="subtitle">审批前不会写入新版本；拒绝后计划保持不变。</view>
@@ -199,7 +225,7 @@ onShow(load)
       </view>
 
       <view class="btn-row">
-        <view class="btn-sm primary" @click="approve">
+        <view class="btn-sm primary" :class="{ disabled: !confirmed || cooldown }" @click="approve">
           {{ busy ? '处理中…' : cooldown ? '请先核对变更…' : '通过并提交 v' + (pending.base_version + 1) }}
         </view>
         <view class="btn-sm accent" @click="reject">拒绝</view>
@@ -245,6 +271,13 @@ onShow(load)
 </template>
 
 <style>
+.page-topbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+>
 .confirm-row {
   align-items: center;
   display: flex;

@@ -52,7 +52,7 @@
     {
       "path": "pages/console/index",
       "style": {
-        "navigationBarTitleText": "Harness Console"
+        "navigationBarTitleText": "Agent 运行工作台"
       }
     }
   ],

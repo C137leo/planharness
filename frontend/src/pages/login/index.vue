@@ -51,7 +51,15 @@ const passwordHint = computed(() => {
   if (!value) return '至少 8 位，包含字母和数字'
   if (value.length < 8) return '还差 ' + (8 - value.length) + ' 位'
   if (!/[A-Za-z]/.test(value) || !/\d/.test(value)) return '还缺字母或数字'
-  if (['12345678', 'password', '11111111'].includes(value.toLowerCase())) return '这个太常见了'
+  // 与后端 app/abuse.py 的 COMMON_PASSWORDS 保持同一批，避免
+  // "前端说强度够用、后端说太常见"（评审 P-017）。
+  const weak = [
+    '12345678', '123456789', '1234567890', 'password', 'password1', 'qwerty123',
+    '11111111', '00000000', 'abc12345', 'iloveyou', 'admin123', 'test1234',
+    'a1234567', '1qaz2wsx', 'passw0rd', 'woaini1314',
+  ]
+  if (weak.includes(value.toLowerCase())) return '这个密码太常见了，换一个'
+  if (new Set(value).size <= 3) return '重复字符太多，换一个'
   if (value.includes(form.phone)) return '别把手机号写进密码'
   return '强度够用'
 })
@@ -238,11 +246,24 @@ onMounted(() => {
 </script>
 
 <template>
-  <view class="page">
-    <view class="eyebrow">WORKOUT PLAN HARNESS</view>
+  <view class="page login-page">
+    <view class="eyebrow">AI FITNESS COACH</view>
     <view class="title">{{ isRegister ? '开一个账号，开始练。' : '欢迎回来。' }}</view>
     <view class="subtitle">
-      {{ isRegister ? '注册后填画像，教练会按你的目标和限制排计划。' : '登录后继续你的计划与打卡。' }}
+      {{ isRegister ? '填 4 项条件，教练按你的目标、时间和器械排计划。' : '登录后继续你的计划与打卡。' }}
+    </view>
+
+    <!-- 评审 P-006：首访先回答"这是什么/能帮我什么"，而不是直接甩一个登录框 -->
+    <view class="login-value">
+      <text class="login-value-title">没时间的打工人，你需要一个“不费脑”的AI私教</text>
+      <text class="login-value-copy">
+        别再去套那些看不懂的健身公式了！只要告诉我你的目标、一周能练几天、有什么器械，3分钟给你排好这周的跟练表。身体不舒服？系统会自动帮你避开风险动作！
+      </text>
+      <view class="login-points">
+        <text>· <text class="point-strong">告别长篇大论</text>：今天练什么，一屏清清楚楚。</text>
+        <text>· <text class="point-strong">拒绝反人类填表</text>：想改计划？直接用大白话告诉教练。</text>
+        <text>· <text class="point-strong">拒绝硬扛</text>：每周根据你的实际完成度动态调整，练不动就减量。</text>
+      </view>
     </view>
 
     <view class="card">
@@ -282,7 +303,7 @@ onMounted(() => {
         {{ error || '提交太频繁' }}（还剩 {{ lockedSeconds }} 秒）
       </view>
 
-      <view class="btn-row">
+      <view class="btn-row login-actions">
         <view class="btn-sm primary" :class="{ disabled: !canSubmit }" @click="submit">
           {{ busy ? '处理中…' : lockedSeconds ? `等待 ${lockedSeconds}s` : isRegister ? '注册并开始' : '登录' }}
         </view>
@@ -300,6 +321,44 @@ onMounted(() => {
 </template>
 
 <style>
+/* 评审 P-027：登录卡在 1440 下横跨全屏，输入动线太长；收窄并居中 */
+.login-page {
+  margin: 0 auto;
+  max-width: 520px;
+}
+
+/* 评审 P-006：首访价值说明 */
+.login-value {
+  border-left: 3px solid var(--primary);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 16px;
+  padding: 2px 0 2px 12px;
+}
+.login-value-title {
+  color: var(--ink);
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+}
+.login-value-copy {
+  color: var(--muted);
+  display: block;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.login-points {
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  gap: 2px;
+}
+.login-points > text { display: block; line-height: 1.7; }
+.login-points .point-strong { display: inline; font-weight: 700; color: var(--ink); }
+.login-actions { justify-content: flex-end; }
+
 .tabs {
   background: var(--line-soft);
   border-radius: 999px;
@@ -342,8 +401,10 @@ onMounted(() => {
 
 .strength {
   display: flex;
-  gap: 6px;
+  gap: 4px;
   margin-top: 8px;
+  /* 评审 P-026：固定短条，避免 4 段被拉满整行像分割线 */
+  max-width: 180px;
 }
 
 .bar {

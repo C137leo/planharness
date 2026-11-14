@@ -43,6 +43,7 @@ from app.models import (
     PlanPatch,
     PlanVersion,
     MealPlan,
+    MealLog,
     Profile,
     User,
     WorkoutLog,
@@ -57,6 +58,8 @@ from app.schemas import (
     PatchCreateIn,
     PatchFeedbackIn,
     MealPlanOut,
+    MealLogIn,
+    MealLogOut,
     TodayOut,
     PatchRequestIn,
     PlanDraftIn,
@@ -251,7 +254,7 @@ def update_profile(
     """录入/更新画像。过敏原与饮食偏好会直接进安全门与食谱筛选。"""
     profile = db.get(Profile, user.id)
     if profile is None:
-        profile = Profile(user_id=user.id)
+        profile = Profile(user_id=user.id, birth_year=0, height_cm=0, weight_kg=0)
         db.add(profile)
         db.flush()
 
@@ -1194,9 +1197,10 @@ def get_run(
         .order_by(ContextSnapshot.created_at.desc())
     )
 
+    from app.domain.runtime_console import redact
     detail = RunDetailOut(
         **summary.model_dump(),
-        trace=run.trace or [],
+        trace=[{"node": e.get("node") or e.get("stage") or "unclassified", "status": e.get("status", "unknown"), "ts": e.get("ts") or e.get("timestamp"), "detail": redact(e)} for e in (run.trace or []) if isinstance(e,dict)],
         input=run.input or {},
         output=output,
         patch=(
@@ -1417,6 +1421,58 @@ def list_checkins(
     ).all()
     return ok(request, [CheckinOut.model_validate(item).model_dump() for item in rows])
 
+@router.post("/meal-logs")
+def create_meal_log(
+    payload: MealLogIn,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """记一餐：只存用户真实填报，不覆盖计划餐食，也不做营养诊断。"""
+    day = payload.date or date.today()
+    row = MealLog(
+        user_id=user.id, date=day, slot=payload.slot,
+        title=payload.title.strip(), kcal=payload.kcal,
+        protein_g=payload.protein_g, note=payload.note.strip(),
+        source="manual",
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return ok(request, MealLogOut.model_validate(row).model_dump(), message="saved")
+
+
+@router.get("/meal-logs")
+def list_meal_logs(
+    request: Request,
+    day: str = "",
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    target = date.fromisoformat(day) if day else date.today()
+    rows = db.scalars(
+        select(MealLog)
+        .where(MealLog.user_id == user.id, MealLog.date == target)
+        .order_by(MealLog.created_at.asc())
+    ).all()
+    return ok(request, [MealLogOut.model_validate(item).model_dump() for item in rows])
+
+
+@router.delete("/meal-logs/{log_id}")
+def delete_meal_log(
+    log_id: str,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    row = db.get(MealLog, log_id)
+    if row is None or row.user_id != user.id:
+        raise HTTPException(404, "meal log not found")
+    db.delete(row)
+    db.commit()
+    return ok(request, {"deleted": log_id})
+
+
 @router.post("/auth/register")
 def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db)):
     if db.scalar(select(User).where(User.phone == payload.phone)):
@@ -1425,7 +1481,8 @@ def register(payload: RegisterIn, request: Request, db: Session = Depends(get_db
                 password_hash=hash_password(payload.password))
     db.add(user)
     db.flush()
-    db.add(Profile(user_id=user.id))     # ★ 必须同时建画像，否则 /me/profile 404
+    db.add(Profile(user_id=user.id, birth_year=0, height_cm=0, weight_kg=0))
+    # 0 = 未填写；不预填示例身体数据（评审 P-019）
     db.commit()
     return ok(request, TokenOut(access_token=issue_token(user, request.app.state.settings),
                                 user_id=user.id).model_dump(), message="registered")

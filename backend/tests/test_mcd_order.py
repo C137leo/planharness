@@ -248,3 +248,12 @@ def test_create_order_cooldown(client: TestClient, auth, monkeypatch) -> None:
     second = client.post("/api/v1/mcd/orders", headers=auth, json=payload)
     assert second.status_code == 429
     assert "秒后再试" in second.json()["detail"]
+
+
+def test_legacy_order_read_and_cancel_reject_foreign_or_unclaimed_ids(client, auth, monkeypatch):
+    monkeypatch.setattr('app.api.mcd_routes.get_settings',lambda:type('S',(),{'mcd_mcp_allow_order':True})())
+    def forbidden(*a,**kw):raise AssertionError('must reject before provider access')
+    monkeypatch.setattr('app.api.mcd_routes.mcd_order.get_order',forbidden)
+    monkeypatch.setattr('app.api.mcd_routes.mcd_order.cancel_order',forbidden)
+    assert client.get('/api/v1/mcd/orders/unclaimed',headers=auth).status_code==404
+    assert client.post('/api/v1/mcd/orders/unclaimed/cancel',headers=auth).status_code==404

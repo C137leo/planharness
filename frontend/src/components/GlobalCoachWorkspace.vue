@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import StableScroll from './StableScroll.vue'
+import McdOrderHistory from './McdOrderHistory.vue'
+import DayRevisionCard from './DayRevisionCard.vue'
+import WorkoutReplanCard from './WorkoutReplanCard.vue'
 /**
  * GlobalCoachWorkspace：全站唯一的教练工作区。
  *
@@ -9,13 +13,16 @@
  * 桌面端：左侧可选对话 + 中间对话框；移动端单列。
  * 所有对话线程仍共用同一个 Agent、长期记忆和页面上下文。
  */
-import { computed, nextTick, ref, watch } from 'vue'
+import { formatKcal } from '../styles/numbers'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import {
   api,
   ApiError,
   getStoredMcdToken,
   setStoredMcdToken,
   type AgentActionChip,
+  type CheckoutAction,
+  type CommerceAction,
   type AgentChatResult,
   type AgentConversation,
   type AgentGuidance,
@@ -29,8 +36,10 @@ import {
 import { actionLabel, describeOperation, slotLabel } from '../styles/copy'
 import { exerciseSearchTerm, openExerciseDbTerm } from '../styles/exerciseDb'
 import { todayStr } from '../styles/dates'
+import { isCommerceResult, dayAttachment } from '../styles/commerceUi'
 import KnowledgeSheet from './KnowledgeSheet.vue'
 import McdOrderSheet from './McdOrderSheet.vue'
+import McdCommerceCard from './McdCommerceCard.vue'
 import {
   coachWorkspaceConversations,
   coachWorkspaceHistoryThread,
@@ -43,6 +52,8 @@ import {
   pushCoachMessage,
   setLastMcdOrder,
 } from '../composables/coachWorkspace'
+
+const orderHistoryOpen = ref(false)
 
 const props = defineProps<{
   visible: boolean
@@ -70,6 +81,17 @@ const isOpen = computed(() => props.mode === 'inline' || props.visible)
 const messages = coachWorkspaceMessages
 const input = ref('')
 const busy = ref(false)
+// 评审：只有"正在输入"无法判断是否卡死。给出真实的等待秒数，超过 20s 提示可以稍后看结果。
+const busyElapsed = ref(0)
+let busyTimer: ReturnType<typeof setInterval> | null = null
+watch(busy, (active) => {
+  if (busyTimer) { clearInterval(busyTimer); busyTimer = null }
+  if (!active) { busyElapsed.value = 0; return }
+  const start = Date.now()
+  busyElapsed.value = 0
+  busyTimer = setInterval(() => { busyElapsed.value = Math.floor((Date.now() - start) / 1000) }, 1000)
+})
+onUnmounted(() => { if (busyTimer) clearInterval(busyTimer) })
 const error = ref('')
 const result = ref<AgentChatResult | null>(null)
 const richAnchorMessageId = ref('')
@@ -107,6 +129,13 @@ const greeting = computed(() => {
 const draft = computed<PlanDraft | null>(() => result.value?.plan_draft || null)
 const patchRequest = computed<PatchRequest | null>(() => result.value?.patch_request || null)
 const guidance = computed<AgentGuidance[]>(() => result.value?.guidance || [])
+const checkout = computed(() => result.value?.checkout || null)
+const commerceCatalog = computed(() => result.value?.commerce_catalog || null)
+const checkoutLabels: Record<string, string> = {
+  needs_selection: '待选择取餐方式', awaiting_confirmation: '待确认', submitted: '订单已核实',
+  unknown: '提交结果待核实，请勿重复下单', submitting: '提交中', verifying: '核实中',
+  cancelled: '已取消草案', stale: '信息已变化，请重新报价', failed: '提交失败',
+}
 const feedback = computed(() => result.value?.feedback || null)
 const day = computed(() => result.value?.day || null)
 const todayBrief = computed(() => result.value?.today_brief || null)
@@ -163,9 +192,14 @@ const hasRichResult = computed(() =>
       todayBrief.value ||
       result.value?.memories?.length ||
       result.value?.progress_insights ||
+      result.value?.task_results?.length ||
       result.value?.changes?.length ||
       result.value?.warnings?.length ||
       result.value?.actions?.length ||
+      result.value?.checkout ||
+      result.value?.commerce_catalog ||
+      result.value?.commerce_nutrition ||
+      result.value?.commerce_connection ||
       result.value?.mcd_order ||
       mcdOrderOpen.value ||
       messages.value.some((message) => Boolean(mcdOrdersByMessage.value[message.id])) ||
@@ -186,9 +220,19 @@ const richMessageId = computed(() => {
   if (!result.value && visibleOrderMessageId.value) return visibleOrderMessageId.value
   return messages.value[messages.value.length - 1]?.id || ''
 })
-const chatActions = computed(() =>
-  (result.value?.actions || []).filter((action) => action.type !== 'quick_reply'),
-)
+const hasCommerce = computed(() => isCommerceResult(result.value))
+const hasWorkoutRecords = computed(() => Boolean(result.value?.workout_records ||
+  [...(result.value?.task_plan || []),...(result.value?.pending_confirmation?.tasks || [])]
+    .some(t=>['workout.finish_session','workout.correct_record','workout.read_records','workout.record_progress'].includes(String(t.capability_id)))))
+const commerceActions = computed(() => (result.value?.actions || []).filter(action => {
+  if (['checkout_way','checkout_query','checkout_existing_query','checkout_existing_cancel','checkout_place_new','commerce_recovery_menu'].includes(action.type)) return true
+  const tasks=result.value?.pending_confirmation?.tasks || []
+  return ['confirm_tasks','cancel_tasks'].includes(action.type) && tasks.length>0 && tasks.every(t=>String(t.capability_id || '').startsWith('commerce.'))
+}))
+const planResultStale = computed(()=>result.value?.day?.plan_version != null && props.context?.planVersion != null && result.value.day.plan_version!==props.context.planVersion)
+const revisionActions = computed(() => planResultStale.value ? [] : (result.value?.actions || []).filter(a=>['confirm_tasks','cancel_tasks'].includes(a.type)))
+const chatActions = computed(() => planResultStale.value ? [] : (result.value?.actions || []).filter(action => action.type!=='quick_reply' && !commerceActions.value.includes(action) && !result.value?.day_revision && !result.value?.workout_replan))
+const showFitnessDay = computed(() => !!day.value && (!hasCommerce.value && !hasWorkoutRecords.value || (result.value?.task_plan || []).some(t=>String(t.capability_id || '').startsWith('meal.') || ['workout.remove_action','workout.update_action','workout.add_action','workout.replace_action'].includes(String(t.capability_id)))))
 const activeMcdOrder = computed(() => {
   const order = mcdOrdersByMessage.value[richMessageId.value]
   return order && !isMcdOrderExpired(order) ? order : null
@@ -200,11 +244,13 @@ function orderForMessage(messageId: string): McdOrder | null {
 
 let scrollTick = 0
 let bottomScrollToken = 0
+let chatInteraction = 0
+function noteChatInteraction() { chatInteraction+=1;bottomScrollToken+=1 }
 
 function chatScroller(): HTMLElement | null {
   if (typeof document === 'undefined') return null
   const root = document.getElementById(workspaceDomId.value)
-  const scrollers = root?.querySelectorAll('.workspace-scroll .uni-scroll-view')
+  const scrollers = root?.querySelectorAll('.workspace-scroll[data-stable-scroll], .workspace-scroll .uni-scroll-view')
   return scrollers && scrollers.length
     ? scrollers[scrollers.length - 1] as HTMLElement
     : null
@@ -227,7 +273,7 @@ async function scrollChatToBottom() {
   if (token !== bottomScrollToken) return
   applyBottomScroll()
   // 图片、附件卡片和 rich result 会在首帧后继续撑高内容，再补两次。
-  for (const delay of [80, 240]) {
+  for (const delay of [80, 240, 700, 1400]) {
     setTimeout(() => {
       if (token === bottomScrollToken) applyBottomScroll()
     }, delay)
@@ -235,11 +281,13 @@ async function scrollChatToBottom() {
 }
 
 async function scrollChatToLatestCoach() {
+  const interaction=chatInteraction
   bottomScrollToken += 1
   await nextTick()
   await nextTick()
   // 等 today_brief 附件卡片完成布局后再取位置
   await new Promise((resolve) => setTimeout(resolve, 80))
+  if (chatInteraction!==interaction) return
   const scroller = chatScroller()
   const rows = scroller?.querySelectorAll?.('.chat-row.agent')
   const row = rows && rows.length ? rows[rows.length - 1] as HTMLElement : null
@@ -255,10 +303,12 @@ async function scrollChatToLatestCoach() {
 }
 
 async function scrollToRichCard(messageId: string) {
+  const interaction=chatInteraction
   if (!messageId || typeof document === 'undefined') return
   bottomScrollToken += 1
   await nextTick()
   await new Promise((resolve) => setTimeout(resolve, 60))
+  if (chatInteraction!==interaction) return
   const card = document.getElementById(`coach-rich-${messageId}`)
   const scroller = chatScroller()
   if (!card || !scroller) return
@@ -279,10 +329,18 @@ function showMessageTime(index: number): boolean {
   return Number.isNaN(previousTime) || currentTime - previousTime >= 5 * 60 * 1000
 }
 
+// 后端旧数据可能返回没有时区的 ISO（SQLite naive UTC）。直接 new Date()
+// 会当成浏览器本地时间，于是 21:40 的消息在列表里变成 13:40（评审 P-018）。
+function parseServerDate(at?: string): Date | null {
+  if (!at) return null
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(at)
+  const time = new Date(hasZone ? at : `${at}Z`)
+  return Number.isNaN(time.getTime()) ? null : time
+}
+
 function messageTime(at?: string): string {
-  if (!at) return ''
-  const time = new Date(at)
-  if (Number.isNaN(time.getTime())) return ''
+  const time = parseServerDate(at)
+  if (!time) return ''
   return time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
@@ -290,14 +348,21 @@ function nowId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`
 }
 
-function pushMessage(role: 'user' | 'agent', text: string, attachment?: CoachAttachment): string {
+function pushMessage(role: 'user' | 'agent', text: string, attachment?: CoachAttachment, planVersion?: number | null): string {
   if (!text.trim()) return ''
   const id = nowId()
-  pushCoachMessage({ id, role, text, at: new Date().toISOString(), attachment })
+  pushCoachMessage({ id, role, text, at: new Date().toISOString(), attachment, planVersion })
   return id
 }
 
 function attachmentFor(next: AgentChatResult): CoachAttachment | undefined {
+  if (next.workout_replan && !next.day_revision) return {kind:'训练重排确认',title:'保留记录并重新制定目标',result:next}
+  if (next.day_revision) return {kind:'整日计划草案',title:next.day_revision.date+' · 差异预览',result:next}
+  if (next.workout_records) return {kind:'训练记录',title:next.workout_records.session.status==='finished' ? '已保存的实际训练':'当前实际进度',result:next}
+  if (next.checkout) return { kind: '麦当劳订单', title: checkoutLabels[next.checkout.status] || next.checkout.status, result: next }
+  if (next.commerce_catalog) return { kind: next.commerce_catalog.kind==='detail' ? '麦当劳商品' : '麦当劳菜单', title: next.commerce_catalog.product?.name || '真实门店与商品', result: next }
+  if (isCommerceResult(next)) return {kind:'麦当劳点餐',title:next.pending_confirmation?.status==='pending' ? '待确认的点餐信息':'点餐信息与营养',result:next}
+
   if (next.mcd_order) {
     return {
       kind: '点餐',
@@ -330,9 +395,8 @@ function attachmentFor(next: AgentChatResult): CoachAttachment | undefined {
       result: next,
     }
   }
-  if (next.day) {
-    return { kind: '今日调整', title: next.day.summary || '今天的临时安排', result: next }
-  }
+  const changedDay=dayAttachment(next)
+  if (changedDay) return changedDay
   if (next.feedback) {
     return { kind: '训练记录', title: `本次完成 ${next.feedback.completion_pct.toFixed(0)}%`, result: next }
   }
@@ -370,9 +434,8 @@ function newThreadId(): string {
 }
 
 function conversationTime(at?: string): string {
-  if (!at) return ''
-  const time = new Date(at)
-  if (Number.isNaN(time.getTime())) return ''
+  const time = parseServerDate(at)
+  if (!time) return ''
   const now = new Date()
   if (time.toDateString() === now.toDateString()) {
     return time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -405,6 +468,7 @@ async function loadHistory(thread = coachWorkspaceThreadId.value, force = false)
           role: item.role,
           text: item.text,
           at: item.created_at,
+          planVersion: saved?.day?.plan_version,
           attachment,
         }
       })
@@ -548,7 +612,8 @@ watch(
       await send(props.initialText)
       return
     }
-    // 进入页面时直接停在最新一条，而不是从这轮对话的开头开始看
+    // 等 v-show 的滚动容器完成布局后再定位，避免首次打开停在最早一条。
+    await new Promise((resolve) => setTimeout(resolve, 120))
     await scrollChatToBottom()
   },
   { immediate: true },
@@ -563,8 +628,13 @@ watch(
       void scrollToRichCard(richAnchorMessageId.value)
       return
     }
-    if (!busy.value && result.value && todayBrief.value) {
-      // 今日安排附件很长：定位到最新回复开头，避免只看到最后一份晚餐
+    if (!busy.value && result.value && hasCommerce.value) {
+      void scrollToRichCard(richAnchorMessageId.value)
+      return
+    }
+    if (!busy.value && result.value) {
+      // 有结构化结果时定到"最新回复开头"，而不是整个面板底部：
+      // 否则用户会先看到长长的记忆卡/晚餐列表，看不到教练到底说了什么。
       void scrollChatToLatestCoach()
       return
     }
@@ -572,13 +642,37 @@ watch(
   },
 )
 
-async function send(text?: string) {
+// Recreate the native textarea after submission: uni's internal buffer can otherwise
+// emit a late input event and restore the just-submitted value.
+const composerEpoch = ref(0)
+let clearingComposer = false
+function onComposerInput(event: { detail?: { value?: string } }) {
+  if (!clearingComposer) input.value = event.detail?.value || ''
+}
+function onComposerKeydown(event: KeyboardEvent) {
+  if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
+  if (event.isComposing || event.keyCode === 229) return
+  event.preventDefault()
+  void send()
+}
+function onComposerConfirm() {
+  // H5 uses the native keydown handler exclusively; uni may emit both events.
+  // #ifndef H5
+  void send()
+  // #endif
+}
+
+async function send(text?: string, confirmation?: { action: 'confirm' | 'cancel'; pending_id: string; version: number }, checkoutAction?: CheckoutAction, commerceAction?: CommerceAction) {
   const raw = (text ?? input.value).trim()
   if (!raw || busy.value) return
   const value = redactMcdToken(raw)
+  clearingComposer = true
   input.value = ''
+  composerEpoch.value += 1
+  void nextTick(() => { clearingComposer = false })
   // 发新消息时先收起上一次“查看”的旧卡片，再滚到新消息；旧结果本身仍有附件摘要
-  result.value = null
+  const previousCommerce = result.value
+  if (!checkoutAction && !commerceAction && !(confirmation && checkout.value)) result.value = null
   richAnchorMessageId.value = ''
   richCollapsed.value = false
   mcdRequestMessageId.value = ''
@@ -597,7 +691,18 @@ async function send(text?: string) {
       props.sessionId || '',
       props.context || {},
       coachWorkspaceThreadId.value,
+      undefined,
+      confirmation,
+      checkoutAction,
+      commerceAction,
     )
+    if (commerceAction?.action!=='connect' && (next.checkout || next.commerce_catalog || next.commerce_connection)) {
+      next.commerce_nutrition ||= previousCommerce?.commerce_nutrition
+    }
+    if ((commerceAction || checkoutAction) && !next.commerce_connection) next.commerce_connection={status:'ready',guide_url:'https://open.mcd.cn/mcp'}
+    if ((commerceAction || checkoutAction) && ['failed','clarification_required','stale'].includes(next.overall_status || '') && !next.commerce_catalog && !next.checkout) {
+      next.checkout=previousCommerce?.checkout;next.commerce_catalog=previousCommerce?.commerce_catalog
+    }
     result.value = next
     selectedMeals.value = {}
     if (next.mcd_order) {
@@ -605,7 +710,7 @@ async function send(text?: string) {
       mcdOrderOpen.value = true
     }
     const agentMessageId = pushMessage(
-      'agent', next.reply || '收到。', attachmentFor(next),
+      'agent', next.reply || '收到。', attachmentFor(next), next.day?.plan_version,
     )
     richAnchorMessageId.value = agentMessageId
     if (next.mcd_order) mcdRequestMessageId.value = agentMessageId
@@ -620,6 +725,11 @@ async function send(text?: string) {
   } finally {
     busy.value = false
   }
+}
+
+function runCommerceAction(action: CommerceAction) {
+  const labels: Record<CommerceAction['action'],string> = { connect:'连接麦当劳点餐',nutrition:'查看麦当劳官方营养库',search_stores:'查找麦当劳门店',menu:'选择门店查看菜单',product_detail:'查看餐品详情',prepare_order:'核对麦当劳订单预览',checkout_menu:'查看当前订单的门店菜单',revise_order:'更新当前订单预览' }
+  void send(labels[action.action],undefined,undefined,action)
 }
 
 const MEAL_LABELS: Record<string, string> = {
@@ -839,6 +949,34 @@ function markDraftAttachments(
   })
 }
 
+function memoryLabel(memory: { category?: string; value?: string }): string {
+  const value = String(memory.value || '')
+  if (memory.category === 'training_state' && /^\d+$/.test(value)) {
+    return value === '0' ? '最近训练完成度正常' : `连续 ${value} 次未完成`
+  }
+  return value
+}
+
+function weekdayOf(index: number): string {
+  const labels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+  return labels[(Number(index) || 1) - 1] || `第 ${index} 天`
+}
+
+function focusLabel(focus?: string): string {
+  const labels: Record<string, string> = {
+    full_body_a: '全身 A',
+    full_body_b: '全身 B',
+    upper: '上肢',
+    lower: '下肢',
+    push: '推力',
+    pull: '拉力',
+    legs: '腿部',
+    cardio: '有氧',
+    mobility: '灵活性',
+  }
+  return focus ? labels[focus] || '训练' : '训练'
+}
+
 function statusLabel(status?: string): string {
   const labels: Record<string, string> = {
     ready: '待确认',
@@ -847,6 +985,9 @@ function statusLabel(status?: string): string {
     committed: '已生效',
     rejected: '已放弃',
     superseded: '已被替换',
+    clarifying: '需要补充信息',
+    invalid: '未通过校验',
+    ready_to_commit: '待生效',
   }
   return status ? labels[status] || status : ''
 }
@@ -860,6 +1001,32 @@ function describeError(err: unknown): string {
 async function runAction(action: AgentActionChip) {
   if (busy.value) return
   switch (action.type) {
+    case 'commerce_recovery_menu':
+      if(action.target_id) await send(action.label,undefined,undefined,{action:'menu',target_id:action.target_id})
+      return
+    case 'checkout_way':
+    case 'checkout_query':
+    case 'checkout_existing_query':
+    case 'checkout_existing_cancel':
+    case 'checkout_place_new':
+      if (action.checkout_id && action.version) {
+        await send(action.label, undefined, {
+          action: action.type === 'checkout_way' ? 'choose_take_way' : action.type==='checkout_existing_query' ? 'query_existing' : action.type==='checkout_existing_cancel' ? 'cancel_existing' : action.type==='checkout_place_new' ? 'place_new' : 'query',
+          checkout_id: action.checkout_id, version: action.version, take_way_code: action.take_way_code,
+          existing_checkout_id:action.existing_checkout_id,decision_fingerprint:action.decision_fingerprint,
+        })
+      }
+      return
+    case 'confirm_tasks':
+    case 'cancel_tasks':
+      if (action.pending_id && action.version) {
+        await send(action.label, {
+          action: action.type === 'confirm_tasks' ? 'confirm' : 'cancel',
+          pending_id: action.pending_id,
+          version: action.version,
+        })
+      }
+      return
     case 'quick_reply':
       if (action.text) await send(action.text)
       return
@@ -972,10 +1139,10 @@ async function runAction(action: AgentActionChip) {
 }
 
 function openSource(url: string) {
-  if (!url) return
+  if (!url || !/^https?:\/\//i.test(url)) return
   const globalOpen = (globalThis as unknown as { open?: (u: string, t?: string) => unknown }).open
   if (typeof globalOpen === 'function') globalOpen(url, '_blank')
-  else uni.setClipboardData({ data: url })
+  else uni.setClipboardData({ data: url, success: () => uni.showToast({title:'链接已复制，请在浏览器打开',icon:'none'}) })
 }
 
 function applyGuidance(item: { name: string; cues: string[] }) {
@@ -1095,7 +1262,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
             <text>新对话</text>
           </view>
           <text class="conversation-head">最近对话</text>
-          <scroll-view class="conversation-list" scroll-y>
+          <StableScroll class="conversation-list" scroll-y>
             <view
               v-for="item in coachWorkspaceConversations"
               :key="item.thread"
@@ -1113,15 +1280,17 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
             <view v-if="!coachWorkspaceConversations.length" class="conversation-empty">
               还没有历史对话
             </view>
-          </scroll-view>
+          </StableScroll>
         </view>
 
         <!-- 中间：对话 -->
         <view class="workspace-chat">
-          <scroll-view
+          <StableScroll
             class="workspace-scroll"
+            @wheel="noteChatInteraction" @touchstart="noteChatInteraction" @mousedown="noteChatInteraction"
             scroll-y
             :scroll-top="scrollTop"
+            :chain-to-parent="props.mode === 'inline'"
           >
             <view class="chat-stream">
               <view class="chat-date"><text>今天</text></view>
@@ -1132,6 +1301,9 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                 <view v-if="message.role === 'agent'" class="chat-avatar coach">教</view>
                 <view class="chat-bubble" :class="message.role">
                   <text class="chat-text">{{ message.text }}</text>
+                  <text v-if="message.role==='agent' && message.planVersion != null && props.context?.planVersion != null && message.planVersion !== props.context.planVersion" class="result-sub historical-plan-note">
+                    此回复基于此前 v{{ message.planVersion }}；当前为 v{{ props.context.planVersion }}，最新组数以当天安排为准。
+                  </text>
                 </view>
                 <view v-if="message.role === 'user'" class="chat-avatar user">我</view>
               </view>
@@ -1165,8 +1337,25 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                 </view>
                 <text class="chat-attachment-open">查看 →</text>
               </view>
-            <view v-if="hasRichResult && message.id === richMessageId" :id="'coach-rich-' + message.id" class="chat-rich-row">
+            <view v-if="hasRichResult && message.id === richMessageId" :id="'coach-rich-' + message.id" class="chat-rich-row" :class="{ 'commerce-rich-row': hasCommerce }">
               <view v-show="!richCollapsed" class="chat-rich">
+                <WorkoutReplanCard v-if="result?.workout_replan && !result?.day_revision" :value="result.workout_replan" :actions="revisionActions" :busy="busy" @action="runAction" />
+                <DayRevisionCard v-if="result?.day_revision" :draft="result.day_revision" :actions="revisionActions" :busy="busy" @action="runAction" @ask="send($event)" />
+                <McdCommerceCard v-if="hasCommerce" :result="result" :actions="commerceActions" :busy="busy" @action="runAction" @commerce="runCommerceAction" @ask="send($event)" @open="openSource" />
+                <view v-if="result?.workout_records" class="result-card workout-facts">
+                  <view class="result-head"><view><text class="result-kicker">实际训练记录</text><text class="result-title">{{ result.workout_records.session.date }} · {{ ['finished','superseded','abandoned'].includes(result.workout_records.session.status) ? '已结束（以实际组数为准）':'进行中' }}</text></view></view>
+                  <text class="result-sub">{{ result.workout_records.actual_minutes_known ? `${result.workout_records.actual_minutes_source==='confirmed_plan_default' ? '按计划确认约' : '自报实际'} ${result.workout_records.session.actual_minutes} 分钟` : '实际时长未记录' }} · 已记录进度与已确认的完成情况</text>
+                  <text v-if="result.workout_records.legacy_records_unlinked" class="result-sub">此旧会话尚未关联逐项日志，不能猜测记录归属。</text>
+                  <view v-for="item in result.workout_records.session.items" :key="item.id" class="result-line"><text>{{ item.name }} · 实际 {{ item.completed_sets }} / 计划 {{ item.target_sets }} 组 · {{ ({done:'已完成',partial:'部分完成',skipped:'已跳过',unrecorded:'未记录',pending:'待记录',active:'进行中'} as Record<string,string>)[item.status] || item.status }}</text></view>
+                  <view v-for="log in result.workout_records.logs" :key="log.id" class="result-line"><text>{{ log.details.name }} · 记录版本 {{ log.revision }}</text><text v-for="set in log.details.set_logs" :key="set.set_no" class="result-sub">第 {{ set.set_no }} 组：{{ set.reps==null ? '次数未记录':`${set.reps} 次` }} · {{ set.weight_kg==null ? '重量未记录':`${set.weight_kg} kg` }}</text></view>
+                </view>
+                <view v-if="result?.task_results?.length && !hasCommerce" class="result-card">
+                  <text class="result-kicker">处理结果</text>
+                  <view v-for="task in result.task_results" :key="task.task_id" class="result-action-row">
+                    <text class="result-action-name">{{ task.message }}</text>
+                    <text class="result-pill">{{ task.status === 'success' ? '已处理' : task.status === 'cancelled' ? '已取消' : task.status === 'confirmation_required' ? '待确认' : task.status === 'clarification_required' ? '待补充' : '未完成' }}</text>
+                  </view>
+                </view>
                 <!-- 计划草案 -->
                 <view v-if="draft" class="result-card">
               <view class="result-head">
@@ -1178,7 +1367,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
               </view>
               <view v-if="draft.status === 'ready'" class="result-stats">
                 <view class="result-stat">
-                  <text class="result-stat-value">{{ draft.nutrition?.target_kcal || '—' }}</text>
+                  <text class="result-stat-value">{{ formatKcal(draft.nutrition?.target_kcal) }}</text>
                   <text class="result-stat-label">kcal / 天</text>
                 </view>
                 <view class="result-stat">
@@ -1196,7 +1385,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
               <view class="draft-week">
                 <view v-for="weekDay in draft.days || []" :key="weekDay.day_index" class="draft-day">
                   <view class="draft-day-head">
-                    <text class="draft-day-title">第 {{ weekDay.day_index }} 天 · {{ weekDay.focus || '训练' }}</text>
+                    <text class="draft-day-title">{{ weekdayOf(weekDay.day_index) }} · {{ focusLabel(weekDay.focus) }}</text>
                     <text class="draft-day-count">{{ (weekDay.actions || []).length }} 个动作</text>
                   </view>
                   <text class="draft-day-actions">{{ (weekDay.actions || []).map((a) => actionLabel(a)).join('、') }}</text>
@@ -1224,7 +1413,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
             </view>
 
             <!-- 今日调整 -->
-            <view v-if="day" class="result-card">
+            <view v-if="showFitnessDay" class="result-card">
               <view class="result-head">
                 <view>
                   <text class="result-kicker">今日有效安排</text>
@@ -1281,7 +1470,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
               <view v-for="meal in todayBrief.meals || []" :key="meal.slot" class="brief-meal">
                 <view class="brief-meal-head">
                   <text class="brief-meal-title">{{ mealLabel(meal.slot) }}</text>
-                  <text class="brief-meal-target">目标 {{ meal.target_kcal }} kcal</text>
+                  <text class="brief-meal-target">目标 {{ formatKcal(meal.target_kcal) }} kcal</text>
                 </view>
                 <view
                   v-for="option in meal.options || []"
@@ -1295,7 +1484,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                       {{ option.title }}
                       <text v-if="selectedMeals[meal.slot] === option.title" class="brief-picked">已选</text>
                     </text>
-                    <text class="brief-option-kcal">{{ option.kcal }} kcal</text>
+                    <text class="brief-option-kcal">{{ formatKcal(option.kcal) }} kcal</text>
                   </view>
                   <text class="brief-option-meta">
                     蛋白 {{ option.protein_g }}g · {{ option.reason }}
@@ -1365,7 +1554,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
             <!-- 麦当劳官方营养库 / MCP 点餐 -->
             <view v-if="mcdBlock" class="result-card mcd-inline-card">
               <view class="mcd-inline-head">
-                <view class="mcd-mark">M</view>
+                <view class="mcd-mark"><image src="/static/mcd-official.png" mode="aspectFit" style="width:70%;height:70%" /></view>
                 <view class="mcd-inline-titles">
                   <text class="result-title">麦当劳 · 官方营养库</text>
                   <text class="result-sub" style="margin-top: 0">留够额度再点，数字来自官方营养表</text>
@@ -1378,7 +1567,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
               <template v-else>
                 <view v-if="mcdBudget" class="mcd-inline-budget">
                   <view class="result-stat">
-                    <text class="result-stat-value">{{ mcdBudget.remaining_kcal }}</text>
+                    <text class="result-stat-value">{{ formatKcal(mcdBudget.remaining_kcal) }}</text>
                     <text class="result-stat-label">今天还剩 kcal</text>
                   </view>
                   <view class="result-stat">
@@ -1386,7 +1575,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                     <text class="result-stat-label">蛋白缺口</text>
                   </view>
                   <text class="result-sub" style="margin-top: 0">
-                    计划 {{ mcdBudget.plan_kcal }} / 目标 {{ mcdBudget.target_kcal }} kcal
+                    计划 {{ formatKcal(mcdBudget.plan_kcal) }} / 目标 {{ formatKcal(mcdBudget.target_kcal) }} kcal
                   </text>
                 </view>
 
@@ -1394,7 +1583,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                   <text class="result-sub" style="margin-top: 0">想点麦当劳可以这么凑</text>
                   <text class="mcd-combo-line">
                     {{ mcdCombo.items.map((item) => `${item.name}（${item.kcal}）`).join(' + ') }}
-                    = {{ mcdCombo.kcal }} kcal · 蛋白 {{ mcdCombo.protein_g }} g
+                    = {{ formatKcal(mcdCombo.kcal) }} kcal · 蛋白 {{ mcdCombo.protein_g }} g
                   </text>
                 </view>
 
@@ -1409,7 +1598,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                     <text class="result-sub" style="margin-top: 0">{{ item.why }}</text>
                   </view>
                   <view class="mcd-inline-option-right">
-                    <text class="result-sub" style="margin-top: 0">{{ item.kcal }} kcal · 蛋白 {{ item.protein_g }}g</text>
+                    <text class="result-sub" style="margin-top: 0">{{ formatKcal(item.kcal) }} kcal · 蛋白 {{ item.protein_g }}g</text>
                     <text class="result-link">去点餐 →</text>
                   </view>
                 </view>
@@ -1474,7 +1663,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
             </view>
 
             <!-- 训练会话 -->
-            <view v-if="session" class="result-card">
+            <view v-if="session && !hasWorkoutRecords" class="result-card">
               <view class="result-head">
                 <view>
                   <text class="result-kicker">当前训练</text>
@@ -1533,7 +1722,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
               </view>
               <view v-for="memory in result.memories.slice(0, 8)" :key="memory.id" class="memory-chip-row">
                 <text class="memory-chip-label">{{ memory.category_label }}</text>
-                <text class="memory-chip-value">{{ memory.value }}</text>
+                <text class="memory-chip-value">{{ memoryLabel(memory) }}</text>
               </view>
             </view>
 
@@ -1606,7 +1795,10 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
               <view class="chat-avatar coach">教</view>
               <view class="chat-bubble agent typing">
                 <view class="typing-dots"><text /><text /><text /></view>
-                <text class="typing-label">正在输入</text>
+                <text class="typing-label">
+                  {{ busyElapsed > 0 ? `正在处理 · 已 ${busyElapsed}s` : '正在处理' }}
+                  <text v-if="busyElapsed >= 20" class="typing-hint">（生成计划通常需要 10–20s）</text>
+                </text>
               </view>
             </view>
 
@@ -1614,20 +1806,22 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
 
 
             </view>
-          </scroll-view>
+          </StableScroll>
 
           <!-- 输入区固定 -->
           <view class="workspace-composer">
             <view class="composer-input-row">
               <textarea
-                v-model="input"
+                :key="composerEpoch"
+                :value="input"
+                @input="onComposerInput"
                 class="composer-input"
                 auto-height
                 maxlength="800"
                 :placeholder="pageKey === 'workout' ? '器械、动作、时间、身体状态…直接说' : '发消息给教练…'"
                 confirm-type="send"
-                @confirm="send()"
-                @keydown.enter.exact.prevent="send()"
+                @confirm="onComposerConfirm"
+                @keydown="onComposerKeydown"
               />
               <view class="composer-send" :class="{ disabled: !input.trim() || busy }" @click="send()">
                 {{ busy ? '…' : '发送' }}
@@ -1635,7 +1829,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
             </view>
             <view class="composer-foot">
               <text class="composer-hint">Enter 发送 · Shift + Enter 换行</text>
-              <text class="composer-hint">同一个 Agent</text>
+              <view class="composer-tools"><button class="composer-orders-entry" @click="orderHistoryOpen=true"><text class="composer-orders-icon">▤</text>我的订单</button><button class="composer-mcd-entry" :disabled="busy" @click="runCommerceAction({action:'connect'})"><image src="/static/mcd-official.png" mode="aspectFit" />麦当劳点餐</button></view>
             </view>
           </view>
         </view>
@@ -1643,6 +1837,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
       </view>
     </view>
 
+    <McdOrderHistory v-if="orderHistoryOpen" @close="orderHistoryOpen=false" @open="openSource" />
     <KnowledgeSheet
       :visible="knowledgeOpen"
       :question="knowledgeQuestion"
@@ -1653,6 +1848,9 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
 
 
 <style>
+.composer-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.composer-orders-entry{display:flex;align-items:center;gap:5px;margin:0;padding:3px 10px;border-radius:12px;line-height:1.5;font-size:10px;background:#fffaf5;border:1px solid #eadbce;color:#87533b}.composer-orders-entry::after{border:0}.composer-orders-icon{font-size:13px;line-height:1}
+
+.composer-mcd-entry{display:flex;align-items:center;gap:5px;border:0;background:#fff6df;color:#b43821;font-size:10px;padding:3px 9px;border-radius:12px;margin:0;line-height:1.5}.composer-mcd-entry image{width:14px;height:14px}.composer-mcd-entry::after{border:0}.composer-mcd-entry[disabled]{opacity:.5}
 .workspace-mask {
   background: rgba(43, 26, 18, 0.38);
   bottom: 0;
@@ -2097,6 +2295,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
   animation-delay: 0.3s;
 }
 
+.typing-hint { color: var(--muted); font-size: 11px; margin-left: 4px; }
 .typing-label {
   color: var(--muted, #8a7466);
   font-size: 11px;
@@ -2912,6 +3111,9 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
   .chat-rich {
     max-width: 90%;
   }
+
+  .commerce-rich-row { padding-left: 0; }
+  .commerce-rich-row .chat-rich { max-width: 100%; width: 100%; }
 
   .workspace-scroll {
     padding: 14px 14px 6px;

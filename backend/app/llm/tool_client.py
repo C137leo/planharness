@@ -32,7 +32,9 @@ class ToolCallingClient:
 
     def complete(self, messages: list[dict], tools: list[dict] | None = None,
                  tool_choice: str = "auto", temperature: float = 0.2,
-                 max_tokens: int = 1200) -> dict:
+                 max_tokens: int = 1200,
+                 reasoning_effort: str | None = None,
+                 response_format: dict | None = None) -> dict:
         """返回 {message, usage, latency_ms, model}；任何网络/协议错误都抛异常，由调用方降级。"""
         # 运营开关优先级最高：即使有 Key，也不允许请求 DeepSeek
         ensure_llm_enabled()
@@ -48,9 +50,13 @@ class ToolCallingClient:
         if tools:
             body["tools"] = tools
             body["tool_choice"] = tool_choice
-        if self.reasoning_effort:
-            # 思考档位：flash 默认 high，规划这种"多步工具调用"用 low 会明显快
-            body["reasoning_effort"] = self.reasoning_effort
+        if response_format:
+            body["response_format"] = response_format
+        effort = (reasoning_effort or self.reasoning_effort or "").strip().lower()
+        if effort:
+            # 思考档位：flash 默认 high，规划这种"多步工具调用"用 low 会明显快。
+            # 意图分类只需要短判断，用 low 也能避免思考 token 把 JSON 挤断。
+            body["reasoning_effort"] = effort
 
         started = time.perf_counter()
         response = self._client.post(

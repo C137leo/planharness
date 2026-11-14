@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.domain.catalog import name_of
+from app.domain.catalog import name_of, display_action_name
 from app.domain.exercise_catalog import EXERCISE_CATALOG
 from app.domain.memory import (
     clear_temporary,
@@ -35,6 +35,7 @@ from app.domain.safety_rules import is_risky_for, movement_side
 from app.domain.timeutil import as_utc, day_end_utc, user_today
 from app.models import (
     MealPlan,
+    new_id,
     Plan,
     PlanAction,
     PlanAdjustment,
@@ -314,6 +315,7 @@ def adjustment_payload(row: PlanAdjustment) -> dict:
         "constraints": row.constraints or {},
         "changes": row.changes or [],
         "actions": row.actions or [],
+        "meals": row.meals or [],
         "borrowed_from": row.borrowed_from,
         "created_at": as_utc(row.created_at).isoformat() if row.created_at else "",
         "updated_at": as_utc(row.updated_at).isoformat() if row.updated_at else "",
@@ -396,6 +398,29 @@ def load_override(db: Session, user: User, day: dt.date, version: PlanVersion | 
     return legacy
 
 
+_UNSPECIFIED_REVISION = object()
+
+
+def ensure_object_ids(values: list[dict]) -> list[dict]:
+    """Add persistent identities to JSON children without interpreting their names."""
+    import copy
+    from uuid import UUID
+    result = copy.deepcopy(values)
+    seen = set()
+    for value in result:
+        try:
+            UUID(str(value.get("id")))
+            valid = value["id"] not in seen
+        except (ValueError, TypeError, AttributeError):
+            valid = False
+        if not valid:
+            value["id"] = new_id()
+        seen.add(value["id"])
+        if isinstance(value.get("items"), list):
+            value["items"] = ensure_object_ids(value["items"])
+    return result
+
+
 def save_override(
     db: Session,
     user: User,
@@ -408,7 +433,20 @@ def save_override(
     base_version: int | None,
     borrowed_from: int | None = None,
     changes: list[str] | None = None,
+    meals: list[dict] | None = None,
+    expected_adjustment_id: str | None | object = _UNSPECIFIED_REVISION,
 ) -> dict:
+    if expected_adjustment_id is not _UNSPECIFIED_REVISION:
+        # Serialize compare-and-write. SQLite ignores FOR UPDATE, so reserve its
+        # writer lock before reading the predecessor revision.
+        if db.bind.dialect.name == "sqlite":
+            connection = db.connection()
+            if not connection.connection.driver_connection.in_transaction:
+                connection.exec_driver_sql("BEGIN IMMEDIATE")
+        else:
+            db.scalar(select(User).where(User.id == user.id).with_for_update())
+    actions = ensure_object_ids(actions)
+    meals = ensure_object_ids(meals) if meals is not None else None
     profile = db.get(Profile, user.id)
     plan = db.scalar(
         select(Plan).where(Plan.user_id == user.id, Plan.status == "active")
@@ -421,6 +459,10 @@ def save_override(
             PlanAdjustment.status == "active",
         )
     ).all())
+    if expected_adjustment_id is not _UNSPECIFIED_REVISION:
+        revisions = {row.id for row in previous}
+        if revisions != ({expected_adjustment_id} if expected_adjustment_id else set()):
+            raise ValueError("plan_adjustment_conflict")
     for row in previous:
         row.status = "superseded"
         row.updated_at = dt.datetime.now(dt.timezone.utc)
@@ -436,17 +478,21 @@ def save_override(
         summary=(summary or "")[:2000],
         constraints=constraints or {},
         actions=actions or [],
+        meals=meals or [],
         changes=changes or [],
         borrowed_from=borrowed_from,
         expires_at=day_end_utc(day, profile),
     )
     db.add(row)
     db.flush()
+    from app.domain.workout import sync_day_sessions
+    sync_day_sessions(db,user,day,actions)
     return {
         **adjustment_payload(row),
         "weekday": day.isoweekday(),
         "base_version": base_version,
         "actions": list(actions or []),
+        "meals": list(meals or []),
         "constraints": dict(constraints or {}),
         "summary": summary,
         "reason": reason,
@@ -515,6 +561,7 @@ def effective_day(
         if upcoming is not None:
             borrowed_from, actions = upcoming
     actions = _with_warmup(actions)
+    meal_rows = list(base["meals"] or [])
 
     override = load_override(db, user, day, version)
     source = "plan"
@@ -529,12 +576,15 @@ def effective_day(
         constraints = dict(override.get("constraints") or {})
         reason = str(override.get("reason") or "")
         borrowed_from = override.get("borrowed_from") or borrowed_from
+        if override.get("meals") is not None:
+            meal_rows = list(override.get("meals") or [])
         adjustment = override
     elif borrowed_from:
         source = "plan"
         summary = f"今天原本休息，已把第 {borrowed_from} 天的训练提前到今天"
 
-    return {
+    actions = [{**action, "name": display_action_name(action)} for action in actions]
+    payload = {
         "date": day.isoformat(),
         "weekday": weekday,
         "plan_id": plan.id if plan is not None else None,
@@ -553,18 +603,51 @@ def effective_day(
         ),
         "meals": [
             {
-                "slot": meal.slot,
-                "title": meal.title,
-                "items": meal.items or [],
-                "kcal": meal.kcal,
-                "protein_g": meal.protein_g,
-                "fat_g": meal.fat_g,
-                "carb_g": meal.carb_g,
+                **({'source_object_id':meal['source_object_id']} if isinstance(meal,dict) and 'source_object_id' in meal else {}),
+                "id": (meal.get("id") if isinstance(meal, dict) else meal.id),
+                "slot": (meal.get("slot") if isinstance(meal, dict) else meal.slot),
+                "title": (meal.get("title") if isinstance(meal, dict) else meal.title),
+                "items": ((meal.get("items") if isinstance(meal, dict) else meal.items) or []),
+                "kcal": (meal.get("kcal") if isinstance(meal, dict) else meal.kcal),
+                "protein_g": (meal.get("protein_g") if isinstance(meal, dict)
+                              else meal.protein_g),
+                "fat_g": (meal.get("fat_g") if isinstance(meal, dict) else meal.fat_g),
+                "carb_g": (meal.get("carb_g") if isinstance(meal, dict) else meal.carb_g),
             }
-            for meal in base["meals"]
+            for meal in meal_rows
         ],
         "total_minutes": sum(_estimated_minutes(item) for item in actions),
     }
+    # Recurring templates have dated identities without requiring a write just
+    # to inspect them. First actual mutation persists these exact IDs.
+    import copy
+    from uuid import UUID, uuid5, NAMESPACE_URL
+    for kind, values in [('action',payload['actions']),('meal',payload['meals'])]:
+        for index, value in enumerate(values):
+            source_id=value.get('id')
+            try:UUID(str(source_id));valid=True
+            except (ValueError,TypeError,AttributeError):valid=False
+            if adjustment is None or not valid:
+                value['source_object_id']=source_id
+                value['id']=str(uuid5(NAMESPACE_URL,f'{user.id}/{day}/{kind}/{source_id or index}'))
+            if kind=='meal':
+                value['items']=copy.deepcopy(value.get('items') or [])
+                for n,item in enumerate(value['items']):
+                    item_id=item.get('id')
+                    try:UUID(str(item_id));valid=True
+                    except (ValueError,TypeError,AttributeError):valid=False
+                    if adjustment is None or not valid:
+                        item['id']=str(uuid5(NAMESPACE_URL,f'{user.id}/{day}/meal-item/{value["id"]}/{item_id or n}'))
+    from app.domain.workout_replan import active_cycle
+    cycle=active_cycle(db,user,day)
+    payload['workout_cycle_id']=cycle
+    if cycle:
+        for action in payload['actions']:
+            if action.get('workout_cycle_id')!=cycle:
+                action['previous_action_id']=action['id']
+                action['id']=str(uuid5(NAMESPACE_URL,f'workout-cycle/{cycle}/{action["id"]}'))
+            action['workout_cycle_id']=cycle
+    return payload
 
 
 def reset_day(db: Session, user: User, day: dt.date) -> int:
@@ -870,7 +953,7 @@ def apply_constraints(
 
     if constraints.get("easier"):
         for action in replaced:
-            if not action.get("sets"):
+            if action.get("slot") != "strength" or not action.get("sets"):
                 continue
             current = int(action["sets"])
             new_sets = max(1, current - 1)
@@ -879,6 +962,18 @@ def apply_constraints(
                 action["source"] = "agent"
                 action["reason"] = "按你的疲劳程度减一组"
         changes.append("每个力量动作减 1 组，先保证完成")
+
+    if constraints.get("harder"):
+        for action in replaced:
+            if action.get("slot") != "strength" or not action.get("sets"):
+                continue
+            current = int(action["sets"])
+            new_sets = min(5, current + 1)
+            if new_sets != current:
+                action["sets"] = new_sets
+                action["source"] = "agent"
+                action["reason"] = "按你今天的状态加一组"
+        changes.append("每个力量动作加 1 组（最多 5 组），先看动作质量")
 
     if constraints.get("minutes"):
         before = sum(_estimated_minutes(item) for item in replaced)
@@ -918,10 +1013,13 @@ def summarise_adjustment(actions: list[dict], constraints: dict, changes: list[s
         pieces.append(f"时间：{window.get('label') or window.get('window')}")
     if constraints.get("easier"):
         pieces.append("强度下调")
+    if constraints.get("harder"):
+        pieces.append("强度上调")
     head = " · ".join(pieces) if pieces else "按你的要求"
-    names = "、".join(str(item.get("name") or item.get("action_ref")) for item in actions[:5])
-    if len(actions) > 5:
-        names += f" 等 {len(actions)} 个动作"
+    named = [item for item in actions if item.get("slot") != "warmup"]
+    names = "、".join(str(item.get("name") or item.get("action_ref")) for item in named[:5])
+    if len(named) > 5:
+        names += f" 等 {len(named)} 个动作"
     return f"{head}：{names}。" + ("；".join(changes[:3]) if changes else "")
 
 

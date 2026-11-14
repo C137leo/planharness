@@ -25,6 +25,7 @@ from app.domain.draft_edits import (
     has_explicit_edits,
 )
 from app.domain.memory import load_memory_context, memory_instruction, recent_training_state
+from app.domain.constraint_guard import enforce_plan_constraints
 from app.domain.day_plan import allowed_equipment, pick_alternative
 from app.domain.revisions import apply_feedback
 from app.audit import append_event
@@ -35,9 +36,11 @@ from app.models import (
     Plan,
     PlanAction,
     PlanDraft,
+    PlanPatch,
     PlanVersion,
     Profile,
     User,
+    WorkoutSession,
     new_id,
 )
 from app.skill.bridge import SkillBridge, get_bridge
@@ -133,6 +136,11 @@ def create_draft(
     profile = db.get(Profile, user.id)
     if profile is None:
         raise PatchValidationError(["profile not found: 先填基础信息再生成计划"])
+    # 所有生成入口（聊天 / 档案页 / 直接调接口）都必须在补全身体数据后
+    # 才能计算 TDEE；否则会拿 0 或旧默认值算出一个看似合理的错目标。
+    if (float(profile.height_cm or 0) < 120 or float(profile.weight_kg or 0) < 30
+            or int(profile.birth_year or 0) < 1940):
+        raise PatchValidationError(["先补全身高、体重、出生年，再生成计划"])
 
     feedback: list[str] = []
     round_no = 1
@@ -202,6 +210,17 @@ def create_draft(
             "status": "applied",
             "detail": {"changes": adaptive[:8], "state": state},
         }]
+    # 模型负责提议，这里负责把提议压回用户真实条件（器械/时长/伤病/餐食）。
+    # 评审 P-003 的根因是 skill 只给 equipment_filter 边界、没有事后校验。
+    guard_changes = enforce_plan_constraints(
+        proposal.payload, profile, memory, instruction=instruction)
+    if guard_changes:
+        proposal.trace = list(proposal.trace) + [{
+            "node": "constraint_guard",
+            "status": "applied",
+            "detail": {"changes": guard_changes[:12]},
+        }]
+
     if proposal.payload.get("status") == "ready":
         proposal.payload.setdefault("meta", {})["memory"] = {
             "preferred_windows": memory.get("preferred_windows") or [],
@@ -333,6 +352,15 @@ def add_feedback(
             "detail": {"changes": preference_changes[:10]},
         }]
 
+    guard_changes = enforce_plan_constraints(
+        proposal.payload, profile, memory, instruction=instruction)
+    if guard_changes:
+        proposal.trace = list(proposal.trace) + [{
+            "node": "constraint_guard",
+            "status": "applied",
+            "detail": {"changes": guard_changes[:12]},
+        }]
+
     child = PlanDraft(
         user_id=user.id,
         plan_id=parent.plan_id,
@@ -408,6 +436,39 @@ def confirm_draft(
     actions = _flatten_actions(days)
     version = _commit_actions(db, plan, actions, calorie, protein, steps, payload, comment)
     _write_meals(db, user.id, version.id, payload.get("meals") or [])
+
+    # 新版本生效后，旧版本上还没结束的训练会话必须作废：
+    # 否则用户会看到"继续训练"里还是上一版的 4 个动作（评审：版本切换的一致性）。
+    stale_sessions = db.scalars(
+        select(WorkoutSession).where(
+            WorkoutSession.user_id == user.id,
+            WorkoutSession.status.in_(("active", "paused")),
+            WorkoutSession.date >= date.today(),
+        )
+    ).all()
+    for session in stale_sessions:
+        session.status = "abandoned"
+        session.note = (
+            (session.note or "") + f"（计划已更新到 v{version.version}，本次训练会话作废）"
+        )[:1000]
+        append_event(
+            db, f"user:{user.id}", "workout_session_abandoned",
+            {"session_id": session.id, "reason": f"plan v{version.version}"},
+            actor_type="system", actor_id="coach",
+        )
+
+    # 新版本生效后，基于旧版本的待审批补丁自动作废：
+    # 否则用户会在审批页看到"v2→v3"的旧卡片去改已经是 v3 的计划。
+    stale_patches = db.scalars(
+        select(PlanPatch).where(
+            PlanPatch.plan_id == plan.id,
+            PlanPatch.status == "pending_approval",
+            PlanPatch.base_version < version.version,
+        )
+    ).all()
+    for patch in stale_patches:
+        patch.status = "superseded"
+        patch.reason_text = (patch.reason_text or "") + f"（计划已更新到 v{version.version}，此补丁失效）"
 
     plan.source = "coach"
     plan.nutrition = nutrition

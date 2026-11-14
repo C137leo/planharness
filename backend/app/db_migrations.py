@@ -51,6 +51,15 @@ ADDITIVE_COLUMNS: dict[str, list[tuple[str, str]]] = {
     "agent_messages": [
         ("result", "JSON DEFAULT '{}'"),
     ],
+    "plan_adjustments": [
+        ("meals", "JSON DEFAULT '[]'"),
+    ],
+    "workout_logs": [
+        ("session_id", "VARCHAR(36)"),
+        ("session_item_id", "VARCHAR(36)"),
+        ("details", "JSON DEFAULT '{}'"),
+        ("revision", "INTEGER DEFAULT 1"),
+    ],
 }
 
 
@@ -93,6 +102,10 @@ def ensure_additive_schema(engine: Engine) -> list[str]:
                 conn.execute(text(statement))
             except Exception:  # noqa: BLE001 - 索引失败只影响性能，不阻止启动
                 logger.exception("failed to create index: %s", statement)
+        # This uniqueness is a correctness requirement, not a best-effort index.
+        if "workout_logs" in existing_tables:
+            statement = "CREATE UNIQUE INDEX IF NOT EXISTS uq_workout_log_session_item ON workout_logs (session_id, session_item_id)"
+            conn.execute(text(statement))
     return executed
 
 

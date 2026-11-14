@@ -21,6 +21,7 @@ export type CoachChatMessage = {
   text: string
   /** 服务端消息时间；本地新消息用当前时间，便于像聊天软件一样分组显示 */
   at?: string
+  planVersion?: number | null
   attachment?: CoachAttachment
 }
 

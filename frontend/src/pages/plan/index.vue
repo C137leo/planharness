@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import StableScroll from '../../components/StableScroll.vue'
 /**
  * 计划：整周安排、待确认的改动、以及「撤销上一次改动」。
  *
  * 撤销不是删历史：它生成一个新版本，内容回到上一个版本。
  * 所以撤销本身也能被审计和再撤销。
  */
+import { formatKcal } from '../../styles/numbers'
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { api, type AgentAdjustment, type AgentDay, type CurrentPlan, type PlanAction, type PlanPatchSummary, type PlanVersionHistory } from '../../api'
@@ -12,6 +14,7 @@ import GlobalCoachWorkspace from '../../components/GlobalCoachWorkspace.vue'
 import DesktopSidebar from '../../components/DesktopSidebar.vue'
 import { syncDesktopChrome } from '../../composables/desktopChrome'
 import { actionLabel, describeOperation, slotLabel, sortMeals } from '../../styles/copy'
+import { trainingActions, weeklyMeals, datedView, legacyMealTitle } from '../../styles/planView'
 import { thumbOf } from '../../styles/thumbs'
 import { exerciseSearchTerm, openExerciseDbTerm } from '../../styles/exerciseDb'
 import { WEEKDAY_LABELS, isoWeekday, todayStr } from '../../styles/dates'
@@ -28,13 +31,17 @@ const coachOpen = ref(false)
 const coachText = ref('')
 const coachAuto = ref(false)
 const adjustments = ref<AgentAdjustment[]>([])
-const selectedAgentDay = ref<AgentDay | null>(null)
+const datedDays = ref<Record<string, AgentDay>>({})
+const calendarBusy = ref(false)
+let calendarGeneration = 0
+const selectedAgentDay = computed(() => datedDays.value[selectedDate.value] || null)
+const mealGroups = computed(() => plan.value ? weeklyMeals(plan.value) : [])
 const reasonOpen = ref(false)
 const adjustHistoryOpen = ref(false)
 
 const grouped = computed(() => {
   const groups: Record<number, PlanAction[]> = {}
-  for (const action of plan.value?.actions || []) {
+  for (const action of trainingActions(plan.value?.actions || [])) {
     ;(groups[action.day_index] ||= []).push(action)
   }
   return Object.entries(groups)
@@ -49,7 +56,10 @@ async function load() {
     plan.value = await api.getCurrentPlan()
     // 只取真正等待确认的：已拒绝/已提交的补丁留在这里，点确认会 422
     const patches = await api.listPatches(20, 'pending_approval')
-    pending.value = patches.filter((item) => item.status === 'pending_approval')
+    // 只显示基于当前版本的待确认补丁：旧版本上生成的补丁不能再应用，
+    // 否则用户会看到一个"基于 v2"的卡片去改已经是 v3 的计划。
+    pending.value = patches.filter((item) => item.status === 'pending_approval'
+      && (!plan.value || item.base_version === plan.value.version))
     // 版本链：撤销/回滚前先让用户看到"现在在哪一版、之前改过什么"
     if (plan.value) {
       try {
@@ -59,7 +69,7 @@ async function load() {
       }
     }
     await loadAdjustments()
-    await loadSelectedDay()
+    await loadCalendar()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '加载失败'
   } finally {
@@ -84,41 +94,44 @@ async function loadAdjustments() {
   }
 }
 
-async function loadSelectedDay() {
-  try {
-    selectedAgentDay.value = await api.getAgentDay(selectedDate.value)
-  } catch {
-    selectedAgentDay.value = null
-  }
+async function loadCalendar() {
+  const generation = ++calendarGeneration
+  const current = plan.value
+  datedDays.value = {}
+  if (!current) return
+  calendarBusy.value = true
+  const dates = calendarDays.value.map(day => day.date)
+  const results = await Promise.allSettled(dates.map(date => api.getAgentDay(date, false)))
+  if (generation !== calendarGeneration) return
+  const next: Record<string, AgentDay> = {}
+  results.forEach((result, index) => {
+    if (result.status === 'fulfilled' && result.value.date === dates[index]
+      && result.value.plan_id === current.plan_id && result.value.plan_version === current.version) {
+      next[dates[index]] = result.value
+    }
+  })
+  datedDays.value = next
+  calendarBusy.value = false
 }
 
-const adjustmentByDate = computed<Record<string, AgentAdjustment>>(() => {
-  const map: Record<string, AgentAdjustment> = {}
-  for (const item of adjustments.value) {
-    if (item.status === 'active') map[item.date] = item
-  }
-  return map
-})
-
-const selectedAdjustment = computed<AgentAdjustment | null>(() => {
-  const fromDay = selectedAgentDay.value?.adjustment
-  if (fromDay) return fromDay
-  return adjustmentByDate.value[selectedDate.value] || null
-})
+const selectedAdjustment = computed<AgentAdjustment | null>(() => selectedAgentDay.value?.adjustment || null)
 
 const selectedAdjustmentHistory = computed(() =>
   adjustments.value.filter((item) => item.date === selectedDate.value),
 )
 
-const selectedEffectiveActions = computed(() => (
-  selectedAdjustment.value ? (selectedAgentDay.value?.actions || []) : []
-))
+const selectedEffectiveActions = computed(() => selectedAgentDay.value?.actions || [])
+const selectedLegacyMeals = computed(() => {
+  if (!selectedAgentDay.value || selectedAgentDay.value.source !== 'plan') return []
+  const group = mealGroups.value.find(group => group.day === selectedAgentDay.value?.weekday)
+  return group?.legacy || []
+})
 
 async function resetSelectedAdjustment() {
   if (!selectedAdjustment.value || busy.value) return
   busy.value = true
   try {
-    selectedAgentDay.value = await api.resetAgentDay(selectedDate.value)
+    await api.resetAgentDay(selectedDate.value)
     toast.value = '已恢复原长期计划；调整记录保留在历史里'
     reasonOpen.value = false
     await load()
@@ -133,8 +146,7 @@ async function restoreAdjustment(item: AgentAdjustment) {
   if (busy.value) return
   busy.value = true
   try {
-    const result = await api.restoreAdjustment(item.adjustment_id)
-    selectedAgentDay.value = result.day
+    await api.restoreAdjustment(item.adjustment_id)
     toast.value = '已恢复这条临时调整'
     await load()
   } catch (err) {
@@ -194,7 +206,6 @@ function openCoach(text = '', auto = false) {
 
 async function onAgentChanged() {
   await load()
-  await loadSelectedDay()
 }
 
 function onOpenWorkout(payload: { sessionId?: string; date?: string }) {
@@ -215,11 +226,9 @@ function onOpenProgress() {
   uni.switchTab({ url: '/pages/progress/index' })
 }
 
-// 日历：未来 14 天，每天取"同星期几"的动作与餐食（计划是周计划）
+// 日历按指定日期读取有效安排；周模板只用于独立的长期模板展示。
 const selectedDate = ref(todayStr())
 const calendarDays = computed(() => {
-  const actions = plan.value?.actions || []
-  const meals = plan.value?.meals || []
   const today = new Date()
   const rows = []
   for (let offset = 0; offset < 14; offset += 1) {
@@ -232,9 +241,10 @@ const calendarDays = computed(() => {
       label: `${date.getMonth() + 1}/${date.getDate()}`,
       week: WEEKDAY_LABELS[weekday - 1],
       isToday: iso === todayStr(),
-      actions: actions.filter((item) => item.day_index === weekday),
-      meals: sortMeals(meals.filter((meal) => meal.day_index === weekday)),
-      adjustment: adjustmentByDate.value[iso] || null,
+      ready: !!datedDays.value[iso],
+      ... (datedDays.value[iso] ? datedView(datedDays.value[iso]) : {
+        actions: [], meals: [], adjustment: null, totalMinutes: 0, countLabel: '未读取',
+      }),
     })
   }
   return rows
@@ -248,12 +258,17 @@ function pickDate(date: string) {
   selectedDate.value = date
   reasonOpen.value = false
   adjustHistoryOpen.value = false
-  loadSelectedDay()
+  if (!datedDays.value[date] && !calendarBusy.value) loadCalendar()
 }
 
 /** 当天餐食总热量：直接按餐次累加，不在前端重复算营养。 */
 function dayMealKcal(day: { meals: Array<{ kcal: number }> }): number {
   return day.meals.reduce((sum, meal) => sum + (meal.kcal || 0), 0)
+}
+
+function mealGapForDay(day: { meals: Array<{ kcal: number }> }): number {
+  const target = Number(plan.value?.nutrition?.target_kcal || plan.value?.calorie_target || 0)
+  return target ? Math.max(0, target - dayMealKcal(day)) : 0
 }
 
 function exerciseDbTermForAction(action: PlanAction): string {
@@ -340,7 +355,7 @@ onShow(() => {
           <text class="badge">v{{ plan.version }}</text>
           <text class="badge">{{ plan.source === 'coach' ? '教练计划' : '模板计划' }}</text>
         </view>
-        <view class="hero-title">{{ plan.nutrition?.target_kcal || plan.calorie_target }} kcal / 天</view>
+        <view class="hero-title">{{ formatKcal(plan.nutrition?.target_kcal || plan.calorie_target) }} kcal / 天</view>
         <view class="hero-sub">{{ plan.summary }}</view>
         <view class="stat-row">
           <view class="stat">
@@ -349,11 +364,11 @@ onShow(() => {
           </view>
           <view class="stat">
             <text class="stat-value">{{ grouped.length }}</text>
-            <text class="stat-label">训练天</text>
+            <text class="stat-label">模板训练天</text>
           </view>
           <view class="stat">
-            <text class="stat-value">{{ plan.actions.length }}</text>
-            <text class="stat-label">槽位</text>
+            <text class="stat-value">{{ trainingActions(plan.actions).length }}</text>
+            <text class="stat-label">模板训练项</text>
           </view>
         </view>
       </view>
@@ -414,19 +429,19 @@ onShow(() => {
           >
             <text class="cal-week">{{ day.week }}</text>
             <text class="cal-date">{{ day.label }}</text>
-            <text class="cal-dot">{{ day.actions.length ? day.actions.length + ' 练' : '休' }}</text>
+            <text class="cal-dot">{{ day.ready ? day.countLabel : calendarBusy ? '读取中' : '重试' }}</text>
             <text v-if="day.adjustment" class="cal-adjust">调</text>
           </view>
         </view>
         <view class="cal-note">
           带「调」的日期存在当天临时调整（如只有 20 分钟、临时换动作）。它只影响当天执行，
-          不会改变下方长期计划版本；可随时恢复原计划。
+          不会改变下方长期计划版本；数量包含热身，时长按当天有效安排估算。
         </view>
 
         <view v-if="selectedDay" class="cal-detail">
           <view class="row">
             <text class="list-title">{{ selectedDay.date }} · {{ selectedDay.week }}</text>
-            <text class="list-meta">{{ selectedDay.actions.length }} 个动作</text>
+            <text class="list-meta">{{ selectedDay.ready ? `${selectedDay.actions.length} 项 · 约 ${selectedDay.totalMinutes} 分钟` : '未能读取当天安排' }}</text>
           </view>
 
           <view v-if="!selectedAdjustment && selectedAdjustmentHistory.length" class="adjust-history-card">
@@ -485,37 +500,17 @@ onShow(() => {
               </view>
             </view>
 
-            <view class="adjust-effective">
-              <text class="section-title">当天实际执行</text>
-              <view v-for="action in selectedEffectiveActions" :key="action.slot_key" class="list-row">
-                <view class="list-main">
-                  <text class="list-title">{{ action.name }}</text>
-                  <text class="list-meta">
-                    {{ slotLabel(action.slot) }}
-                    <template v-if="action.sets"> · {{ action.sets }} 组</template>
-                    <template v-if="action.duration_min"> · {{ action.duration_min }} 分钟</template>
-                  </text>
-                </view>
-              </view>
-              <text class="list-meta" style="display: block; margin-top: 6px">
-                这是当天有效计划；下方「长期计划」仍是原 PlanVersion，临时调整不会改版本。
-              </text>
-            </view>
           </view>
 
-          <view v-if="selectedAdjustment" class="section-title" style="margin-top: 12px">
-            长期计划 · 原版本
+          <view v-if="!selectedDay.ready" class="muted" style="margin-top: 8px" @click="loadCalendar">
+            {{ calendarBusy ? '正在读取当天安排…' : '当天安排读取失败，点此重试' }}
           </view>
-          <view v-if="!selectedDay.actions.length" class="muted" style="margin-top: 8px">
-            这天没有安排训练。
-          </view>
-          <view v-for="action in selectedDay.actions" :key="action.id" class="list-row">
-            <view class="list-body">
-              <view class="thumb">
-                <image class="thumb-img" :src="thumbOf(action)" mode="aspectFill" />
-              </view>
+          <view v-else class="dated-training">
+            <text class="section-title">当天有效训练{{ selectedAdjustment ? ' · 临时调整' : '' }}</text>
+            <view v-if="!selectedEffectiveActions.length" class="muted">这天没有安排训练。</view>
+            <view v-for="action in selectedEffectiveActions" :key="action.id || action.slot_key" class="list-row">
               <view class="list-main">
-                <text class="list-title">{{ actionLabel(action) }}</text>
+                <text class="list-title">{{ action.name }}</text>
                 <text class="list-meta">
                   {{ slotLabel(action.slot) }}
                   <template v-if="action.sets && action.reps"> · {{ action.sets }}×{{ action.reps }}</template>
@@ -524,24 +519,22 @@ onShow(() => {
                 </text>
               </view>
             </view>
-            <text
-              v-if="exerciseDbTermForAction(action)"
-              class="link exercise-db-link"
-              @click.stop="openActionExerciseDb(action)"
-            >
-              动作库 · {{ exerciseDbTermForAction(action) }} →
-            </text>
           </view>
 
           <view v-if="selectedDay.meals.length" class="cal-meals">
             <view class="row" style="margin-top: 10px">
               <text class="section-title">这天吃</text>
-              <text class="list-meta">{{ dayMealKcal(selectedDay) }} kcal</text>
+              <text class="list-meta">
+                {{ formatKcal(dayMealKcal(selectedDay)) }} / {{ formatKcal(plan?.nutrition?.target_kcal || plan?.calorie_target) }} kcal
+              </text>
+            </view>
+            <view v-if="mealGapForDay(selectedDay) > 60" class="list-meta" style="margin: 4px 0 8px">
+              还差 {{ formatKcal(mealGapForDay(selectedDay)) }} kcal：可加一份酸奶 + 水果，或把主食加半份。
             </view>
             <view v-for="meal in selectedDay.meals" :key="meal.slot" class="meal-block">
               <view class="row">
                 <text class="line-name">{{ meal.title }}</text>
-                <text class="list-value">{{ meal.kcal }} kcal</text>
+                <text class="list-value">{{ formatKcal(meal.kcal) }} kcal</text>
               </view>
               <text class="list-meta">
                 {{ meal.items.map((item) => `${item.name} ${item.grams}g`).join(' · ') }}
@@ -551,13 +544,24 @@ onShow(() => {
               </text>
             </view>
           </view>
-          <view v-else-if="selectedDay.actions.length" class="muted" style="margin-top: 8px">
+          <view v-if="selectedLegacyMeals.length" class="cal-meals">
+            <text class="section-title">餐食模板 · 尚无营养明细</text>
+            <view v-for="meal in selectedLegacyMeals" :key="meal.id" class="meal-block">
+              <text class="list-title">🍽 {{ legacyMealTitle(meal) }}</text>
+            </view>
+          </view>
+          <view v-if="selectedDay.ready && !selectedDay.meals.length && !selectedLegacyMeals.length" class="muted" style="margin-top: 8px">
             这天没有餐食记录。
           </view>
         </view>
       </view>
 
-      <view v-for="group in grouped" :key="group.day" class="card">
+      <view class="section-title" style="margin: 20px 8px 8px">长期训练模板 · v{{ plan.version }}</view>
+      <view class="muted" style="margin: 0 8px 12px">按星期循环；当天临时调整和热身以日历中的有效安排为准。</view>
+      <text v-if="grouped.length" class="list-meta plan-scroll-hint">上下滑动查看整周训练</text>
+      <StableScroll v-if="grouped.length" scroll-y chain-to-parent class="plan-list-scroll training-scroll" aria-label="长期训练列表">
+      <view class="plan-scroll-content">
+      <view v-for="group in grouped" :key="group.day" class="card weekly-training">
         <view class="row">
           <view class="day-title">{{ WEEKDAY_LABELS[group.day - 1] || `Day ${group.day}` }}</view>
           <view class="chip">{{ group.actions.length }}</view>
@@ -571,7 +575,8 @@ onShow(() => {
               <text class="list-title">{{ actionLabel(action) }}</text>
               <text class="list-meta">
                 {{ slotLabel(action.slot) }}
-                <template v-if="action.sets"> · {{ action.sets }}×{{ action.reps }}</template>
+                <template v-if="action.sets && action.reps"> · {{ action.sets }}×{{ action.reps }}</template>
+                <template v-else-if="action.sets"> · {{ action.sets }} 组</template>
                 <template v-if="action.duration_min"> · {{ action.duration_min }} 分钟</template>
               </text>
             </view>
@@ -585,6 +590,28 @@ onShow(() => {
           </text>
         </view>
       </view>
+
+      </view>
+      </StableScroll>
+
+      <view v-if="mealGroups.length" class="section-title" style="margin: 20px 8px 8px">长期饮食模板 · v{{ plan.version }}</view>
+      <text v-if="mealGroups.length" class="list-meta plan-scroll-hint">上下滑动查看整周饮食</text>
+      <StableScroll v-if="mealGroups.length" scroll-y chain-to-parent class="plan-list-scroll meals-scroll" aria-label="长期饮食列表">
+      <view class="plan-scroll-content">
+      <view v-for="group in mealGroups" :key="`meals-${group.day}`" class="card weekly-meals">
+        <view class="day-title">{{ WEEKDAY_LABELS[group.day - 1] }} · 饮食</view>
+        <view v-for="meal in sortMeals(group.meals)" :key="meal.slot" class="meal-block">
+          <view class="row"><text class="list-title">🍽 {{ meal.title }}</text><text class="list-meta">{{ formatKcal(meal.kcal) }} kcal</text></view>
+          <text class="list-meta">{{ meal.items.map(item => `${item.name} ${item.grams}g`).join(' · ') }}</text>
+        </view>
+        <view v-for="meal in group.legacy" :key="meal.id" class="meal-block">
+          <text class="list-title">🍽 {{ legacyMealTitle(meal) }}</text>
+          <text class="list-meta">尚无营养明细</text>
+        </view>
+      </view>
+
+      </view>
+      </StableScroll>
 
       <view class="btn-row">
         <view class="btn-sm primary" @click="openCoach('')">改计划</view>
@@ -621,7 +648,7 @@ onShow(() => {
       </view>
 
       <!-- #ifdef H5 -->
-      <view class="console-link" @click="openConsole">打开 Harness Console →</view>
+      <view class="console-link" @click="openConsole">打开 Agent 运行工作台 →</view>
       <!-- #endif -->
     </template>
 
@@ -956,4 +983,13 @@ onShow(() => {
   }
 }
 
+.plan-list-scroll {
+  height: 65vh;
+  max-height: 760px;
+  min-height: 320px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, .22);
+}
+.plan-scroll-content { padding: 2px 2px 10px; }
+.plan-scroll-hint { display: block; margin: 0 8px 8px; }
 </style>

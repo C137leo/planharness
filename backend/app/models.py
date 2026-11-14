@@ -307,6 +307,28 @@ class Checkin(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class MealLog(Base):
+    """实际饮食记录：用户今天到底吃了什么。
+
+    和 MealPlan 的区别：MealPlan 是"计划建议吃的"，MealLog 是"真的吃了的"。
+    只存用户填报的餐次/描述/热量/蛋白，不做医疗或营养诊断。
+    """
+
+    __tablename__ = "meal_logs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    # breakfast / lunch / dinner / snack
+    slot: Mapped[str] = mapped_column(String(16), default="lunch")
+    title: Mapped[str] = mapped_column(String(80), default="")
+    kcal: Mapped[int] = mapped_column(Integer, default=0)
+    protein_g: Mapped[float] = mapped_column(Float, default=0.0)
+    note: Mapped[str] = mapped_column(Text, default="")
+    source: Mapped[str] = mapped_column(String(16), default="manual")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class WorkoutLog(Base):
     """实际训练记录：用户今天到底练了什么、多久。
 
@@ -315,6 +337,7 @@ class WorkoutLog(Base):
     """
 
     __tablename__ = "workout_logs"
+    __table_args__ = (UniqueConstraint("session_id", "session_item_id", name="uq_workout_log_session_item"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
@@ -327,6 +350,22 @@ class WorkoutLog(Base):
     reps: Mapped[int | None] = mapped_column(Integer, nullable=True)
     intensity: Mapped[str] = mapped_column(String(16), default="normal")
     note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    session_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("workout_sessions.id"), nullable=True)
+    session_item_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    details: Mapped[dict] = mapped_column(JSON, default=dict)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class WorkoutRecordRevision(Base):
+    __tablename__ = "workout_record_revisions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    session_id: Mapped[str] = mapped_column(String(36), ForeignKey("workout_sessions.id"), index=True)
+    session_item_id: Mapped[str] = mapped_column(String(36))
+    before: Mapped[dict] = mapped_column(JSON)
+    after: Mapped[dict] = mapped_column(JSON)
+    reason: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -458,7 +497,7 @@ class RateLimitBucket(Base):
     window_start: Mapped[int] = mapped_column(Integer, index=True)
     count: Mapped[int] = mapped_column(Integer, default=0)
 
-
+# agentRun?模型的结果
 class AgentRun(Base):
     """一次 Agent 运行的观测记录：输入、输出、trace、token 与耗时，供 Console 展示。"""
 
@@ -601,6 +640,45 @@ class TemporaryContext(Base):
     )
 
 
+class WorkoutReplanAuthorization(Base):
+    """Explicit consent to replace remaining work; applied rows identify plan cycles."""
+    __tablename__ = 'workout_replan_authorizations'
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey('users.id'), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    status: Mapped[str] = mapped_column(String(24), default='pending', index=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    scope: Mapped[list] = mapped_column(JSON, default=list)
+    base_revision: Mapped[str] = mapped_column(String(64))
+    base_state: Mapped[dict] = mapped_column(JSON, default=dict)
+    goal_text: Mapped[str] = mapped_column(Text, default='')
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class DayPlanRevision(Base):
+    """Versioned proposal; business state changes only after exact-version apply."""
+
+    __tablename__ = "day_plan_revisions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    date: Mapped[date] = mapped_column(Date, index=True)
+    status: Mapped[str] = mapped_column(String(24), default="awaiting_confirmation", index=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    scope: Mapped[list] = mapped_column(JSON, default=list)
+    base_state: Mapped[dict] = mapped_column(JSON, default=dict)
+    base_revision: Mapped[str] = mapped_column(String(64))
+    target_plan: Mapped[dict] = mapped_column(JSON, default=dict)
+    constraints: Mapped[dict] = mapped_column(JSON, default=dict)
+    changes: Mapped[list] = mapped_column(JSON, default=list)
+    revision_history: Mapped[list] = mapped_column(JSON, default=list)
+    result: Mapped[dict] = mapped_column(JSON, default=dict)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
 class PlanAdjustment(Base):
     """当天有效计划的调整记录（DailyPlan 的输入，不是长期 PlanVersion）。
 
@@ -625,6 +703,8 @@ class PlanAdjustment(Base):
     summary: Mapped[str] = mapped_column(Text, default="")
     constraints: Mapped[dict] = mapped_column(JSON, default=dict)
     actions: Mapped[list] = mapped_column(JSON, default=list)
+    # 饮食调整：与 actions 平行保存今天的餐单快照；为空表示沿用 PlanVersion 的餐单。
+    meals: Mapped[list] = mapped_column(JSON, default=list)
     changes: Mapped[list] = mapped_column(JSON, default=list)
     borrowed_from: Mapped[int | None] = mapped_column(Integer, nullable=True)
     restored_from_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
@@ -854,4 +934,121 @@ class PatchFeedback(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     request_id: Mapped[str] = mapped_column(String(36), ForeignKey("patch_requests.id"), index=True)
     user_text: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CoachTaskExecution(Base):
+    """Verified resource changes, scoped to a user/conversation, for safe compensation."""
+
+    __tablename__ = "coach_task_executions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), index=True)
+    thread: Mapped[str] = mapped_column(String(32), index=True)
+    request_key: Mapped[str] = mapped_column(String(128), index=True)
+    task_id: Mapped[str] = mapped_column(String(64))
+    effective_date: Mapped[date] = mapped_column(Date, index=True)
+    operation: Mapped[str] = mapped_column(String(64))
+    domain: Mapped[str] = mapped_column(String(32))
+    scope: Mapped[str] = mapped_column(String(32))
+    goal: Mapped[str] = mapped_column(String(500), default="")
+    tool: Mapped[str] = mapped_column(String(128))
+    arguments: Mapped[dict] = mapped_column(JSON, default=dict)
+    resource_changes: Mapped[list] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String(24), default="verified")
+    compensated_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CoachBindingObject(Base):
+    """Database identities for daily aggregates and code-backed catalogue entries."""
+    __tablename__ = "coach_binding_objects"
+    __table_args__ = (UniqueConstraint("user_id", "kind", "source_key"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(32))
+    source_key: Mapped[str] = mapped_column(String(128))
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class CoachBusinessSnapshot(Base):
+    __tablename__ = "coach_business_snapshots"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    thread: Mapped[str] = mapped_column(String(32), index=True)
+    revision: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CoachPendingPlan(Base):
+    __tablename__ = "coach_pending_plans"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    thread: Mapped[str] = mapped_column(String(32), index=True)
+    snapshot_id: Mapped[str] = mapped_column(ForeignKey("coach_business_snapshots.id"))
+    tasks: Mapped[list] = mapped_column(JSON, default=list)
+    question: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    result: Mapped[dict] = mapped_column(JSON, default=dict)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class ExternalOperation(Base):
+    """Durable write-ahead claim; an unknown external effect is never retried blindly."""
+    __tablename__ = "external_operations"
+    __table_args__ = (UniqueConstraint("user_id", "provider", "request_key", name="uq_external_operation_request"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    provider: Mapped[str] = mapped_column(String(32))
+    capability_id: Mapped[str] = mapped_column(String(100))
+    request_key: Mapped[str] = mapped_column(String(128))
+    payload_hash: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(32), default="executing", index=True)
+    remote_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    result: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
+
+
+class CommerceObject(Base):
+    __tablename__ = "commerce_objects"
+    __table_args__ = (UniqueConstraint("user_id", "thread", "account_key", "kind", "external_key", "parent_key", name="uq_commerce_object"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    thread: Mapped[str] = mapped_column(String(32), index=True)
+    account_key: Mapped[str] = mapped_column(String(64), index=True)
+    kind: Mapped[str] = mapped_column(String(32))
+    external_key: Mapped[str] = mapped_column(String(128))
+    parent_key: Mapped[str] = mapped_column(String(128), default="")
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class CheckoutDraft(Base):
+    __tablename__ = "checkout_drafts"
+    __table_args__ = (UniqueConstraint("user_id", "request_key", name="uq_checkout_prepare_request"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    thread: Mapped[str] = mapped_column(String(32), index=True)
+    account_key: Mapped[str] = mapped_column(String(64))
+    store_id: Mapped[str] = mapped_column(ForeignKey("commerce_objects.id"))
+    request_key: Mapped[str] = mapped_column(String(128))
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String(32), default="awaiting_confirmation")
+    cart: Mapped[list] = mapped_column(JSON, default=list)
+    quote: Mapped[dict] = mapped_column(JSON, default=dict)
+    take_way_code: Mapped[str] = mapped_column(String(64), default="")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    operation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class RuntimeConversation(Base):
+    """Empty Console conversation metadata; messages/runs remain in existing tables."""
+    __tablename__ = 'runtime_conversations'
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey('users.id'), index=True)
+    title: Mapped[str] = mapped_column(String(100), default='新的会话')
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

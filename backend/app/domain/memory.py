@@ -54,6 +54,9 @@ CATEGORY_LABELS: dict[str, str] = {
     "equipment": "器械条件",
     "like": "喜欢的动作",
     "dislike": "不喜欢的动作",
+    "food_like": "喜欢吃的食物",
+    "food_dislike": "不喜欢吃的食物",
+    "food_allergy": "食物过敏 / 忌口",
     "experience": "训练经验",
     "session_minutes": "单次训练时长",
     "weekly_days": "每周训练天数",
@@ -296,6 +299,7 @@ def list_memories(
         query = query.where(Memory.kind == kind)
     if not include_archived:
         query = query.where(Memory.status == "active")
+    # 返回所有 Memory
     rows = db.scalars(query.order_by(Memory.updated_at.desc())).all()
     if include_expired:
         return list(rows)
@@ -427,7 +431,7 @@ def find_memories(db: Session, user: User, text: str) -> list[Memory]:
 
 # ---------------------------------------------------------------- 上下文装配
 
-
+# 加载上下文 profile是结构化数据(身高体重,健身目标.ect)
 def load_memory_context(db: Session, user: User) -> dict:
     """给 Agent / 计划生成器看的记忆摘要。
 
@@ -486,6 +490,21 @@ def load_memory_context(db: Session, user: User) -> dict:
     memory_likes = [row.key for row in (by_category.get("like") or [])]
     dislikes = list(dict.fromkeys(profile_dislikes + memory_dislikes))
     likes = list(dict.fromkeys(profile_likes + memory_likes))
+    food_likes = list(dict.fromkeys(
+        str((row.structured or {}).get("food") or row.key)
+        for row in (by_category.get("food_like") or [])
+        if (row.structured or {}).get("food") or row.key
+    ))
+    food_dislikes = list(dict.fromkeys(
+        str((row.structured or {}).get("food") or row.key)
+        for row in (by_category.get("food_dislike") or [])
+        if (row.structured or {}).get("food") or row.key
+    ))
+    food_allergies = list(dict.fromkeys(
+        str((row.structured or {}).get("food") or row.key)
+        for row in (by_category.get("food_allergy") or [])
+        if (row.structured or {}).get("food") or row.key
+    ))
 
     session_minutes = getattr(profile, "session_minutes", None)
     if session_minutes is None:
@@ -507,9 +526,22 @@ def load_memory_context(db: Session, user: User) -> dict:
         "weekly_days": weekly_days,
         "dislikes": dislikes,
         "likes": likes,
+        "food_likes": food_likes,
+        "food_dislikes": food_dislikes,
+        "food_allergies": food_allergies,
         "experience": str(getattr(profile, "training_experience", "") or ""),
         "intensity": first("intensity").value if first("intensity") else "",
         "injuries": [row.value for row in (by_category.get("injury") or [])],
+        # 近期不适（30 天短期记忆）只影响今天的安排，不自动改写未来每一份计划；
+        # 长期不适才会进入计划生成的硬约束。
+        "injuries_long_term": [
+            row.value for row in (by_category.get("injury") or [])
+            if row.kind != SHORT_TERM
+        ],
+        "injuries_short_term": [
+            row.value for row in (by_category.get("injury") or [])
+            if row.kind == SHORT_TERM
+        ],
         "behavior": [memory_payload(row) for row in (by_category.get("behavior") or [])],
         "canonical_source": "profile",
     }
@@ -538,8 +570,14 @@ def memory_preferences(context: dict) -> list[str]:
         items.append("不喜欢的动作：" + "、".join(context["dislikes"]))
     if context.get("likes"):
         items.append("喜欢的动作：" + "、".join(context["likes"]))
-    if context.get("injuries"):
-        items.append("长期不适：" + "、".join(context["injuries"]))
+    if context.get("food_likes"):
+        items.append("喜欢吃的食物：" + "、".join(context["food_likes"]))
+    if context.get("food_dislikes"):
+        items.append("不吃 / 不喜欢的食物：" + "、".join(context["food_dislikes"]))
+    if context.get("food_allergies"):
+        items.append("食物过敏 / 忌口：" + "、".join(context["food_allergies"]))
+    if context.get("injuries_long_term"):
+        items.append("长期不适：" + "、".join(context["injuries_long_term"]))
     if context.get("intensity"):
         items.append("强度偏好：" + str(context["intensity"]))
     return items
@@ -555,9 +593,29 @@ def memory_instruction(context: dict) -> str:
 
 
 def _goal_of(text: str) -> tuple[str, str] | None:
+    """提取目标；被否定的目标不算数。
+
+    「我不想减脂了，我想增肌」里两个目标词同时出现。如果只按关键词表顺序取，
+    会先命中「减脂」，把用户刚否定的目标又写回档案（评审 P-005）。
+    这里对每个命中点回看前 8 个字符，遇到明确否定就跳过该词。
+    """
+    raw = text or ""
+    negations = ("不想", "不要", "不再", "不打算", "不准备", "别", "停止", "放弃")
     for code, keywords in GOAL_KEYWORDS:
-        if any(word in text for word in keywords):
-            return code, GOAL_LABELS[code]
+        for word in keywords:
+            start = 0
+            while True:
+                index = raw.find(word, start)
+                if index < 0:
+                    break
+                window = raw[max(0, index - 6):index]
+                # 只在同一小句内判断否定："我不想减脂了，我想增肌"里的
+                # 第二个目标不能被前一句的"不想"误伤。
+                for sep in ("，", ",", "。", "；", ";", "！", "!", "？", "?"):
+                    window = window.split(sep)[-1]
+                if not any(neg in window for neg in negations):
+                    return code, GOAL_LABELS[code]
+                start = index + len(word)
     return None
 
 
@@ -999,6 +1057,7 @@ TEMPORARY_LABELS = {
     "location": "训练地点",
     "equipment_busy": "器械占用",
     "discomfort": "身体状态",
+    "injury": "身体不适",
     "time_window": "时间安排",
     "plan_override": "计划调整",
 }

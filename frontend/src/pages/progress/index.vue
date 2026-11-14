@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StableScroll from '../../components/StableScroll.vue'
 /**
  * 进展：真实训练数据 + 教练发现。
  *
@@ -42,25 +43,22 @@ const maxDayKcal = computed(() =>
 const weights = computed(() =>
   checkins.value
     .filter((item) => item.weight_kg !== null)
-    .slice(0, 8)
     .reverse(),
 )
 const weightDelta = computed(() => {
-  if (weights.value.length < 2) return null
-  const first = Number(weights.value[0].weight_kg)
-  const last = Number(weights.value[weights.value.length - 1].weight_kg)
+  const recent = weights.value.slice(-8)
+  if (recent.length < 2) return null
+  const first = Number(recent[0].weight_kg)
+  const last = Number(recent[recent.length - 1].weight_kg)
   return Math.round((last - first) * 10) / 10
 })
-const maxTrend = computed(() =>
-  Math.max(1, ...(insights.value?.trend || []).map((item) => item.completion_pct)),
-)
 
 function dayWidth(kcal: number): string {
-  return `${Math.max(4, Math.round((kcal / maxDayKcal.value) * 100))}%`
+  return `${Math.max(0, Math.round((kcal / maxDayKcal.value) * 100))}%`
 }
 
 function trendHeight(value: number): string {
-  return `${Math.max(8, Math.round((value / maxTrend.value) * 100))}%`
+  return `${Math.max(0, Math.min(100, value))}%`
 }
 
 function shortDate(date: string): string {
@@ -196,7 +194,7 @@ onShow(() => {
             <text class="metric-value">{{ weightDelta === null ? '—' : `${weightDelta > 0 ? '+' : ''}${weightDelta}` }}</text>
             <text class="metric-unit">kg</text>
           </view>
-          <text class="metric-sub">基于最近打卡</text>
+          <text class="metric-sub">{{ weightDelta === null ? '至少记录 2 次体重才能算变化' : '基于最近打卡' }}</text>
         </view>
       </view>
 
@@ -231,8 +229,7 @@ onShow(() => {
         </view>
       </view>
 
-      <view class="progress-grid">
-        <view class="card">
+      <view class="progress-dashboard"><view class="progress-column"><view class="card">
           <view class="row">
             <view class="section-title">完成率趋势</view>
             <view class="chip">{{ insights?.trend?.length || 0 }} 个训练日</view>
@@ -249,36 +246,14 @@ onShow(() => {
               还没有训练记录，完成一场后这里会出现趋势。
             </view>
           </view>
-          <view class="formula">{{ stats?.formula }}</view>
-          <view class="muted" style="margin-top: 6px">{{ stats?.note }}</view>
+          <view class="chart-note">训练日完成率 · 0–100%</view>
         </view>
-
-        <view class="card">
-          <view class="row">
-            <view class="section-title">近 7 天按天消耗</view>
-            <view class="chip">{{ stats?.sessions || 0 }} 次</view>
-          </view>
-          <view class="bars">
-            <view v-for="day in stats?.days || []" :key="day.date" class="bar-row">
-              <text class="bar-label">{{ shortDate(day.date) }}</text>
-              <view class="bar-track">
-                <view class="bar-fill" :style="{ width: dayWidth(day.kcal) }" />
-              </view>
-              <text class="bar-value">{{ day.kcal }}</text>
-            </view>
-            <view v-if="!(stats?.days || []).length" class="muted">
-              还没有训练记录，打卡后这里会按天累加。
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <view class="progress-grid">
-        <view class="card">
+<view class="card">
           <view class="row">
             <view class="section-title">最近训练记录</view>
             <text class="link" @click="openCheckin">去打卡 →</text>
           </view>
+          <StableScroll scroll-y chain-to-parent class="progress-record-scroll" aria-label="最近训练记录">
           <view v-if="!(insights?.recent_sessions || []).length && !logs.length" class="muted" style="margin-top: 10px">
             还没有记录。
           </view>
@@ -295,19 +270,37 @@ onShow(() => {
               {{ session.completion_pct >= 100 ? '已完成' : session.completion_pct >= 60 ? '部分完成' : '未完成' }}
             </text>
           </view>
-          <view v-for="log in logs.slice(0, 6)" :key="log.log_id" class="log-row">
+          <view v-for="log in logs" :key="log.log_id" class="log-row">
             <view class="log-main">
               <text class="log-name">{{ actionName(log.action_ref) }}</text>
               <text class="log-meta">{{ log.date }} · {{ log.duration_min }} 分钟 · {{ log.kcal }} kcal</text>
             </view>
           </view>
+          </StableScroll>
+        </view></view><view class="progress-column"><view class="card">
+          <view class="row">
+            <view class="section-title">近 7 天按天消耗</view>
+            <view class="chip">{{ (stats?.days || []).length }} 天</view>
+          </view>
+          <StableScroll scroll-y chain-to-parent class="bars progress-bars-scroll" aria-label="每日训练消耗">
+            <view v-for="day in stats?.days || []" :key="day.date" class="bar-row">
+              <text class="bar-label">{{ shortDate(day.date) }}</text>
+              <view class="bar-track">
+                <view class="bar-fill" :style="{ width: dayWidth(day.kcal) }" />
+              </view>
+              <text class="bar-value">{{ day.kcal }}</text>
+            </view>
+            <view v-if="!(stats?.days || []).length" class="muted">
+              还没有训练记录，打卡后这里会按天累加。
+            </view>
+          </StableScroll>
         </view>
-
-        <view class="card">
+<view class="card">
           <view class="row">
             <view class="section-title">体重</view>
             <view v-if="weightDelta !== null" class="chip">{{ weightDelta > 0 ? '+' : '' }}{{ weightDelta }} kg</view>
           </view>
+          <StableScroll scroll-y chain-to-parent class="progress-weight-scroll" aria-label="体重记录">
           <view v-if="!weights.length" class="muted" style="margin-top: 10px">
             打卡时填一次体重，这里就会画出曲线。
           </view>
@@ -315,14 +308,15 @@ onShow(() => {
             <text class="weight-date">{{ item.date }}</text>
             <text class="weight-value">{{ item.weight_kg }} kg</text>
           </view>
+          </StableScroll>
           <view class="btn-row">
             <view class="btn-sm primary" @click="openCheckin">去打卡</view>
             <view class="btn-sm" @click="openCoach('根据我最近的训练和体重变化，帮我调整下一周计划', true)">
               让教练调整
             </view>
           </view>
-        </view>
-      </view>
+        </view></view></view>
+      <view class="progress-method"><text>{{ stats?.formula }}</text><text>{{ stats?.note }}</text></view>
 
       <view class="muted" style="margin-top: 12px; text-align: center">{{ insights?.note }}</view>
     </template>
@@ -344,7 +338,7 @@ onShow(() => {
   </view>
 </template>
 
-<style>
+<style scoped>
 .progress-page {
   max-width: none;
 }
@@ -497,7 +491,7 @@ onShow(() => {
   align-items: flex-end;
   display: flex;
   gap: 10px;
-  height: 180px;
+  height: 132px;
   margin-top: 14px;
   overflow-x: auto;
 }
@@ -633,4 +627,14 @@ onShow(() => {
     width: fit-content;
   }
 }
+
+.progress-dashboard{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px;align-items:start}
+.progress-column{display:flex;flex-direction:column;gap:16px;min-width:0}.progress-column>.card{margin:0;min-width:0}
+.progress-top{padding:22px;border:1px solid #efdfd1;border-radius:22px;background:linear-gradient(115deg,#fff6e9,#fffdf9)}
+.progress-top .eyebrow{font-size:10px}.progress-top .title{font-size:27px}.progress-top .subtitle{font-size:12px}
+.progress-page .card,.metric-card{border-color:#efdfd1;box-shadow:0 5px 18px #7d482805}
+.progress-record-scroll{max-height:350px;margin-top:12px;padding-right:6px}.progress-weight-scroll{max-height:250px;margin-top:12px;padding-right:6px}.progress-bars-scroll{max-height:210px;padding-right:6px}
+.progress-method{display:flex;flex-direction:column;gap:5px;color:var(--muted);font-size:10px;line-height:1.7;margin:16px 2px}.chart-note{font-size:10px;color:var(--muted);margin-top:12px}
+.trend-bar-wrap{background:linear-gradient(0deg,#fff4eb,transparent);border-radius:8px}.trend-chart{padding:0 2px 4px}.session-row{background:#fffaf4;border-radius:12px;padding:12px;margin-bottom:8px;border:0}.session-main{min-width:0}.session-status{white-space:nowrap}
+@media(max-width:900px){.progress-dashboard{grid-template-columns:1fr}.progress-top{padding:16px}.progress-top .title{font-size:23px}.progress-column{gap:14px}}
 </style>

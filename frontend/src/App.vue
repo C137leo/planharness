@@ -73,7 +73,16 @@ onHide(() => {
 page {
   background: var(--canvas, #fdf2e9);
   /* 背景图 + 一层暖白蒙版：图片负责氛围，蒙版保证卡片与文字的可读性 */
-  background-image: linear-gradient(
+  background-image:
+    /* 底部渐隐：bg.jpg 自带"豆包 AI 生成"水印，用与页面同色的渐变盖住，
+       同时让内容区与背景过渡更自然（评审 P-025）。 */
+    linear-gradient(
+      to top,
+      rgba(253, 242, 233, 0.99) 0%,
+      rgba(253, 242, 233, 0.72) 16%,
+      rgba(253, 242, 233, 0) 34%
+    ),
+    linear-gradient(
       rgba(253, 242, 233, 0.74),
       rgba(253, 242, 233, 0.86)
     ),

@@ -5,7 +5,8 @@
  * 版式参考食谱类 App：顶部一张暖色主卡片（今天最重要的一句话），
  * 下面是白卡片列表，动作和餐食都带缩略图，改动入口是横向胶囊。
  */
-import { computed, ref } from 'vue'
+import { formatKcal } from '../../styles/numbers'
+import { computed, reactive, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { api, ApiError, getStoredMcdToken, type AgentDay, type CurrentPlan, type AgentDayAction, type PlanAction, type TodayAgentResult, type TodayPlanSnapshot, type WorkoutSession } from '../../api'
 import GlobalCoachWorkspace from '../../components/GlobalCoachWorkspace.vue'
@@ -16,6 +17,7 @@ import FoodOptionsSheet from '../../components/FoodOptionsSheet.vue'
 import KnowledgeSheet from '../../components/KnowledgeSheet.vue'
 import McdOrderSheet from '../../components/McdOrderSheet.vue'
 import { actionLabel, slotLabel } from '../../styles/copy'
+import { displayMealItems } from '../../styles/mealItems'
 import { THUMBS, thumbOf } from '../../styles/thumbs'
 import { exerciseSearchTerm, openExerciseDbTerm } from '../../styles/exerciseDb'
 import { WEEKDAY_LABELS, isoWeekday, todayStr } from '../../styles/dates'
@@ -24,6 +26,8 @@ const plan = ref<CurrentPlan | null>(null)
 const loading = ref(true)
 const error = ref('')
 const hasPlan = ref(true)
+// 评审 P-008：教练工作区默认收起，首屏先把"今天练什么/吃什么"露出来。
+const coachOpen = ref(true)
 const dayPlan = ref<AgentDay | null>(null)
 const startingWorkout = ref(false)
 const coachRef = ref<{
@@ -440,7 +444,13 @@ const training = computed<TodayAction[]>(() => {
   if (dayPlan.value && dayPlan.value.actions.length) return dayPlan.value.actions
   return (today.value?.actions || []).filter((action) => action.action_type === 'exercise')
 })
-const meals = computed(() => today.value?.meals || [])
+const meals = computed(() => {
+  // 教练改的是当天 override（dayPlan.meals）；只读 plan.today 会一直显示旧餐单。
+  if (dayPlan.value?.meals?.length) return dayPlan.value.meals
+  return today.value?.meals || []
+})
+// 热身单独计数：计划页写 3 个动作，今天页不应该变成 4 个（评审 P-015）。
+const strengthTraining = computed(() => training.value.filter((action) => action.slot !== 'warmup'))
 const macro = computed(() => {
   const macros = plan.value?.nutrition?.macros || {}
   const protein = macros.protein_g || {}
@@ -450,6 +460,88 @@ const macro = computed(() => {
   }
 })
 const eatenKcal = computed(() => meals.value.reduce((sum, meal) => sum + meal.kcal, 0))
+const mealGap = computed(() => Math.max(0, Math.round((macro.value.kcal || 0) - eatenKcal.value)))
+const mealLogs = computed(() => dayPlan.value?.meal_logs || [])
+const intake = computed(() => dayPlan.value?.intake)
+const mealLogOpen = ref(false)
+const mealLogBusy = ref(false)
+const mealForm = reactive({
+  slot: 'lunch' as 'breakfast' | 'lunch' | 'dinner' | 'snack',
+  title: '',
+  kcal: '',
+  protein: '',
+})
+const MEAL_SLOTS = [
+  { key: 'breakfast', label: '早餐', kcal: 450, protein: 25 },
+  { key: 'lunch', label: '午餐', kcal: 800, protein: 40 },
+  { key: 'dinner', label: '晚餐', kcal: 600, protein: 40 },
+  { key: 'snack', label: '加餐', kcal: 200, protein: 10 },
+] as const
+const COMMON_MEALS = [
+  { title: '黄焖鸡米饭（大份）', kcal: 900, protein: 35 },
+  { title: '麻辣烫（清汤）', kcal: 550, protein: 25 },
+  { title: '麦当劳套餐', kcal: 900, protein: 30 },
+  { title: '鸡胸肉沙拉', kcal: 400, protein: 40 },
+]
+
+function openMealLog() {
+  mealForm.slot = 'lunch'
+  mealForm.title = ''
+  mealForm.kcal = ''
+  mealForm.protein = ''
+  mealLogOpen.value = true
+}
+
+function pickMeal(slot: string) {
+  const found = MEAL_SLOTS.find((item) => item.key === slot)
+  if (found) mealForm.slot = found.key as typeof mealForm.slot
+}
+
+function useCommon(item: { title: string; kcal: number; protein: number }) {
+  mealForm.title = item.title
+  mealForm.kcal = String(item.kcal)
+  mealForm.protein = String(item.protein)
+}
+
+async function saveMealLog() {
+  if (mealLogBusy.value) return
+  const title = mealForm.title.trim()
+  const kcal = Number(mealForm.kcal)
+  if (!title) {
+    uni.showToast({ title: '先填吃了什么', icon: 'none' })
+    return
+  }
+  if (!Number.isFinite(kcal) || kcal <= 0 || kcal > 3000) {
+    uni.showToast({ title: '热量填 1–3000 之间的估算值', icon: 'none' })
+    return
+  }
+  mealLogBusy.value = true
+  try {
+    await api.createMealLog({
+      date: todayStr(),
+      slot: mealForm.slot,
+      title,
+      kcal: Math.round(kcal),
+      protein_g: Number(mealForm.protein) || 0,
+    })
+    mealLogOpen.value = false
+    uni.showToast({ title: '已记录这餐', icon: 'success' })
+    await loadDayPlan()
+  } catch (err) {
+    uni.showToast({ title: err instanceof Error ? err.message : '记录失败', icon: 'none' })
+  } finally {
+    mealLogBusy.value = false
+  }
+}
+
+async function removeMealLog(id: string) {
+  try {
+    await api.deleteMealLog(id)
+    await loadDayPlan()
+  } catch (err) {
+    uni.showToast({ title: err instanceof Error ? err.message : '删除失败', icon: 'none' })
+  }
+}
 /** 麦当劳营养库：预算来自后端（目标 - 今天已排），前端只做展示 */
 const mcdBudget = computed(() => agentResult.value?.mcdonalds?.budget || null)
 const mcdCombo = computed(() => agentResult.value?.mcdonalds?.combo || null)
@@ -489,7 +581,25 @@ const totalMinutes = computed(() =>
   || training.value.reduce((sum, action) => sum + (action.duration_min || 0), 0),
 )
 const effectiveSession = computed<WorkoutSession | null>(() => dayPlan.value?.session || null)
-const sessionProgress = computed(() => effectiveSession.value?.progress || null)
+// 计划升版后，旧版本上未完成的训练会话不能继续：动作和时长都对不上。
+const sessionStale = computed(() => Boolean(
+  effectiveSession.value
+  && effectiveSession.value.status !== 'finished'
+  && plan.value
+  && effectiveSession.value.plan_version != null
+  && effectiveSession.value.plan_version !== plan.value.version,
+))
+const sessionProgress = computed(() => dayPlan.value?.day_progress || effectiveSession.value?.progress || null)
+const workoutActionLabel = computed(() => {
+  if (startingWorkout.value) return '准备中…'
+  if (sessionStale.value) return '开始训练'
+  const status = effectiveSession.value?.status
+  if (status === 'finished') return sessionProgress.value && sessionProgress.value.percent < 100 ? '继续未完成部分' : '制定新目标'
+  if (status === 'completed') return '完成训练记录'
+  if (status === 'active' || status === 'paused') return '继续训练'
+  return '开始训练'
+})
+const actionProgress = computed(() => Object.fromEntries((dayPlan.value?.day_progress?.items || []).map(item => [item.action_id,item])))
 const dayAdjusted = computed(() => dayPlan.value?.source === 'agent')
 const savedPlanStale = computed(() => Boolean(
   savedPlan.value && plan.value && savedPlan.value.plan_version !== plan.value.version,
@@ -508,8 +618,8 @@ function currentSchedule() {
   const rows: TodayAgentResult['schedule'] = []
   for (const action of training.value) {
     const duration = Math.max(3, Number(action.duration_min) || 8)
-    const detail = action.sets && action.reps
-      ? `${action.sets}×${action.reps}`
+    const detail = action.sets
+      ? action.reps ? `${action.sets}×${action.reps}` : `${action.sets}组`
       : action.duration_min ? `${action.duration_min} 分钟` : ''
     rows.push({
       time: `${String(Math.floor(cursor / 60) % 24).padStart(2, '0')}:${String(cursor % 60).padStart(2, '0')}`,
@@ -636,11 +746,13 @@ async function loadDayPlan() {
 }
 
 function openCoach(text = '', _auto = false) {
+  coachOpen.value = true
   if (text.trim()) {
     coachRef.value?.sendText(text)
     return
   }
-  coachRef.value?.focusInput()
+  // 等折叠展开、组件可见后再聚焦，否则 scroll-view 里 focus 会丢
+  setTimeout(() => coachRef.value?.focusInput(), 60)
 }
 
 async function onAgentChanged() {
@@ -650,10 +762,15 @@ async function onAgentChanged() {
 
 async function startWorkout() {
   if (startingWorkout.value) return
+  if (effectiveSession.value?.status==='finished' && sessionProgress.value?.percent===100) {
+    openCoach('保留已有记录，我想重新制定今天的新训练目标，请先确认重排。')
+    return
+  }
   startingWorkout.value = true
   try {
     const current = effectiveSession.value
-    if (current && (current.status === 'active' || current.status === 'paused'
+    if (current && !sessionStale.value
+        && (current.status === 'active' || current.status === 'paused'
         || current.status === 'completed')) {
       uni.navigateTo({
         url: `/pages/workout/index?date=${todayStr()}&session_id=${current.session_id}`,
@@ -751,11 +868,11 @@ onShow(() => {
       </view>
       <view class="today-status">
         <view class="today-status-metric">
-          <text class="today-status-value">{{ training.length }}</text>
+          <text class="today-status-value">{{ strengthTraining.length }}</text>
           <text class="today-status-label">个动作</text>
         </view>
         <view v-if="hasPlan && training.length" class="btn-sm primary today-start" @click="startWorkout">
-          {{ startingWorkout ? '准备中…' : '开始训练' }}
+          {{ workoutActionLabel }}
         </view>
       </view>
     </view>
@@ -794,26 +911,41 @@ onShow(() => {
     </template>
 
     <template v-else-if="plan">
-      <!-- 今天页的核心：直接嵌入全局教练工作区，而不是小输入框 -->
-      <GlobalCoachWorkspace
-        ref="coachRef"
-        mode="inline"
-        :visible="true"
-        page="today"
-        :date="todayStr()"
-        :context="{
-          planVersion: plan?.version,
-          planSummary: plan?.summary,
-          todaySummary: dayPlan?.summary || '',
-          todayMinutes: dayPlan?.total_minutes || totalMinutes,
-          sessionProgress: effectiveSession ? `${effectiveSession.progress.percent}%` : '',
-        }"
-        @changed="onAgentChanged"
-        @open-workout="onOpenWorkout"
-        @open-today-brief="onOpenTodayBrief"
-        @open-memory="openProfile"
-        @open-progress="openProgress"
-      />
+      <!-- 评审 P-008：教练默认收起，首屏先给今天的训练/餐食；点开才展开工作区。 -->
+      <view v-if="!coachOpen" class="coach-strip card">
+        <view class="coach-strip-main">
+          <text class="coach-strip-title">今天想怎么调？</text>
+          <text class="coach-strip-meta">时间、身体状态、器械变化，直接告诉教练；改完你确认才生效。</text>
+        </view>
+        <view class="btn-row" style="margin-top: 0">
+          <view class="btn-sm primary" @click="openCoach()">打开教练</view>
+        </view>
+      </view>
+      <view v-else class="coach-open-bar">
+        <text class="list-meta">教练工作区 · 同一个教练 · 共享记忆</text>
+        <text class="link" @click="coachOpen = false">收起</text>
+      </view>
+      <view v-show="coachOpen">
+        <GlobalCoachWorkspace
+          ref="coachRef"
+          mode="inline"
+          :visible="true"
+          page="today"
+          :date="todayStr()"
+          :context="{
+            planVersion: plan?.version,
+            planSummary: plan?.summary,
+            todaySummary: dayPlan?.summary || '',
+            todayMinutes: dayPlan?.total_minutes || totalMinutes,
+            sessionProgress: sessionProgress ? `${sessionProgress.percent}%` : '',
+          }"
+          @changed="onAgentChanged"
+          @open-workout="onOpenWorkout"
+          @open-today-brief="onOpenTodayBrief"
+          @open-memory="openProfile"
+          @open-progress="openProgress"
+        />
+      </view>
 
       <!-- 今日状态 -->
       <view class="hero compact-hero">
@@ -826,13 +958,13 @@ onShow(() => {
         </view>
         <view class="hero-sub">
           {{ training.length
-            ? `${training.length} 个动作 · 顺序按教练安排走，状态不对就点下面的胶囊改，改完你确认才生效。`
+            ? `${strengthTraining.length} 个动作${training.length !== strengthTraining.length ? ' + 热身' : ''} · 顺序按教练安排走，状态不对就点下面的胶囊改，改完你确认才生效。`
             : '休息也是计划的一部分，明天继续。' }}
         </view>
       </view>
 
       <!-- 今日规划（餐食 / 外卖详情）：入口统一走上面的 Agent，这里只保留已保存结果 -->
-      <view v-if="savedPlan" class="card">
+      <view v-if="savedPlan && !savedPlanStale" class="card">
         <view class="row">
           <view class="section-title">今日餐食建议</view>
           <view v-if="savedPlanStale" class="saved-actions">
@@ -851,7 +983,7 @@ onShow(() => {
               <text v-if="savedPlan.has_mcdonalds"> · 含麦当劳推荐</text>
             </text>
             <text v-if="dayAdjusted" class="saved-current">
-              今日已按最新调整：{{ training.length }} 个动作 · 约 {{ totalMinutes }} 分钟
+              今日已按最新调整：{{ strengthTraining.length }} 个动作 · 约 {{ totalMinutes }} 分钟
             </text>
             <text v-if="liveMcdOrder" class="saved-current">
               麦当劳订单：{{ liveMcdOrder.status || '已生成' }} · ¥{{ Number(liveMcdOrder.total || 0).toFixed(2) }}
@@ -880,26 +1012,39 @@ onShow(() => {
           <text class="link" @click="resetTodayPlan">恢复原计划</text>
         </view>
 
-        <view v-if="effectiveSession" class="session-strip">
+        <view v-if="training.length && sessionProgress && !sessionStale" class="session-strip">
           <view class="session-strip-main">
             <text class="session-strip-title">
-              {{ effectiveSession.status === 'finished' ? '今天已完成' : '训练进行中' }}
-              · {{ effectiveSession.progress.percent }}%
+              {{ !effectiveSession ? (dayPlan?.workout_cycle_id ? '新方案待开始' : '训练待开始') : effectiveSession.status === 'finished'
+                ? (sessionProgress.percent >= 100 ? '记录已达当前目标' : '本场已结束，目标未完成')
+                : '训练进行中' }}
+              · {{ sessionProgress.percent }}%
             </text>
             <text class="list-meta">
-              已完成 {{ effectiveSession.progress.done_sets }}/{{ effectiveSession.progress.total_sets }} 组
-              · 剩余约 {{ effectiveSession.progress.remaining_minutes }} 分钟
+              已完成 {{ sessionProgress.done_sets }}/{{ sessionProgress.total_sets }} 组
+              · 计划尚余约 {{ sessionProgress.remaining_minutes }} 分钟
+            </text>
+            <text v-if="dayPlan?.day_progress?.additional_recorded_sets" class="list-meta">
+              另有 {{ dayPlan.day_progress.additional_recorded_sets }} 组实际记录保留在训练记录中
             </text>
           </view>
           <view class="session-strip-bar">
-            <view class="session-strip-fill" :style="{ width: `${effectiveSession.progress.percent}%` }" />
+            <view class="session-strip-fill" :style="{ width: `${sessionProgress.percent}%` }" />
           </view>
         </view>
 
+        <view v-if="dayPlan?.previous_training?.length" class="session-strip previous-training">
+          <text class="session-strip-title">重排前的已有记录 · 保留</text>
+          <text class="list-meta">以下记录不计入当前新方案的进度。</text>
+          <text v-for="(record,index) in dayPlan.previous_training" :key="index" class="list-meta" style="display:block;margin-top:6px">{{ record.name }} · 已记录 {{ record.completed_sets }} 组</text>
+        </view>
+
+        <view v-if="sessionStale" class="list-meta" style="margin-top: 8px">
+          计划已更新到 v{{ plan?.version }}，之前那场训练（v{{ effectiveSession?.plan_version }}）已经作废；重新开始会按新计划执行。
+        </view>
         <view v-if="training.length" class="btn-row">
           <view class="btn-sm primary" @click="startWorkout">
-            {{ startingWorkout ? '准备中…' : (effectiveSession?.status === 'active' || effectiveSession?.status === 'paused'
-              ? '继续训练' : effectiveSession?.status === 'finished' ? '再练一场' : '开始训练') }}
+            {{ workoutActionLabel }}
           </view>
         </view>
 
@@ -930,9 +1075,13 @@ onShow(() => {
                 <text class="list-title">{{ actionLabel(action) }}</text>
                 <text class="list-meta">
                   {{ slotLabel(action.slot) }}
-                  <template v-if="action.sets && action.reps"> · {{ action.sets }}×{{ action.reps }}</template>
+                  <template v-if="action.sets"> · {{ action.sets }}{{ action.reps ? `×${action.reps}` : '组' }}</template>
                   <template v-if="action.duration_min"> · {{ action.duration_min }} 分钟</template>
                   <template v-if="muscleOf(action)"> · {{ muscleOf(action) }}</template>
+                </text>
+                <text v-if="actionProgress[action.id]" class="list-meta action-progress">
+                  已记录 {{ actionProgress[action.id].completed_sets }}/{{ actionProgress[action.id].target_sets }} 组
+                  · {{ actionProgress[action.id].remaining_sets ? `还差 ${actionProgress[action.id].remaining_sets} 组` : '已完成' }}
                 </text>
               </view>
             </view>
@@ -964,7 +1113,14 @@ onShow(() => {
       <view class="card">
         <view class="row">
           <view class="section-title">今天吃</view>
-          <text class="list-meta">{{ eatenKcal }} / {{ macro.kcal }} kcal</text>
+          <text class="list-meta">
+            {{ mealLogs.length
+              ? `${formatKcal(intake?.kcal ?? 0)} / ${formatKcal(intake?.target_kcal || macro.kcal)} kcal（已记录）`
+              : `${formatKcal(eatenKcal)} / ${formatKcal(macro.kcal)} kcal（计划）` }}
+          </text>
+        </view>
+        <view v-if="mealGap > 60 && !mealLogs.length" class="list-meta" style="margin-top: 6px">
+          已安排 {{ formatKcal(eatenKcal) }} kcal，还差 {{ formatKcal(mealGap) }} kcal；可以加一份酸奶 + 水果，或把主食加半份。
         </view>
         <view v-if="!meals.length" class="muted" style="margin-top: 10px">
           这一版没有餐食记录（可能是早期模板或旧补丁留下的）。点「重新生成整份计划」可以补齐食谱。
@@ -974,7 +1130,7 @@ onShow(() => {
           <view class="list-main" style="flex: 1">
             <view class="row">
               <text class="list-title">{{ meal.title }}</text>
-              <text class="list-value">{{ meal.kcal }} kcal</text>
+              <text class="list-value">{{ formatKcal(meal.kcal) }} kcal</text>
             </view>
             <text
               class="link"
@@ -983,7 +1139,7 @@ onShow(() => {
               换一换 / 点外卖
             </text>
             <text class="list-meta">
-              {{ meal.items.map((item) => `${item.name} ${item.grams}g`).join(' · ') }}
+              {{ displayMealItems(meal.items).map((item) => `${item.name} ${item.grams}g`).join(' · ') }}
             </text>
             <text class="list-meta">
               蛋白 {{ meal.protein_g }}g · 脂肪 {{ meal.fat_g }}g · 碳水 {{ meal.carb_g }}g
@@ -991,9 +1147,59 @@ onShow(() => {
           </view>
         </view>
 
+        <!-- 评审 P-010：记录真实吃了什么，才能算"今天还能吃多少" -->
+        <view class="meal-log-row">
+          <view>
+            <text class="list-meta">
+              已记录 {{ formatKcal(intake?.kcal ?? 0) }} / {{ formatKcal(intake?.target_kcal || macro.kcal) }} kcal
+              <text v-if="intake?.target_protein_g"> · 蛋白 {{ Math.round(intake?.protein_g || 0) }}/{{ Math.round(intake.target_protein_g) }}g</text>
+            </text>
+            <text v-if="intake?.target_kcal" class="list-meta" style="display: block; margin-top: 2px">
+              今天还剩 {{ formatKcal(intake.remaining_kcal) }} kcal 可用
+            </text>
+          </view>
+          <text class="link" @click="openMealLog">{{ mealLogOpen ? '收起' : '+ 记一餐' }}</text>
+        </view>
+
+        <view v-if="mealLogOpen" class="meal-log-form">
+          <view class="chip-grid" style="margin-top: 0">
+            <view
+              v-for="item in MEAL_SLOTS"
+              :key="item.key"
+              class="chip option"
+              :class="{ active: mealForm.slot === item.key }"
+              @click="pickMeal(item.key)"
+            >
+              {{ item.label }}
+            </view>
+          </view>
+          <view class="chip-grid">
+            <view v-for="item in COMMON_MEALS" :key="item.title" class="chip option" @click="useCommon(item)">
+              {{ item.title }}
+            </view>
+          </view>
+          <input v-model="mealForm.title" class="input" placeholder="吃了什么，例如黄焖鸡米饭" />
+          <input v-model="mealForm.kcal" class="input" type="number" placeholder="估算热量 kcal（必填）" />
+          <input v-model="mealForm.protein" class="input" type="number" placeholder="蛋白 g（可选）" />
+          <view class="btn-row">
+            <view class="btn-sm primary" @click="saveMealLog">{{ mealLogBusy ? '保存中…' : '保存这餐' }}</view>
+            <view class="btn-sm" @click="mealLogOpen = false">取消</view>
+          </view>
+          <text class="list-meta">快餐热量按常见份量估算，可以在包装/外卖页核对后改；这里只记录事实，不做营养诊断。</text>
+        </view>
+
+        <view v-if="mealLogs.length" class="section-title" style="margin-top: 12px">实际记录</view>
+        <view v-for="log in mealLogs" :key="log.id" class="meal-log-item">
+          <view class="list-main" style="flex: 1">
+            <text class="list-title">{{ log.title }}</text>
+            <text class="list-meta">{{ formatKcal(log.kcal) }} kcal · 蛋白 {{ log.protein_g }}g</text>
+          </view>
+          <text class="link" style="color: var(--muted)" @click="removeMealLog(log.id)">删除</text>
+        </view>
+
         <view class="intake">
           <view class="stat">
-            <text class="stat-value">{{ macro.kcal }}</text>
+            <text class="stat-value">{{ formatKcal(macro.kcal) }}</text>
             <text class="stat-label">推荐摄入 kcal</text>
           </view>
           <view class="stat">
@@ -1182,7 +1388,7 @@ onShow(() => {
           <view v-for="meal in agentResult.meals" :key="meal.slot" class="agent-meal">
             <view class="agent-meal-head">
               <text class="list-title">{{ MEAL_TITLES[meal.slot] || meal.slot }}</text>
-              <text class="list-meta">目标 {{ meal.target_kcal }} kcal</text>
+              <text class="list-meta">目标 {{ formatKcal(meal.target_kcal) }} kcal</text>
             </view>
             <view
               v-for="option in meal.options"
@@ -1196,7 +1402,7 @@ onShow(() => {
                   <text class="list-title">{{ option.title }}</text>
                   <text v-if="selectedMeals[meal.slot] === option.title" class="food-picked">已选</text>
                 </view>
-                <text class="list-value">{{ option.kcal }} kcal</text>
+                <text class="list-value">{{ formatKcal(option.kcal) }} kcal</text>
               </view>
               <text class="list-meta">蛋白 {{ option.protein_g }}g · {{ option.reason }}</text>
               <view class="btn-row">
@@ -1215,7 +1421,7 @@ onShow(() => {
           <view v-if="agentResult.mcdonalds" class="agent-card mcd-card">
             <view class="card-head">
               <view class="mcd-head-left">
-                <view class="mcd-mark">M</view>
+                <view class="mcd-mark"><image src="/static/mcd-official.png" mode="aspectFit" style="width:70%;height:70%" /></view>
                 <view class="mcd-titles">
                   <text class="mcd-name">麦当劳 · 官方营养库</text>
                   <text class="mcd-sub">留够额度再点，数字来自官方营养表</text>
@@ -1230,21 +1436,21 @@ onShow(() => {
             <view v-else>
               <view v-if="mcdBudget" class="mcd-budget">
                 <view class="mcd-budget-bit">
-                  <text class="mcd-budget-value">{{ mcdBudget.remaining_kcal }}<text class="mcd-budget-unit">kcal</text></text>
+                  <text class="mcd-budget-value">{{ formatKcal(mcdBudget.remaining_kcal) }}<text class="mcd-budget-unit">kcal</text></text>
                   <text class="mcd-budget-label">今天还剩的热量</text>
                 </view>
                 <view class="mcd-budget-bit">
                   <text class="mcd-budget-value">{{ mcdBudget.remaining_protein_g }}<text class="mcd-budget-unit">g</text></text>
                   <text class="mcd-budget-label">蛋白缺口</text>
                 </view>
-                <text class="mcd-budget-note">计划 {{ mcdBudget.plan_kcal }} / 目标 {{ mcdBudget.target_kcal }} kcal</text>
+                <text class="mcd-budget-note">计划 {{ formatKcal(mcdBudget.plan_kcal) }} / 目标 {{ formatKcal(mcdBudget.target_kcal) }} kcal</text>
               </view>
 
               <view v-if="mcdCombo" class="mcd-combo">
                 <text class="mcd-combo-label">想点麦当劳可以这么凑</text>
                 <text class="mcd-combo-line">
                   {{ mcdCombo.items.map((item) => `${item.name}（${item.kcal}）`).join(' + ') }}
-                  = {{ mcdCombo.kcal }} kcal · 蛋白 {{ mcdCombo.protein_g }} g
+                  = {{ formatKcal(mcdCombo.kcal) }} kcal · 蛋白 {{ mcdCombo.protein_g }} g
                 </text>
               </view>
               <view v-else class="muted" style="margin-top: 6px">
@@ -1262,7 +1468,7 @@ onShow(() => {
                   <text class="mcd-item-why">{{ item.why }}</text>
                 </view>
                 <view class="mcd-item-right">
-                  <text class="mcd-item-kcal">{{ item.kcal }} kcal · 蛋白 {{ item.protein_g }}g</text>
+                  <text class="mcd-item-kcal">{{ formatKcal(item.kcal) }} kcal · 蛋白 {{ item.protein_g }}g</text>
                   <text class="mcd-item-go">去点餐 →</text>
                 </view>
               </view>

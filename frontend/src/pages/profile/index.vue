@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import StableScroll from '../../components/StableScroll.vue'
 /**
  * 我的：把"计划从哪来"摆明白。
  *
@@ -30,9 +31,9 @@ const editingValue = ref('')
 
 const form = reactive({
   sex: 'male' as 'male' | 'female',
-  birth_year: 1997,
-  height_cm: 178,
-  weight_kg: 78,
+  birth_year: null as number | null,
+  height_cm: null as number | null,
+  weight_kg: null as number | null,
   goal: 'fat_loss' as 'fat_loss' | 'muscle_gain' | 'cardio' | 'health',
   goal_note: '',
   weekly_days: 3,
@@ -78,14 +79,15 @@ const LOCATION_OPTIONS = [
 ] as const
 
 const ready = computed(
-  () => form.height_cm >= 120 && form.weight_kg >= 30 && form.birth_year >= 1940,
+  () => Number(form.height_cm) >= 120 && Number(form.weight_kg) >= 30
+    && Number(form.birth_year) >= 1940 && Number(form.birth_year) <= 2012,
 )
 
 function applyProfile(profile: Profile) {
   form.sex = (profile.sex as 'male' | 'female') || 'male'
-  form.birth_year = profile.birth_year || 1997
-  form.height_cm = profile.height_cm || 178
-  form.weight_kg = profile.weight_kg || 78
+  form.birth_year = profile.birth_year || null
+  form.height_cm = profile.height_cm || null
+  form.weight_kg = profile.weight_kg || null
   form.goal = (profile.goal as typeof form.goal) || 'fat_loss'
   form.goal_note = profile.goal_note || ''
   form.weekly_days = profile.weekly_days || 3
@@ -132,6 +134,14 @@ function toggleEquipment(key: string) {
     : [...form.equipment, key]
 }
 
+function memoryValue(item: MemoryItem): string {
+  // 后端存的是裸数字（0/2），展示时翻译成用户语言。
+  if (item.category === 'training_state' && /^\d+$/.test(item.value)) {
+    return item.value === '0' ? '最近训练完成度正常' : `连续 ${item.value} 次未完成`
+  }
+  return item.value
+}
+
 function splitList(text: string): string[] {
   return text
     .split(/[、,，\s]+/)
@@ -140,16 +150,20 @@ function splitList(text: string): string[] {
 }
 
 async function save(): Promise<boolean> {
-  if (busy.value || !ready.value) return false
+  if (busy.value) return false
+  if (!ready.value) {
+    toast.value = '先补全出生年、身高、体重（身高 ≥120cm、体重 ≥30kg）'
+    return false
+  }
   busy.value = true
   error.value = ''
   toast.value = ''
   try {
     const profile = await api.updateProfile({
       sex: form.sex,
-      birth_year: form.birth_year,
-      height_cm: form.height_cm,
-      weight_kg: form.weight_kg,
+      birth_year: Number(form.birth_year),
+      height_cm: Number(form.height_cm),
+      weight_kg: Number(form.weight_kg),
       goal: form.goal,
       goal_note: form.goal_note,
       weekly_days: form.weekly_days,
@@ -295,6 +309,9 @@ function openConsole() {
 
 onShow(() => {
   syncDesktopChrome()
+  // 评审 P-020：保存提示是页面内联状态，重新进入时不应该还挂着"已保存"。
+  saved.value = false
+  toast.value = ''
   load()
 })
 </script>
@@ -322,13 +339,13 @@ onShow(() => {
           和教练聊聊我的档案
         </view>
         <view class="btn-sm" @click="openCoach('你记得我什么？', true)">教练记忆里有什么</view>
+        <view class="btn-sm" @click="save">保存</view>
       </view>
       <view v-if="toast" class="notice" style="margin-top: 14px">{{ toast }}</view>
       <view v-if="error" class="error" style="margin-top: 14px">{{ error }}</view>
 
-      <view class="profile-layout">
-        <view class="profile-main">
-      <view class="card">
+      <view class="profile-layout"><view class="profile-column">
+<view class="card">
         <view class="row">
           <view class="section-title">账号</view>
           <text class="link" @click="logout">退出登录</text>
@@ -343,8 +360,7 @@ onShow(() => {
           账号只用于登录；计划、打卡、审计都按这个账号隔离。
         </view>
       </view>
-
-      <view class="card">
+<view class="card">
         <view class="section-title">目标</view>
         <view class="chip-grid">
           <view
@@ -364,8 +380,41 @@ onShow(() => {
           placeholder="用一句话说清目标，例如：3 个月瘦 8 公斤，不想每天称重"
         />
       </view>
+<view class="card profile-basics">
+        <view class="section-title">基础信息</view>
+        <view class="profile-field-grid">
+        <view class="field">
+          <text class="label">性别</text>
+          <view class="chip-grid" style="margin-top: 0">
+            <view class="chip option" :class="{ active: form.sex === 'male' }" @click="form.sex = 'male'">男</view>
+            <view class="chip option" :class="{ active: form.sex === 'female' }" @click="form.sex = 'female'">女</view>
+          </view>
+        </view>
+        <view class="field">
+          <text class="label">出生年</text>
+          <input v-model.number="form.birth_year" class="input" type="number" placeholder="例如 1998" />
+        </view>
+        <view class="field">
+          <text class="label">身高（cm）</text>
+          <input v-model.number="form.height_cm" class="input" type="number" placeholder="例如 175" />
+        </view>
+        <view class="field">
+          <text class="label">体重（kg）</text>
+          <input v-model.number="form.weight_kg" class="input" type="number" placeholder="例如 78" />
+        </view>
+        <view class="field">
+          <text class="label">每周可练天数</text>
+          <input v-model.number="form.weekly_days" class="input" type="number" />
+        </view>
+        <view class="field">
+          <text class="label">每次时长（分钟）</text>
+          <input v-model.number="form.session_minutes" class="input" type="number" />
+        </view>
+      </view>
 
-      <view class="card">
+      </view>
+</view><view class="profile-column">
+<view class="card">
         <view class="row">
           <view class="section-title">训练偏好（档案）</view>
           <text class="list-meta">长期事实 · 会同步 Agent 记忆</text>
@@ -406,26 +455,49 @@ onShow(() => {
           <input v-model="form.likesText" class="input" placeholder="例如：划船、臀桥" />
         </view>
         <text class="list-meta">
-          不喜欢/不能做的动作仍由教练对话记录；修改档案后 Agent 记忆会同步成 canonical 镜像。
+          不喜欢/不能做的动作仍由教练对话记录；保存档案后，教练会同步记住。
         </text>
       </view>
-
+<view class="card">
+        <view class="section-title">器械</view>
+        <view class="chip-grid">
+          <view
+            v-for="item in EQUIPMENT"
+            :key="item.key"
+            class="chip option"
+            :class="{ active: form.equipment.includes(item.key) }"
+            @click="toggleEquipment(item.key)"
+          >
+            {{ item.label }}
+          </view>
         </view>
-        <view class="profile-side">
-      <view class="card memory-card">
+      </view>
+<view class="card">
+        <view class="section-title">饮食</view>
+        <view class="field">
+          <text class="label">过敏原（会进安全门和食谱筛选）</text>
+          <input v-model="form.allergiesText" class="input" placeholder="例如：乳制品、花生、海鲜" />
+        </view>
+        <view class="field">
+          <text class="label">忌口 / 不吃的</text>
+          <input v-model="form.dietText" class="input" placeholder="例如：牛肉、香菜" />
+        </view>
+      </view>
+</view>
+<view class="card memory-card">
         <view class="row">
           <view class="section-title">我的健身记忆</view>
           <text class="link" @click="openCoach('你记得我什么？', true)">问教练 →</text>
         </view>
         <view class="muted" style="margin-top: 6px">
-          这里是 Agent 真正记住的东西。带「档案」标签的条目以 Profile 为唯一事实来源，
-          修改后会同步档案；临时要求（今天只有 20 分钟）不会写进长期记忆。
+          长期偏好、近期状态分别记录。带「档案」标签的内容会随档案同步；临时要求只在当天有效。
         </view>
 
         <view v-if="!memories.length && !temporaryItems.length" class="muted" style="margin-top: 10px">
           还没有记忆。直接对教练说“以后训练安排在午休”“我不喜欢深蹲”就会写进来。
         </view>
 
+        <StableScroll scroll-y chain-to-parent class="profile-memory-scroll" aria-label="健身记忆列表">
         <view v-if="longTermMemories.length" class="memory-group">
           <text class="memory-group-title">长期记忆</text>
           <view v-for="memory in longTermMemories" :key="memory.id" class="memory-row">
@@ -444,7 +516,7 @@ onShow(() => {
                 </view>
               </template>
               <template v-else>
-                <text class="memory-value">{{ memory.value }}</text>
+                <text class="memory-value">{{ memoryValue(memory) }}</text>
                 <view class="memory-actions">
                   <text class="link" @click="startEdit(memory)">编辑</text>
                   <text class="memory-delete" @click="removeMemory(memory)">删除</text>
@@ -464,7 +536,7 @@ onShow(() => {
                   {{ memory.source }}<text v-if="memory.expires_at"> · 到期归档</text>
                 </text>
               </view>
-              <text class="memory-value">{{ memory.value }}</text>
+              <text class="memory-value">{{ memoryValue(memory) }}</text>
               <view class="memory-actions">
                 <text class="memory-delete" @click="removeMemory(memory)">删除</text>
               </view>
@@ -487,69 +559,8 @@ onShow(() => {
             </view>
           </view>
         </view>
+        </StableScroll>
       </view>
-
-
-      <view class="card">
-        <view class="section-title">基础信息</view>
-        <view class="field">
-          <text class="label">性别</text>
-          <view class="chip-grid" style="margin-top: 0">
-            <view class="chip option" :class="{ active: form.sex === 'male' }" @click="form.sex = 'male'">男</view>
-            <view class="chip option" :class="{ active: form.sex === 'female' }" @click="form.sex = 'female'">女</view>
-          </view>
-        </view>
-        <view class="field">
-          <text class="label">出生年</text>
-          <input v-model.number="form.birth_year" class="input" type="number" />
-        </view>
-        <view class="field">
-          <text class="label">身高（cm）</text>
-          <input v-model.number="form.height_cm" class="input" type="number" />
-        </view>
-        <view class="field">
-          <text class="label">体重（kg）</text>
-          <input v-model.number="form.weight_kg" class="input" type="number" />
-        </view>
-        <view class="field">
-          <text class="label">每周可练天数</text>
-          <input v-model.number="form.weekly_days" class="input" type="number" />
-        </view>
-        <view class="field">
-          <text class="label">每次时长（分钟）</text>
-          <input v-model.number="form.session_minutes" class="input" type="number" />
-        </view>
-      </view>
-
-      <view class="card">
-        <view class="section-title">器械</view>
-        <view class="chip-grid">
-          <view
-            v-for="item in EQUIPMENT"
-            :key="item.key"
-            class="chip option"
-            :class="{ active: form.equipment.includes(item.key) }"
-            @click="toggleEquipment(item.key)"
-          >
-            {{ item.label }}
-          </view>
-        </view>
-      </view>
-
-      <view class="card">
-        <view class="section-title">饮食</view>
-        <view class="field">
-          <text class="label">过敏原（会进安全门和食谱筛选）</text>
-          <input v-model="form.allergiesText" class="input" placeholder="例如：乳制品、花生、海鲜" />
-        </view>
-        <view class="field">
-          <text class="label">忌口 / 不吃的</text>
-          <input v-model="form.dietText" class="input" placeholder="例如：牛肉、香菜" />
-        </view>
-      </view>
-
-
-        </view>
       </view>
 
       <view class="btn-row">
@@ -560,9 +571,9 @@ onShow(() => {
 
       <!-- #ifdef H5 -->
       <view class="card link-card" @click="openConsole">
-        <view class="section-title">Harness Console</view>
+        <view class="section-title">Agent 运行工作台</view>
         <view class="muted" style="margin-top: 6px">
-          看每次生成的 trace、上下文预算、审计链和评测结果。
+          查看真实会话、任务执行、数据差异和失败原因。
         </view>
       </view>
       <!-- #endif -->
@@ -599,7 +610,7 @@ onShow(() => {
   </view>
 </template>
 
-<style>
+<style scoped>
 .profile-page {
   max-width: none;
 }
@@ -628,45 +639,15 @@ onShow(() => {
 .profile-actions {
   margin-top: 14px;
 }
-.profile-layout {
-  align-items: stretch;
-  display: grid;
-  gap: 14px;
-  grid-template-columns: minmax(0, 1.12fr) minmax(320px, 0.88fr);
-  height: clamp(560px, calc(100vh - 260px), 820px);
-  margin-top: 14px;
-}
-.profile-main,
-.profile-side {
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 4px;
-  scrollbar-width: thin;
-}
-.profile-main {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  min-width: 0;
-}
-.profile-main > .card,
-.profile-side > .card {
-  margin-top: 0;
-}
-.profile-side {
-  min-width: 0;
-}
-@media (max-width: 980px) {
-  .profile-layout {
-    height: auto;
-    grid-template-columns: 1fr;
-  }
-  .profile-main,
-  .profile-side {
-    overflow: visible;
-    padding-right: 0;
-  }
-}
+.profile-layout { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:16px;margin-top:18px; }
+.profile-column{display:flex;flex-direction:column;gap:16px;min-width:0}.profile-column > .card { margin:0;min-width:0; }.profile-layout > .memory-card{grid-column:1/-1;margin:0}
+.profile-memory-scroll { max-height:340px;margin-top:12px;padding-right:6px; }
+.profile-field-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px; }
+.profile-head { padding:22px;border:1px solid var(--line-soft);border-radius:22px;background:linear-gradient(115deg,#fff6e9,#fffdf9); }
+.profile-page .card { border-color:#efdfd1;box-shadow:0 5px 18px #7d482805; }
+.memory-row { background:#fffaf5;border-radius:12px;margin:8px 0;padding:12px !important; }
+.memory-actions { justify-content:flex-end; }
+@media(max-width:980px){.profile-layout{grid-template-columns:1fr}.profile-head{padding:16px;gap:12px}.profile-avatar{width:54px;height:54px;font-size:25px}.profile-head-badge{display:none}.profile-head .title{font-size:23px}}
 .profile-head-badge {
   align-items: flex-end;
   background: var(--surface);
@@ -820,5 +801,8 @@ textarea.input {
     gap: 8px;
     width: fit-content;
   }
+}
+@media (max-width: 980px) {
+  .profile-head-badge { display: none; }
 }
 </style>

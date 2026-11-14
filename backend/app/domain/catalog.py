@@ -18,6 +18,7 @@ MEAL_CATALOG = {meal["ref"]: meal for meal in MEALS}
 EXTRA_ZH: dict[str, str] = {
     # 模板 / 旧版本里用下划线的 ref，目录里找不到对应中文名
     "goblet_squat": "高脚杯深蹲",
+    "jumping-jack": "开合跳",
     "one-arm-dumbbell-row": "单臂哑铃划船",
     "inverted-row": "反向划船",
     "bodyweight-squat": "自重深蹲",
@@ -112,3 +113,13 @@ def enrich_operations(operations: list[dict]) -> list[dict]:
             item["after_name"] = resolve(str(after))
         enriched.append(item)
     return enriched
+
+
+def display_action_name(action: dict) -> str:
+    """Resolve catalogue labels for display; never bind user requests by a label."""
+    ref = str(action.get("action_ref") or "")
+    candidates = [action.get("name"), (action.get("meta") or {}).get("name_zh"), name_of(ref)]
+    for name in candidates:
+        if isinstance(name, str) and any("\u4e00" <= c <= "\u9fff" for c in name):
+            return name
+    return str(action.get("name") or name_of(ref))

@@ -70,7 +70,7 @@ onUnmounted(() => {
       </view>
       <view class="sidebar-item muted-item" @click="goConsole">
         <text class="sidebar-icon">▤</text>
-        <text class="sidebar-item-text">Harness Console</text>
+        <text class="sidebar-item-text">Agent 运行工作台</text>
       </view>
       <view class="sidebar-item muted-item" @click="goProfile">
         <text class="sidebar-icon">⚙</text>
