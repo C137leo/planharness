@@ -35,6 +35,7 @@ npm run dev:h5
 
 ## 文档入口
 
+- [面试介绍与追问指南](interview-knowledge/README.md)（已按当前代码核对，含话术、案例与证据）
 - [当前架构](docs/ARCHITECTURE.md)
 - [Agent 运行、确认与验证边界](docs/AGENT_RUNTIME.md)
 - [主要 API 与完整路由清单](docs/API_REFERENCE.md)

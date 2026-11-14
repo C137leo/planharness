@@ -4,7 +4,8 @@
 
 - 当前源码、有效配置、路由/能力注册、数据库模型和实际测试结果优先于文档。不要根据旧文档宣称迁移完成或删除模块。
 - 当前技术入口只有 README.md、docs/ARCHITECTURE.md、docs/AGENT_RUNTIME.md、docs/API_REFERENCE.md、docs/DEVELOPMENT.md；部署约束见 deploy/README.md。
-- docs 中编号教程、历史证据、interview-knowledge、product-review、improvement 和 UI 参考项目均不作为当前运行事实。独立学习、规划、决策及安全约束有保留价值，不得因旧而删除。
+- interview-knowledge 已按2026-11-15源码基线整理为面试解释资料，入口见其README；它引用当前技术文档与源码，不另立架构事实来源。后续实现变化时同步修正相关面试说法。
+- docs 中编号教程、历史证据、product-review、improvement 和 UI 参考项目保留其原用途，不作为当前运行事实。独立学习、规划、决策及安全约束有保留价值，不得因旧而删除。
 - 生产聊天从 backend/app/agent/coach_agent.py 进入 semantic_runtime.py。旧意图路由仍用于 legacy 测试/CLI；独立计划、补丁、知识 API 仍可能使用旧服务。删除前检查这些入口、字符串注册、动态资源和外部兼容性。
 
 ## 文档维护
