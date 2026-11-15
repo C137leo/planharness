@@ -1,7 +1,7 @@
 """The registry is both the model's menu and the executor's dispatch allowlist."""
 from dataclasses import dataclass
 from typing import Literal
-from pydantic import Field
+from pydantic import Field, field_validator, model_validator
 from app.agent.binding_contract import StrictModel
 
 
@@ -43,8 +43,43 @@ class ProfileArgs(StrictModel):
 
 
 class NoteArgs(StrictModel):
+    kind: Literal['long_term', 'short_term'] = 'short_term'
+    retention_days: int = Field(default=7, ge=1, le=90, description='短期备注有效天数；长期偏好用kind=long_term，不设置到期时间。')
     category: Literal["note", "food_like", "food_dislike", "food_allergy", "training_state"] = "note"
     value: str = Field(min_length=1, max_length=1000)
+
+
+class MealRecordArgs(StrictModel):
+    slot: Literal['breakfast', 'lunch', 'dinner', 'snack']
+    title: str = Field(min_length=1, max_length=80)
+    kcal: int = Field(ge=0, le=3000)
+    protein_g: int | float = Field(ge=0, le=300)
+    note: str = Field(default='', max_length=300)
+
+    @field_validator('title')
+    @classmethod
+    def nonblank_title(cls, value):
+        if not value.strip(): raise ValueError('进食描述不能为空。')
+        return value.strip()
+
+
+class MealCorrectionArgs(StrictModel):
+    slot: Literal['breakfast', 'lunch', 'dinner', 'snack'] | None = None
+    title: str | None = Field(default=None, min_length=1, max_length=80)
+    kcal: int | None = Field(default=None, ge=0, le=3000)
+    protein_g: int | float | None = Field(default=None, ge=0, le=300)
+    note: str | None = Field(default=None, max_length=300)
+
+    @field_validator('title')
+    @classmethod
+    def nonblank_title(cls, value):
+        if value is not None and not value.strip(): raise ValueError('进食描述不能为空。')
+        return value.strip() if value is not None else None
+
+    @model_validator(mode='after')
+    def has_change(self):
+        if not self.model_dump(exclude_none=True): raise ValueError('请明确要更正的实际进食字段。')
+        return self
 
 
 @dataclass(frozen=True)
@@ -80,6 +115,8 @@ class Capability:
 
 
 SPECS = [
+    ('nutrition.record_meal', 'nutrition_record', '登记某日期真实已吃的一餐，绑定day；餐次、描述、热量和蛋白必须有用户提供或已核对的估值。先展示确认，不从计划推断已经吃过，不把未知营养填0。', MealRecordArgs, ('day',), True, 'always', 'meal_record'),
+    ('nutrition.correct_meal', 'nutrition_record', '修订本人真实进食记录，绑定meal_log；只填写用户要求修改的字段，先展示确认，不改计划餐食。', MealCorrectionArgs, ('meal_log',), True, 'always', 'meal_record'),
     ("workout.remove_action", "training", "移除指定日期的一个动作；热身也合法。", NoArgs, ("workout_action",), True, "uncertain", "action"),
     ("workout.skip_action", "training", "跳过某日动作（只从该日移除，不改长期计划）或标记当前训练条目 skipped。", NoArgs, ("workout_action", "session_item"), True, "uncertain", "action"),
     ("workout.update_action", "training", "调整目标组数/次数，支持相对变化。", ActionValues, ("workout_action", "session_item"), True, "uncertain", "action"),
@@ -90,9 +127,9 @@ SPECS = [
     ("meal.replace_food", "nutrition", "将具体食物换成目录食材及份量。", FoodArgs, ("food_item",), True, "uncertain", "food"),
     ("meal.set_quantity", "nutrition", "调整具体食物克数，按原比例重算营养。", QuantityArgs, ("food_item",), True, "uncertain", "food"),
     ("profile.update", "profile", "更新长期档案，必须确认。仅更新档案值，不会自动重算热量、食物份量或训练负荷。", ProfileArgs, ("profile",), True, "always", "profile"),
-    ("memory.create", "memory", "保存用户明确要求记住的备注或近期反馈。", NoteArgs, ("profile",), True, "always", "memory"),
-    ("memory.archive", "memory", "归档一个真实记忆条目。", NoArgs, ("memory",), True, "always", "memory"),
-    ("history.undo", "history", "补偿某一次实际执行；逐资源校验，无后续重叠更改才能恢复。", NoArgs, ("execution",), True, "always", "undo"),
+    ("memory.create", "memory", "保存用户明确要求记住的备注或近期反馈。稳定长期偏好必须kind=long_term；本周/近期状态kind=short_term并填写retention_days。取消已保存备注用memory.archive，不补全旧create。", NoteArgs, ("profile",), True, "always", "memory"),
+    ("memory.archive", "memory", "归档一个真实独立备注；canonical档案镜像不能单独归档，修改或清空长期字段应使用profile.update并先预览确认。", NoArgs, ("memory",), True, "always", "memory"),
+    ("history.undo", "history", "仅补偿undo_supported=true的实际执行（动作、餐食、档案）；逐资源校验，无后续重叠更改才能恢复。记忆用archive，不撤销训练事实。", NoArgs, ("execution",), True, "always", "undo"),
     ("context.inspect", "read", "查看目标对象或日期的真实数据，不修改。", NoArgs, ("day", "workout_action", "meal", "food_item", "profile", "memory", "execution", "session", "session_item"), False, "never", "inspect"),
 ]
 REGISTRY = {row[0]: Capability(*row) for row in SPECS}
@@ -110,6 +147,9 @@ def manifest():
 def capability(id):
     if id in REGISTRY:
         return REGISTRY[id]
+    from app.agent.initial_plan_runtime import CAPABILITIES as INITIAL_CAPABILITIES
+    if id in INITIAL_CAPABILITIES:
+        return INITIAL_CAPABILITIES[id]
     from app.agent.workout_capabilities import CAPABILITIES as WORKOUT_CAPABILITIES
     if id in WORKOUT_CAPABILITIES:
         return WORKOUT_CAPABILITIES[id]

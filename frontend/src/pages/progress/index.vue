@@ -165,15 +165,15 @@ onShow(() => {
     <template v-else>
       <view class="progress-metrics">
         <view class="metric-card">
-          <text class="metric-label">本周完成率</text>
+          <text class="metric-label">本周训练会话完成率</text>
           <view class="metric-value-row">
             <text class="metric-value">{{ completion.toFixed(0) }}</text>
             <text class="metric-unit">%</text>
           </view>
-          <text class="metric-sub">{{ sessionCount }} 次训练</text>
+          <text class="metric-sub">{{ sessionCount }} 次训练会话（手工运动另计）</text>
         </view>
         <view class="metric-card">
-          <text class="metric-label">本周训练时长</text>
+          <text class="metric-label">本周训练会话时长</text>
           <view class="metric-value-row">
             <text class="metric-value">{{ totalMinutes }}</text>
             <text class="metric-unit">分钟</text>

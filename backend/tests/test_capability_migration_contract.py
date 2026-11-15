@@ -27,8 +27,8 @@ def run(factory, **overrides):
     return ops.execute(factory,**args)
 
 
-def test_manifest_keeps_all_fourteen_and_declares_boundaries():
-    assert len(REGISTRY)==14
+def test_local_manifest_adds_meal_facts_and_declares_boundaries():
+    assert len(REGISTRY)==16
     for cap in REGISTRY.values():
         data=cap.public()
         assert data['scope_schema']['ownership']=='authenticated_user'
@@ -96,9 +96,31 @@ def test_concurrent_request_has_single_dispatch(factory):
     assert len(calls)==1
 
 
-def test_model_menu_is_identical_to_pre_migration_checkpoint():
+def test_model_menu_preserves_legacy_contract_except_reviewed_memory_and_undo_changes():
     import json
     from pathlib import Path
     from app.agent.capabilities import manifest
-    old=json.loads((Path(__file__).resolve().parent/'fixtures/semantic-manifest-before.json').read_text())
-    assert manifest()==old
+    old = json.loads((Path(__file__).resolve().parent/'fixtures/semantic-manifest-before.json').read_text())
+    current = {c['capability_id']: c for c in manifest()}
+    assert set(current) - {c['capability_id'] for c in old} == {'nutrition.record_meal', 'nutrition.correct_meal'}
+    assert {c['capability_id'] for c in old} <= set(current)
+    assert current['nutrition.record_meal']['confirmation'] == current['nutrition.correct_meal']['confirmation'] == 'always'
+    assert current['nutrition.record_meal']['target_types'] == ['day']
+    assert current['nutrition.correct_meal']['target_types'] == ['meal_log']
+    for previous in old:
+        value = current[previous['capability_id']]
+        if previous['capability_id'] not in {'memory.create', 'memory.archive', 'history.undo'}:
+            assert value == previous
+            continue
+        assert {k:v for k,v in value.items() if k not in {'description','input_schema'}} == {
+            k:v for k,v in previous.items() if k not in {'description','input_schema'}}
+        if previous['capability_id'] in {'history.undo', 'memory.archive'}:
+            assert value['input_schema'] == previous['input_schema']
+            assert ('undo_supported' if previous['capability_id'] == 'history.undo' else 'profile.update') in value['description']
+        else:
+            before = previous['input_schema']; after = value['input_schema']
+            assert after['required'] == before['required']
+            assert all(after['properties'][key] == schema for key,schema in before['properties'].items())
+            assert set(after['properties']) - set(before['properties']) == {'kind', 'retention_days'}
+            assert after['properties']['kind']['enum'] == ['long_term', 'short_term']
+            assert after['properties']['retention_days']['minimum'] == 1

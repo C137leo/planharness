@@ -16,6 +16,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import inspect
+import copy
+from types import SimpleNamespace
 
 from app.agent.planning_agent import PlanningAgent, PlanProposal, skill_profile
 from app.domain.draft_edits import (
@@ -123,6 +125,25 @@ def _propose_deterministic(agent, profile, instruction: str, memory: dict) -> Pl
     return agent.propose_deterministic(profile, instruction)
 
 
+def _preview_profile(profile: Profile, instruction: str, *, interpret_instruction: bool = True):
+    """Proposal-only inputs. Draft generation cannot mutate the saved profile."""
+    preview = SimpleNamespace(**{c.name: copy.deepcopy(getattr(profile, c.name))
+                                 for c in Profile.__table__.columns})
+    if interpret_instruction:
+        # Compatibility for the independent draft API, not semantic chat routing.
+        _remember_goal(preview, instruction)
+        _remember_allergies(preview, instruction)
+        _remember_avoidances(preview, instruction)
+    return preview
+
+
+def _promote_ready_initial(db, user, draft):
+    if draft.plan_id is None and draft.status == 'ready':
+        for old in db.scalars(select(PlanDraft).where(PlanDraft.user_id == user.id,
+                PlanDraft.plan_id.is_(None), PlanDraft.status == 'ready', PlanDraft.id != draft.id)):
+            old.status = 'superseded'
+
+
 def create_draft(
     db: Session,
     user: User,
@@ -131,8 +152,12 @@ def create_draft(
     parent_draft_id: str | None = None,
     bridge: SkillBridge | None = None,
     client=None,
+    interpret_instruction: bool = True,
+    commit: bool = True,
+    goal_contract=None,
 ) -> PlanDraft:
     """生成一份草案。不写版本，只写 plan_drafts。"""
+    saved_instruction = instruction or ''
     profile = db.get(Profile, user.id)
     if profile is None:
         raise PatchValidationError(["profile not found: 先填基础信息再生成计划"])
@@ -156,20 +181,34 @@ def create_draft(
     if round_no > MAX_ROUNDS + 1:
         raise PatchValidationError([f"已经改过 {MAX_ROUNDS} 轮了，请重新描述你的目标"])
 
-    # 用户常在目标里直接写「减脂」「海鲜过敏」「不吃红薯」——先写进画像再生成
-    _remember_goal(profile, instruction or "")
-    _remember_allergies(profile, instruction or "")
-    _remember_avoidances(profile, instruction or "")
+    basis = initial_profile_revision(db, user)
+    profile = _preview_profile(profile, instruction or "", interpret_instruction=interpret_instruction)
+    if goal_contract is not None:
+        if goal_contract.unsupported_requirements:
+            raise PatchValidationError(['这些首份计划要求尚无法可靠执行：' + '；'.join(goal_contract.unsupported_requirements)])
+        from app.agent.initial_requirements import profile_inputs
+        profile = profile_inputs(profile, goal_contract)
+        import json
+        instruction = (instruction or '') + '\n已核对的结构化要求（不得丢失）：' + json.dumps(goal_contract.model_dump(), ensure_ascii=False)
     memory = load_memory_context(db, user)
     memory_text = memory_instruction(memory)
     if memory_text:
         instruction = (instruction or "") + "\n长期偏好：" + memory_text
     agent = PlanningAgent(bridge or get_bridge(), client=client)
     proposal: PlanProposal = _propose(agent, profile, instruction or "", feedback, memory)
+    if goal_contract is not None and parent_draft_id and proposal.payload.get('status') == 'ready':
+        parent = load_draft(db, user, parent_draft_id)
+        if goal_contract.preserve_actions:
+            proposal.payload['days'] = copy.deepcopy(parent.payload.get('days') or [])
+        slots = set(goal_contract.preserve_meal_slots)
+        proposal.payload['meals'] = sorted(
+            [copy.deepcopy(m) for m in parent.payload.get('meals', []) if m['slot'] in slots] +
+            [m for m in proposal.payload.get('meals', []) if m['slot'] not in slots],
+            key=lambda m: (m.get('day_index', 1), MEAL_ORDER.get(m['slot'], 9)))
 
     # 第一次生成时模型也可能反问"要不要加背部动作"，但这句需求我们能执行：
     # 绕开模型，用确定性编排直接出计划。
-    if proposal.payload.get("status") != "ready" and has_explicit_edits(instruction or ""):
+    if goal_contract is None and proposal.payload.get("status") != "ready" and has_explicit_edits(instruction or ""):
         retry = _propose_deterministic(agent, profile, instruction or "", memory)
         if retry.payload.get("status") == "ready":
             proposal = retry
@@ -180,7 +219,7 @@ def create_draft(
             }]
 
     # 用户在第一句话里就可能写了具体编辑（"加个练背动作"），同样要落到计划上
-    if proposal.payload.get("status") == "ready" and (instruction or "").strip():
+    if goal_contract is None and proposal.payload.get("status") == "ready" and (instruction or "").strip():
         edited, edit_changes = apply_explicit_edits(
             proposal.payload, instruction, equipment_keys=set(profile.equipment or [])
         )
@@ -212,14 +251,22 @@ def create_draft(
         }]
     # 模型负责提议，这里负责把提议压回用户真实条件（器械/时长/伤病/餐食）。
     # 评审 P-003 的根因是 skill 只给 equipment_filter 边界、没有事后校验。
+    if goal_contract is not None:
+        from app.agent.initial_requirements import prepare
+        prepare(proposal.payload, goal_contract, profile)
     guard_changes = enforce_plan_constraints(
-        proposal.payload, profile, memory, instruction=instruction)
+        proposal.payload, profile, memory, instruction=instruction,
+        formal_action_count=goal_contract.formal_actions if goal_contract is not None else None)
     if guard_changes:
         proposal.trace = list(proposal.trace) + [{
             "node": "constraint_guard",
             "status": "applied",
             "detail": {"changes": guard_changes[:12]},
         }]
+
+    if goal_contract is not None:
+        from app.agent.initial_requirements import apply_and_validate
+        apply_and_validate(proposal.payload, goal_contract, profile)
 
     if proposal.payload.get("status") == "ready":
         proposal.payload.setdefault("meta", {})["memory"] = {
@@ -236,7 +283,7 @@ def create_draft(
         user_id=user.id,
         plan_id=plan.id if plan is not None else None,
         base_version=plan.current_version if plan is not None else None,
-        instruction=instruction or "",
+        instruction=saved_instruction if goal_contract is not None else instruction or "",
         feedback=feedback,
         payload=proposal.payload,
         status=proposal.status,
@@ -244,8 +291,12 @@ def create_draft(
         question=str(proposal.payload.get("question") or ""),
         trace=proposal.trace,
     )
+    if plan is None:
+        draft.payload = {**draft.payload, 'meta': {**draft.payload.get('meta', {}),
+                                                'initial_profile_revision': basis}}
     db.add(draft)
     db.flush()
+    _promote_ready_initial(db, user, draft)
     append_event(
         db,
         draft.plan_id or f"draft:{draft.id}",
@@ -260,8 +311,9 @@ def create_draft(
         actor_type="agent",
         actor_id="coach",
     )
-    db.commit()
-    db.refresh(draft)
+    if commit:
+        db.commit()
+        db.refresh(draft)
     return draft
 
 
@@ -285,7 +337,20 @@ def add_feedback(
     if text:
         instruction = f"{instruction}\n修改意见：{text}" if instruction else f"修改意见：{text}"
 
-    profile = db.get(Profile, user.id)
+    saved_profile = db.get(Profile, user.id)
+    basis = initial_profile_revision(db, user)
+    profile = _preview_profile(saved_profile, parent.instruction)
+    profile = _preview_profile(profile, text or "")
+    goal_contract = None
+    saved_contract = (parent.payload.get('meta') or {}).get('goal_contract')
+    if saved_contract is not None:
+        from app.agent.initial_requirements import extract_goal
+        from app.agent.business_snapshot import profile_data
+        if client is None or not client.available():
+            raise PatchValidationError(['这份草案包含已核对的目标约束，请连接教练后修改，不能跳过约束核对。'])
+        goal_contract = extract_goal(client, text, saved_contract, profile_data(db, user), [])
+        return create_draft(db, user, instruction, parent_draft_id=parent.id, bridge=bridge,
+                            client=client, interpret_instruction=False, goal_contract=goal_contract)
     memory = load_memory_context(db, user)
     memory_text = memory_instruction(memory)
     if memory_text:
@@ -307,11 +372,6 @@ def add_feedback(
                 "status": "ready",
                 "detail": {"reason": "反馈里有可执行的编辑，不需要向用户反问"},
             }]
-
-    # 「不吃红薯」「海鲜过敏」「改成减脂」这类话要记到画像里，否则下一轮又会出现
-    _remember_goal(profile, text or "")
-    _remember_avoidances(profile, text or "")
-    _remember_allergies(profile, text or "")
 
     # 关键：反馈必须落到计划内容上，而不是只改解释文案。
     # 顺序：具体编辑（换食材/加动作/删动作）→ 模糊变换（换一批/加强度/避膝）。
@@ -373,9 +433,14 @@ def add_feedback(
         question=str(proposal.payload.get("question") or ""),
         trace=proposal.trace,
     )
+    if parent.plan_id is None:
+        child.payload = {**child.payload, 'meta': {**child.payload.get('meta', {}),
+                                                'initial_profile_revision': basis}}
     db.add(child)
-    parent.status = "superseded"
     db.flush()
+    if child.status == 'ready':
+        parent.status = 'superseded'
+        _promote_ready_initial(db, user, child)
     append_event(
         db,
         child.plan_id or f"draft:{child.id}",
@@ -394,14 +459,29 @@ def add_feedback(
 # 确认 / 拒绝
 # ---------------------------------------------------------------------------
 
+def initial_profile_revision(db: Session, user: User) -> str:
+    """Fingerprint every saved profile input, excluding bookkeeping timestamps."""
+    import hashlib
+    import json
+    profile = db.get(Profile, user.id)
+    data = {c.name: getattr(profile, c.name) for c in Profile.__table__.columns if c.name != 'updated_at'}
+    return hashlib.sha256(json.dumps(data, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()
+
+
 def confirm_draft(
-    db: Session, user: User, draft_id: str, comment: str = ""
+    db: Session, user: User, draft_id: str, comment: str = "", *, commit: bool = True
 ) -> tuple[Plan, PlanVersion]:
     """确认草案 → 落成新版本（第一次则创建计划）+ 餐食明细 + 审计。"""
     draft = load_draft(db, user, draft_id)
     if draft.status != "ready":
         raise PatchValidationError([f"draft status is {draft.status}, cannot confirm"])
     payload = draft.payload or {}
+    initial_basis = payload.get('meta', {}).get('initial_profile_revision')
+    if initial_basis:
+        if initial_basis != initial_profile_revision(db, user):
+            raise PatchValidationError(['档案已变化，请重新生成首份计划预览'])
+        if db.scalar(select(Plan).where(Plan.user_id == user.id, Plan.status == 'active')):
+            raise PatchValidationError(['已有生效计划，不能再次应用首份计划草案'])
     days = payload.get("days") or []
     if not days:
         raise PatchValidationError(["draft has no days to commit"])
@@ -485,8 +565,9 @@ def confirm_draft(
         actor_type="user",
         actor_id=user.id,
     )
-    db.commit()
-    db.refresh(version)
+    if commit:
+        db.commit()
+        db.refresh(version)
     return plan, version
 
 

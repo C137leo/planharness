@@ -805,10 +805,27 @@
   {
     "capability_id": "memory.create",
     "domain": "memory",
-    "description": "保存用户明确要求记住的备注或近期反馈。",
+    "description": "保存用户明确要求记住的备注或近期反馈。稳定长期偏好必须kind=long_term；本周/近期状态kind=short_term并填写retention_days。取消已保存备注用memory.archive，不补全旧create。",
     "input_schema": {
       "additionalProperties": false,
       "properties": {
+        "kind": {
+          "default": "short_term",
+          "enum": [
+            "long_term",
+            "short_term"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "retention_days": {
+          "default": 7,
+          "description": "短期备注有效天数；长期偏好用kind=long_term，不设置到期时间。",
+          "maximum": 90,
+          "minimum": 1,
+          "title": "Retention Days",
+          "type": "integer"
+        },
         "category": {
           "default": "note",
           "enum": [
@@ -864,7 +881,7 @@
   {
     "capability_id": "memory.archive",
     "domain": "memory",
-    "description": "归档一个真实记忆条目。",
+    "description": "归档一个真实独立备注；canonical档案镜像不能单独归档，修改或清空长期字段应使用profile.update并先预览确认。",
     "input_schema": {
       "additionalProperties": false,
       "properties": {},
@@ -901,7 +918,7 @@
   {
     "capability_id": "history.undo",
     "domain": "history",
-    "description": "补偿某一次实际执行；逐资源校验，无后续重叠更改才能恢复。",
+    "description": "仅补偿undo_supported=true的实际执行（动作、餐食、档案）；逐资源校验，无后续重叠更改才能恢复。记忆用archive，不撤销训练事实。",
     "input_schema": {
       "additionalProperties": false,
       "properties": {},
@@ -3749,6 +3766,1090 @@
         "role": "destination_or_existing_object",
         "types": [
           "day_revision"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "plan.create_initial_draft",
+    "domain": "initial_plan",
+    "description": "没有生效计划时，根据已保存档案生成首份长期训练和饮食草案。只预览，不改档案、不启用。instruction完整保留用户要求。",
+    "input_schema": {
+      "$defs": {
+        "DurationRequirement": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "target",
+                "maximum",
+                "minimum"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "minutes": {
+              "maximum": 240,
+              "minimum": 1,
+              "title": "Minutes",
+              "type": "integer"
+            },
+            "tolerance_minutes": {
+              "default": 0,
+              "maximum": 30,
+              "minimum": 0,
+              "title": "Tolerance Minutes",
+              "type": "integer"
+            },
+            "minimum_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Minimum Minutes"
+            },
+            "maximum_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Maximum Minutes"
+            }
+          },
+          "required": [
+            "kind",
+            "minutes"
+          ],
+          "title": "DurationRequirement",
+          "type": "object"
+        },
+        "InitialRequirements": {
+          "additionalProperties": false,
+          "properties": {
+            "formal_actions": {
+              "anyOf": [
+                {
+                  "maximum": 10,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Formal Actions"
+            },
+            "selected_action_refs": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 10,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Selected Action Refs"
+            },
+            "excluded_action_refs": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 30,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Excluded Action Refs"
+            },
+            "duration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/DurationRequirement"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "weekly_days": {
+              "anyOf": [
+                {
+                  "maximum": 7,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Weekly Days"
+            },
+            "goal": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "fat_loss",
+                    "muscle_gain",
+                    "cardio",
+                    "health"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Goal"
+            },
+            "allergies": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 20,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Allergies"
+            },
+            "food_exclusions": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 20,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Food Exclusions"
+            },
+            "changed_meal_slots": {
+              "items": {
+                "enum": [
+                  "breakfast",
+                  "lunch",
+                  "dinner",
+                  "snack"
+                ],
+                "type": "string"
+              },
+              "title": "Changed Meal Slots",
+              "type": "array"
+            },
+            "meal_rules": {
+              "items": {
+                "$ref": "#/$defs/MealIngredientRule"
+              },
+              "maxItems": 30,
+              "title": "Meal Rules",
+              "type": "array"
+            },
+            "clear_fields": {
+              "items": {
+                "enum": [
+                  "formal_actions",
+                  "selected_action_refs",
+                  "excluded_action_refs",
+                  "duration",
+                  "goal",
+                  "weekly_days",
+                  "allergies",
+                  "food_exclusions"
+                ],
+                "type": "string"
+              },
+              "title": "Clear Fields",
+              "type": "array"
+            },
+            "preserve_actions": {
+              "default": false,
+              "title": "Preserve Actions",
+              "type": "boolean"
+            },
+            "preserve_meal_slots": {
+              "items": {
+                "enum": [
+                  "breakfast",
+                  "lunch",
+                  "dinner",
+                  "snack"
+                ],
+                "type": "string"
+              },
+              "title": "Preserve Meal Slots",
+              "type": "array"
+            },
+            "unsupported_requirements": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 10,
+              "title": "Unsupported Requirements",
+              "type": "array"
+            },
+            "discard_unsupported_requirements": {
+              "default": false,
+              "title": "Discard Unsupported Requirements",
+              "type": "boolean"
+            }
+          },
+          "title": "InitialRequirements",
+          "type": "object"
+        },
+        "MealIngredientRule": {
+          "additionalProperties": false,
+          "properties": {
+            "slot": {
+              "enum": [
+                "breakfast",
+                "lunch",
+                "dinner",
+                "snack"
+              ],
+              "title": "Slot",
+              "type": "string"
+            },
+            "ingredient_options": {
+              "description": "同一食材要求允许的真实目录选项，只能选择本枚举实际提供的键。",
+              "items": {
+                "enum": [
+                  "鸡胸肉",
+                  "牛肉",
+                  "虾",
+                  "豆腐",
+                  "鸡蛋",
+                  "三文鱼",
+                  "米饭",
+                  "红薯",
+                  "西兰花",
+                  "菠菜",
+                  "希腊酸奶",
+                  "香蕉",
+                  "土豆",
+                  "玉米",
+                  "燕麦",
+                  "苹果"
+                ],
+                "type": "string"
+              },
+              "maxItems": 10,
+              "minItems": 1,
+              "title": "Ingredient Options",
+              "type": "array"
+            },
+            "requirement": {
+              "default": "include",
+              "enum": [
+                "include",
+                "exclude"
+              ],
+              "title": "Requirement",
+              "type": "string"
+            },
+            "grams": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 1000,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grams"
+            }
+          },
+          "required": [
+            "slot",
+            "ingredient_options"
+          ],
+          "title": "MealIngredientRule",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "instruction": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Instruction",
+          "type": "string"
+        },
+        "goal_contract": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InitialRequirements"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "instruction"
+      ],
+      "title": "CreateInitial",
+      "type": "object"
+    },
+    "target_types": [
+      "profile"
+    ],
+    "mutates_state": true,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "initial_plan",
+    "scope_schema": {
+      "target_types": [
+        "profile"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "initial_plan",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "profile"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "plan.revise_initial_draft",
+    "domain": "initial_plan",
+    "description": "修改已展示的首份计划草案，expected_revision复制etag；instruction只写本轮修改，保留原约束和其他选择，重新预览不启用。",
+    "input_schema": {
+      "$defs": {
+        "DurationRequirement": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "target",
+                "maximum",
+                "minimum"
+              ],
+              "title": "Kind",
+              "type": "string"
+            },
+            "minutes": {
+              "maximum": 240,
+              "minimum": 1,
+              "title": "Minutes",
+              "type": "integer"
+            },
+            "tolerance_minutes": {
+              "default": 0,
+              "maximum": 30,
+              "minimum": 0,
+              "title": "Tolerance Minutes",
+              "type": "integer"
+            },
+            "minimum_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Minimum Minutes"
+            },
+            "maximum_minutes": {
+              "anyOf": [
+                {
+                  "maximum": 240,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Maximum Minutes"
+            }
+          },
+          "required": [
+            "kind",
+            "minutes"
+          ],
+          "title": "DurationRequirement",
+          "type": "object"
+        },
+        "InitialRequirements": {
+          "additionalProperties": false,
+          "properties": {
+            "formal_actions": {
+              "anyOf": [
+                {
+                  "maximum": 10,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Formal Actions"
+            },
+            "selected_action_refs": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 10,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Selected Action Refs"
+            },
+            "excluded_action_refs": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 30,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Excluded Action Refs"
+            },
+            "duration": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/DurationRequirement"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null
+            },
+            "weekly_days": {
+              "anyOf": [
+                {
+                  "maximum": 7,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Weekly Days"
+            },
+            "goal": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "fat_loss",
+                    "muscle_gain",
+                    "cardio",
+                    "health"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Goal"
+            },
+            "allergies": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 20,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Allergies"
+            },
+            "food_exclusions": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 20,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Food Exclusions"
+            },
+            "changed_meal_slots": {
+              "items": {
+                "enum": [
+                  "breakfast",
+                  "lunch",
+                  "dinner",
+                  "snack"
+                ],
+                "type": "string"
+              },
+              "title": "Changed Meal Slots",
+              "type": "array"
+            },
+            "meal_rules": {
+              "items": {
+                "$ref": "#/$defs/MealIngredientRule"
+              },
+              "maxItems": 30,
+              "title": "Meal Rules",
+              "type": "array"
+            },
+            "clear_fields": {
+              "items": {
+                "enum": [
+                  "formal_actions",
+                  "selected_action_refs",
+                  "excluded_action_refs",
+                  "duration",
+                  "goal",
+                  "weekly_days",
+                  "allergies",
+                  "food_exclusions"
+                ],
+                "type": "string"
+              },
+              "title": "Clear Fields",
+              "type": "array"
+            },
+            "preserve_actions": {
+              "default": false,
+              "title": "Preserve Actions",
+              "type": "boolean"
+            },
+            "preserve_meal_slots": {
+              "items": {
+                "enum": [
+                  "breakfast",
+                  "lunch",
+                  "dinner",
+                  "snack"
+                ],
+                "type": "string"
+              },
+              "title": "Preserve Meal Slots",
+              "type": "array"
+            },
+            "unsupported_requirements": {
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 10,
+              "title": "Unsupported Requirements",
+              "type": "array"
+            },
+            "discard_unsupported_requirements": {
+              "default": false,
+              "title": "Discard Unsupported Requirements",
+              "type": "boolean"
+            }
+          },
+          "title": "InitialRequirements",
+          "type": "object"
+        },
+        "MealIngredientRule": {
+          "additionalProperties": false,
+          "properties": {
+            "slot": {
+              "enum": [
+                "breakfast",
+                "lunch",
+                "dinner",
+                "snack"
+              ],
+              "title": "Slot",
+              "type": "string"
+            },
+            "ingredient_options": {
+              "description": "同一食材要求允许的真实目录选项，只能选择本枚举实际提供的键。",
+              "items": {
+                "enum": [
+                  "鸡胸肉",
+                  "牛肉",
+                  "虾",
+                  "豆腐",
+                  "鸡蛋",
+                  "三文鱼",
+                  "米饭",
+                  "红薯",
+                  "西兰花",
+                  "菠菜",
+                  "希腊酸奶",
+                  "香蕉",
+                  "土豆",
+                  "玉米",
+                  "燕麦",
+                  "苹果"
+                ],
+                "type": "string"
+              },
+              "maxItems": 10,
+              "minItems": 1,
+              "title": "Ingredient Options",
+              "type": "array"
+            },
+            "requirement": {
+              "default": "include",
+              "enum": [
+                "include",
+                "exclude"
+              ],
+              "title": "Requirement",
+              "type": "string"
+            },
+            "grams": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "maximum": 1000,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Grams"
+            }
+          },
+          "required": [
+            "slot",
+            "ingredient_options"
+          ],
+          "title": "MealIngredientRule",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Revision",
+          "type": "string"
+        },
+        "instruction": {
+          "maxLength": 4000,
+          "minLength": 1,
+          "title": "Instruction",
+          "type": "string"
+        },
+        "goal_contract": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InitialRequirements"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "expected_revision",
+        "instruction"
+      ],
+      "title": "ReviseInitial",
+      "type": "object"
+    },
+    "target_types": [
+      "initial_plan_draft"
+    ],
+    "mutates_state": true,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "initial_plan",
+    "scope_schema": {
+      "target_types": [
+        "initial_plan_draft"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "initial_plan",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "initial_plan_draft"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "plan.confirm_initial_draft",
+    "domain": "initial_plan",
+    "description": "仅在用户明确确认已经展示的首份计划后启用，expected_revision复制草案etag。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expected_revision"
+      ],
+      "title": "InitialVersion",
+      "type": "object"
+    },
+    "target_types": [
+      "initial_plan_draft"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "initial_plan",
+    "scope_schema": {
+      "target_types": [
+        "initial_plan_draft"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "initial_plan",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "initial_plan_draft"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "plan.cancel_initial_draft",
+    "domain": "initial_plan",
+    "description": "取消尚未启用的首份计划草案，不更改档案或记录。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_revision": {
+          "maxLength": 64,
+          "minLength": 64,
+          "title": "Expected Revision",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expected_revision"
+      ],
+      "title": "InitialVersion",
+      "type": "object"
+    },
+    "target_types": [
+      "initial_plan_draft"
+    ],
+    "mutates_state": true,
+    "confirmation": "never",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "initial_plan",
+    "scope_schema": {
+      "target_types": [
+        "initial_plan_draft"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "never",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "initial_plan",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "initial_plan_draft"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "nutrition.record_meal",
+    "domain": "nutrition_record",
+    "description": "登记某日期真实已吃的一餐，绑定day；餐次、描述、热量和蛋白必须有用户提供或已核对的估值。先展示确认，不从计划推断已经吃过，不把未知营养填0。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "slot": {
+          "enum": [
+            "breakfast",
+            "lunch",
+            "dinner",
+            "snack"
+          ],
+          "title": "Slot",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "kcal": {
+          "maximum": 3000,
+          "minimum": 0,
+          "title": "Kcal",
+          "type": "integer"
+        },
+        "protein_g": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "ge": 0,
+          "le": 300,
+          "title": "Protein G"
+        },
+        "note": {
+          "default": "",
+          "maxLength": 300,
+          "title": "Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "slot",
+        "title",
+        "kcal",
+        "protein_g"
+      ],
+      "title": "MealRecordArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "day"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "meal_record",
+    "scope_schema": {
+      "target_types": [
+        "day"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "day"
+        ]
+      }
+    }
+  },
+  {
+    "capability_id": "nutrition.correct_meal",
+    "domain": "nutrition_record",
+    "description": "修订本人真实进食记录，绑定meal_log；只填写用户要求修改的字段，先展示确认，不改计划餐食。",
+    "input_schema": {
+      "additionalProperties": false,
+      "properties": {
+        "slot": {
+          "anyOf": [
+            {
+              "enum": [
+                "breakfast",
+                "lunch",
+                "dinner",
+                "snack"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slot"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        },
+        "kcal": {
+          "anyOf": [
+            {
+              "maximum": 3000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kcal"
+        },
+        "protein_g": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "ge": 0,
+              "le": 300
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Protein G"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Note"
+        }
+      },
+      "title": "MealCorrectionArgs",
+      "type": "object"
+    },
+    "target_types": [
+      "meal_log"
+    ],
+    "mutates_state": true,
+    "confirmation": "always",
+    "constraints": "必须选择快照中属于本用户的真实 ID，执行范围仅为目标对象；版本必须一致。",
+    "executor": "meal_record",
+    "scope_schema": {
+      "target_types": [
+        "meal_log"
+      ],
+      "ownership": "authenticated_user",
+      "version": "snapshot_revision"
+    },
+    "confirmation_policy": "always",
+    "idempotency_policy": "request_key_and_verified_execution_record",
+    "verification_policy": "database_reload_and_scope_comparison",
+    "execution_boundary": "local_database",
+    "binding_schema": {
+      "resolution.selected_id": {
+        "role": "destination_or_existing_object",
+        "types": [
+          "meal_log"
         ]
       }
     }

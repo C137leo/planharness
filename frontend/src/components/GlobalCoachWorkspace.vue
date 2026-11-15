@@ -93,6 +93,7 @@ watch(busy, (active) => {
 })
 onUnmounted(() => { if (busyTimer) clearInterval(busyTimer) })
 const error = ref('')
+const recoveryStatus = ref('')
 const result = ref<AgentChatResult | null>(null)
 const richAnchorMessageId = ref('')
 const richCollapsed = ref(false)
@@ -137,7 +138,7 @@ const checkoutLabels: Record<string, string> = {
   cancelled: '已取消草案', stale: '信息已变化，请重新报价', failed: '提交失败',
 }
 const feedback = computed(() => result.value?.feedback || null)
-const day = computed(() => result.value?.day || null)
+const day = computed(() => result.value?.plan_draft && !result.value?.day?.plan_id ? null : result.value?.day || null)
 const todayBrief = computed(() => result.value?.today_brief || null)
 const briefSchedule = computed(() =>
   (todayBrief.value?.schedule || []).filter(
@@ -375,7 +376,7 @@ function attachmentFor(next: AgentChatResult): CoachAttachment | undefined {
     return {
       kind: '计划草案',
       title: next.plan_draft.summary || next.plan_draft.question || '新的训练计划',
-      detail: next.plan_draft.status === 'ready' ? '确认后才会生成新版本' : '需要补充信息',
+      detail: next.plan_draft.status === 'confirmed' ? '计划已生效' : next.plan_draft.status === 'ready' ? '确认后才会生成新版本' : next.plan_draft.status === 'rejected' ? '草案已取消' : '需要补充信息',
       result: next,
     }
   }
@@ -457,6 +458,7 @@ async function loadHistory(thread = coachWorkspaceThreadId.value, force = false)
   coachWorkspaceHistoryThread.value = thread
   try {
     const rows = await api.agentMessages(50, thread)
+    if (thread !== coachWorkspaceThreadId.value) return
     if (rows.length) {
       messages.value = rows.map((item: AgentMessageItem) => {
         const saved = (item.result || null) as AgentChatResult | null
@@ -502,9 +504,32 @@ async function loadHistory(thread = coachWorkspaceThreadId.value, force = false)
 async function ensureConversation() {
   await loadConversations()
   if (!coachWorkspaceThreadId.value) {
-    coachWorkspaceThreadId.value = coachWorkspaceConversations.value[0]?.thread || newThreadId()
+    coachWorkspaceThreadId.value = api.recoverableChatThread() || coachWorkspaceConversations.value[0]?.thread || newThreadId()
   }
   await loadHistory(coachWorkspaceThreadId.value)
+}
+
+async function recoverPendingChat() {
+  if (busy.value) return
+  const thread = coachWorkspaceThreadId.value
+  busy.value = true
+  try {
+    const recovered = await api.recoverSavedChat(thread)
+    if (thread !== coachWorkspaceThreadId.value) return
+    recoveryStatus.value = recovered?.status || ''
+    if (recovered?.status === 'succeeded' && recovered.result) {
+      result.value = recovered.result
+      await loadHistory(thread, true)
+      richAnchorMessageId.value = messages.value[messages.value.length - 1]?.id || ''
+      recoveryStatus.value = ''
+      emit('changed')
+    }
+  } catch (err) {
+    if (thread === coachWorkspaceThreadId.value) {
+      recoveryStatus.value = 'needs_reconciliation'
+      error.value = describeError(err)
+    }
+  } finally { busy.value = false }
 }
 
 function newConversation() {
@@ -521,6 +546,7 @@ function newConversation() {
   mcdOrderOpen.value = false
   mcdInstruction.value = ''
   error.value = ''
+  recoveryStatus.value = ''
   input.value = ''
   pushMessage('agent', greeting.value)
   coachWorkspaceConversations.value = [
@@ -599,6 +625,7 @@ watch(
     coachWorkspaceLastContext.value = props.context || {}
     input.value = props.initialText || ''
     await ensureConversation()
+    await recoverPendingChat()
     if (props.sessionId) {
       try {
         activeSession.value = await api.getWorkout(props.sessionId)
@@ -606,7 +633,7 @@ watch(
         activeSession.value = null
       }
     }
-    if (props.initialText && props.autoSend) {
+    if (props.initialText && props.autoSend && !recoveryStatus.value) {
       lastAutoText.value = props.initialText
       await nextTick()
       await send(props.initialText)
@@ -683,6 +710,7 @@ async function send(text?: string, confirmation?: { action: 'confirm' | 'cancel'
   pushMessage('user', value)
   busy.value = true
   error.value = ''
+  const sentThread = coachWorkspaceThreadId.value
   try {
     const next = await api.agentChat(
       value,
@@ -690,12 +718,17 @@ async function send(text?: string, confirmation?: { action: 'confirm' | 'cancel'
       props.date || todayStr(),
       props.sessionId || '',
       props.context || {},
-      coachWorkspaceThreadId.value,
+      sentThread,
       undefined,
       confirmation,
       checkoutAction,
       commerceAction,
     )
+    if (sentThread !== coachWorkspaceThreadId.value) {
+      void loadConversations()
+      emit('changed')
+      return
+    }
     if (commerceAction?.action!=='connect' && (next.checkout || next.commerce_catalog || next.commerce_connection)) {
       next.commerce_nutrition ||= previousCommerce?.commerce_nutrition
     }
@@ -721,7 +754,8 @@ async function send(text?: string, confirmation?: { action: 'confirm' | 'cancel'
     emit('changed')
   } catch (err) {
     error.value = describeError(err)
-    pushMessage('agent', `这次没成功：${error.value}`)
+    const pending = err instanceof ApiError && (err.detail as { request_pending?: boolean } | null)?.request_pending
+    pushMessage('agent', `${pending ? '结果待核实' : '这次没成功'}：${error.value}`)
   } finally {
     busy.value = false
   }
@@ -980,6 +1014,7 @@ function focusLabel(focus?: string): string {
 function statusLabel(status?: string): string {
   const labels: Record<string, string> = {
     ready: '待确认',
+    confirmed: '已生效',
     needs_input: '需要补充',
     pending_approval: '待确认',
     committed: '已生效',
@@ -1389,6 +1424,12 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                     <text class="draft-day-count">{{ (weekDay.actions || []).length }} 个动作</text>
                   </view>
                   <text class="draft-day-actions">{{ (weekDay.actions || []).map((a) => actionLabel(a)).join('、') }}</text>
+                </view>
+              </view>
+              <view class="draft-week">
+                <view v-for="(meal, index) in draft.meals || []" :key="`meal-${index}`" class="draft-day">
+                  <text class="draft-day-title">{{ weekdayOf(meal.day_index) }} · {{ MEAL_LABELS[meal.slot] || meal.slot }}</text>
+                  <text class="draft-day-actions">{{ (meal.items || []).map((item) => `${item.name} ${item.grams}g`).join('、') }}</text>
                 </view>
               </view>
             </view>
@@ -1810,6 +1851,10 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
 
           <!-- 输入区固定 -->
           <view class="workspace-composer">
+            <view v-if="recoveryStatus" class="recovery-banner">
+              <text>{{ recoveryStatus === 'running' ? '上次请求仍在处理，可核对结果。' : '上次请求结果待核实，请先查看记录，避免重复操作。' }}</text>
+              <button class="btn-sm" :disabled="busy" @click="recoverPendingChat">核对上次请求</button>
+            </view>
             <view class="composer-input-row">
               <textarea
                 :key="composerEpoch"
@@ -1848,6 +1893,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
 
 
 <style>
+.recovery-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;padding:10px 14px;border:1px solid #efd6a7;border-radius:12px;background:#fff9eb;color:#7a552e;font-size:12px}.recovery-banner .btn-sm{flex-shrink:0;margin:0}
 .composer-tools{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}.composer-orders-entry{display:flex;align-items:center;gap:5px;margin:0;padding:3px 10px;border-radius:12px;line-height:1.5;font-size:10px;background:#fffaf5;border:1px solid #eadbce;color:#87533b}.composer-orders-entry::after{border:0}.composer-orders-icon{font-size:13px;line-height:1}
 
 .composer-mcd-entry{display:flex;align-items:center;gap:5px;border:0;background:#fff6df;color:#b43821;font-size:10px;padding:3px 9px;border-radius:12px;margin:0;line-height:1.5}.composer-mcd-entry image{width:14px;height:14px}.composer-mcd-entry::after{border:0}.composer-mcd-entry[disabled]{opacity:.5}

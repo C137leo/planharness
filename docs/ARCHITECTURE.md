@@ -25,6 +25,8 @@
 
 长期计划由 Plan / PlanVersion 保存，当天临时安排通过 PlanAdjustment 及整日修订服务叠加得到 effective_day；训练记录属于 WorkoutSession / WorkoutLog / WorkoutRecordRevision 等事实实体。重新制定目标和已有完成事实是不同维度，不能拿旧记录充作新目标完成。档案和记忆通过 profile_sync、memory_lifecycle 保持规范来源与生命周期。
 
+首份计划骨架继续来自PlanningAgent/skill，聊天通过独立的initial_requirements目标契约执行并核对数量、目录选择、时长与食材，部分修改保留其他选择。MealLog是实际进食；聊天登记/纠错与页面共用该实体，先确认再写，不能拿MealPlan冒充已吃记录。请求最终结果与消息提交同事务保存，前端按账号保留请求编号供跨刷新只读核实。
+
 商务报价、确认和外部调用有单独 CheckoutDraft / ExternalOperation 等状态；不能把外部提交放进本地事务后声称可一起回滚。运行观测复用 AgentRun、AgentMessage、CoachBusinessSnapshot、CoachTaskExecution；RuntimeConversation 只存空会话元数据，不另存一套消息。
 
 ## 同时存在的执行路径

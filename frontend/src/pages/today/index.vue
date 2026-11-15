@@ -26,6 +26,8 @@ const plan = ref<CurrentPlan | null>(null)
 const loading = ref(true)
 const error = ref('')
 const hasPlan = ref(true)
+const profileReady = ref(false)
+const initialCoachOpen = ref(false)
 // 评审 P-008：教练工作区默认收起，首屏先把"今天练什么/吃什么"露出来。
 const coachOpen = ref(true)
 const dayPlan = ref<AgentDay | null>(null)
@@ -824,6 +826,8 @@ async function load(silent = false) {
     if (err instanceof ApiError && err.statusCode === 404) {
       hasPlan.value = false
       plan.value = null
+      const profile = await api.getProfile()
+      profileReady.value = profile.height_cm >= 120 && profile.weight_kg >= 30 && profile.birth_year >= 1940
     } else {
       error.value = err instanceof Error ? err.message : '加载失败'
     }
@@ -861,7 +865,7 @@ onShow(() => {
     <view class="today-top">
       <view>
         <view class="eyebrow">WORKOUT PLAN HARNESS · {{ todayStr() }} · {{ WEEKDAY_LABELS[weekday - 1] }}</view>
-        <view class="title">{{ hasPlan ? '今天，想怎么练？' : '先告诉我你是谁。' }}</view>
+        <view class="title">{{ hasPlan ? '今天，想怎么练？' : profileReady ? '资料已完成，来建立第一份计划。' : '先告诉我你是谁。' }}</view>
         <view class="subtitle">
           {{ hasPlan ? '不用研究去哪个页面改。告诉我时间、身体状态和训练环境，我来安排。' : '填完基础信息和目标，我让教练生成计划给你确认。' }}
         </view>
@@ -883,7 +887,7 @@ onShow(() => {
     <!-- 还没有计划：先录画像 -->
     <template v-else-if="!hasPlan">
       <view class="card">
-        <view class="section-title">开始之前</view>
+        <view class="section-title">{{ profileReady ? '还没有生效计划' : '开始之前' }}</view>
         <view class="list">
           <view class="list-row">
             <view class="list-main">
@@ -905,9 +909,11 @@ onShow(() => {
           </view>
         </view>
         <view class="btn-row">
-          <view class="btn-sm primary" @click="openProfile">去填写</view>
+          <view v-if="profileReady" class="btn-sm primary" @click="initialCoachOpen = true">生成首份计划</view>
+          <view class="btn-sm" @click="openProfile">{{ profileReady ? '核对档案' : '去填写' }}</view>
         </view>
       </view>
+      <GlobalCoachWorkspace v-if="initialCoachOpen" :visible="initialCoachOpen" page="today" :date="todayStr()" initial-text="根据已保存的档案生成首份训练与饮食计划草案，先预览，不启用。" :auto-send="true" @close="initialCoachOpen = false" @changed="load(true)" />
     </template>
 
     <template v-else-if="plan">

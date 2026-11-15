@@ -44,6 +44,20 @@ GOAL_CODES = {label: code for code, label in GOAL_LABELS.items()}
 LOCATION_CODES = {label: code for code, label in LOCATION_LABELS.items()}
 EQUIPMENT_CODES = {label: code for code, label in EQUIPMENT_LABELS.items()}
 
+
+def normalize_profile_updates(updates: dict) -> dict:
+    """Keep the display label derived from the saved window, including clearing it."""
+    updates = dict(updates)
+    if "preferred_time_window" in updates:
+        window = updates["preferred_time_window"]
+        if not window:
+            updates["preferred_time_label"] = ""
+        elif "preferred_time_label" not in updates:
+            updates["preferred_time_label"] = next(
+                (label for label, pair in TIME_WINDOWS.items() if "-".join(pair) == window), window
+            )
+    return updates
+
 PROFILE_FIELD = {
     "goal": "goal",
     "schedule": "preferred_time_window",

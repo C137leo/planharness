@@ -15,8 +15,14 @@ export function isDesktopViewport(): boolean {
 
 export function syncDesktopChrome(): void {
   try {
-    if (isDesktopViewport()) uni.hideTabBar({ animation: false })
-    else uni.showTabBar({ animation: false })
+    const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
+    const route = pages.length ? pages[pages.length - 1].route || '' : ''
+    if (route && !['pages/today/index', 'pages/plan/index', 'pages/progress/index', 'pages/profile/index'].includes(route)) return
+    // A fail callback prevents uni's Promise adapter from producing an unhandled
+    // rejection if the native page has no tabBar during navigation.
+    const options = { animation: false, fail: () => {} }
+    if (isDesktopViewport()) uni.hideTabBar(options)
+    else uni.showTabBar(options)
   } catch {
     // 非 tab 页面 / 非 H5 环境忽略
   }

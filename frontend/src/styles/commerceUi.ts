@@ -26,6 +26,6 @@ export function dayAttachment(result: AgentChatResult) {
   if (!result.day || isCommerceResult(result)) return undefined
   const changed=(result.task_results || []).some(t=>t.status==='success' && t.actual_changes?.some(c=>['actions','meals'].includes(c.kind) && (!result.day?.date || !c.date || c.date===result.day.date)))
   if (changed) return {kind:'今日调整',title:result.day.summary || '今天的临时安排',result}
-  const inspected=(result.task_plan || []).some(t=>t.capability_id==='state.inspect')
+  const inspected=(result.task_plan || []).some(t=>t.capability_id==='context.inspect')
   return inspected ? {kind:'今日安排',title:'今天的当前安排',result} : undefined
 }

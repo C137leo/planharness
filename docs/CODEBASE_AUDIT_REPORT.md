@@ -4,7 +4,7 @@
 
 ## 当前架构与审计范围
 
-当前架构、运行链和接口分别收敛到 [ARCHITECTURE](ARCHITECTURE.md)、[AGENT_RUNTIME](AGENT_RUNTIME.md)、[API_REFERENCE](API_REFERENCE.md)。统一聊天、14项原本地能力与24项其他边界能力分离于独立Graph/知识/旧评测接口。当前扫描得到104个API方法/路径、38个可派发能力定义；模型实际菜单按上下文/配置过滤。
+当前架构、运行链和接口分别收敛到 [ARCHITECTURE](ARCHITECTURE.md)、[AGENT_RUNTIME](AGENT_RUNTIME.md)、[API_REFERENCE](API_REFERENCE.md)。统一聊天、16项本地能力与28项其他边界能力分离于独立Graph/知识/旧评测接口。当前扫描得到105个API方法/路径、44个可派发能力定义；模型实际菜单按上下文/配置过滤。
 
 递归包括项目隐藏目录；排除node_modules、.git对象、venv、Python/构建缓存、dist/build与vendor依赖目录。Markdown全清单 [markdown-inventory.json](audit/markdown-inventory.json) 按scan_phase区分初始96份和本轮新增7份，保存每份文档路径、主题、用途、模块、准确性、引用、价值、处理与证据、原始hash及跟踪状态。源码静态引用见 [source-references](audit/source-references.json)。本次是保守结构/入口审计和确定安全的文档/生成物清理，不声称逐行安全证明全部业务逻辑。
 

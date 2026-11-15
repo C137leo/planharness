@@ -40,6 +40,12 @@ def execute_mixed(db,user,snapshot,tasks,confirmed=False):
                 else:data=records.read(db,user,sid)
                 db.flush();db.expire_all();after=business_state(db,user,snapshot.payload['dates'])
                 protected=copy.deepcopy(before);protected['sessions'][sid]=copy.deepcopy(after['sessions'][sid])
+                date = target['date']
+                old_logs = before['facts'][date]['workout_logs']
+                new_logs = after['facts'][date]['workout_logs']
+                if [r for r in old_logs if r['session_id'] != sid] != [r for r in new_logs if r['session_id'] != sid]:
+                    raise ValueError('修改了其他会话或手工运动记录，已回滚。')
+                protected['facts'][date]['workout_logs'] = copy.deepcopy(new_logs)
                 if after!=protected:raise ValueError('修改了训练记录以外的资源，已回滚。')
                 if not cap.mutates_state and before!=after:raise ValueError('查询意外修改状态。')
                 changes=resource_changes(before,after)

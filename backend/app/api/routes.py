@@ -258,21 +258,23 @@ def update_profile(
         db.add(profile)
         db.flush()
 
-    changed = []
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        if value is not None:
-            setattr(profile, field, value)
-            changed.append(field)
+    from app.domain.profile_sync import normalize_profile_updates, sync_profile_change
+
+    updates = normalize_profile_updates({field: value for field, value in
+        payload.model_dump(exclude_unset=True).items() if value is not None})
+    changed = list(updates)
+    for field, value in updates.items():
+        setattr(profile, field, value)
     if changed:
         # Profile 是结构化事实的唯一来源：档案页的修改也要同步 canonical Memory
         try:
-            from app.domain.profile_sync import sync_profile_change
-
             sync_profile_change(db, user, profile, changed)
-        except Exception:  # noqa: BLE001 - 档案保存不能因镜像同步失败而回滚
+        except Exception:  # noqa: BLE001 - Profile 与镜像必须同成同败
+            db.rollback()
             logging.getLogger("planharness.memory").exception(
                 "profile -> memory sync failed user=%s", user.id
             )
+            raise HTTPException(status_code=500, detail="档案同步失败，本次修改未保存，请稍后重试。")
         append_event(
             db, f"user:{user.id}", "profile_updated",
             {"fields": changed, "goal": profile.goal},

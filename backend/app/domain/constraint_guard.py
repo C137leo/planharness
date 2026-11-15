@@ -123,7 +123,7 @@ def _replace_for_equipment(action: dict, allowed: set[str], injured: list[str],
     return updated
 
 
-def _fit_day(day: dict, minutes: int, changes: list[str]) -> None:
+def _fit_day(day: dict, minutes: int, changes: list[str], formal_action_count: int | None = None) -> None:
     """把一天的训练压进时长预算：先减动作数，再重分分钟数。"""
     actions = [item for item in (day.get("actions") or [])
                if item.get("action_type") == "exercise"]
@@ -140,6 +140,8 @@ def _fit_day(day: dict, minutes: int, changes: list[str]) -> None:
         max_actions = 2
     else:
         max_actions = 1
+    if formal_action_count is not None:
+        max_actions = formal_action_count
     if len(actions) > max_actions:
         # 先保不同肌群，再按原顺序补位：20 分钟时宁可留"腿 + 上肢"，也不要两个深蹲。
         chosen: list[dict] = []
@@ -243,7 +245,7 @@ def _factual_summary(payload: dict, profile) -> str:
 
 
 def enforce_plan_constraints(payload: dict, profile, memory: dict | None = None,
-                             instruction: str = "") -> list[str]:
+                             instruction: str = "", formal_action_count: int | None = None) -> list[str]:
     """对一份 ready 的计划草案做器械/时长/伤病/餐食校正（原地修改）。"""
     if payload.get("status") != "ready":
         return []
@@ -311,7 +313,7 @@ def enforce_plan_constraints(payload: dict, profile, memory: dict | None = None,
                 f"{_display_name(action)} → {_display_name(replacement)}（{reason}）"
             )
         day["actions"] = kept
-        _fit_day(day, minutes, changes)
+        _fit_day(day, minutes, changes, formal_action_count)
 
     meal_changes = reconcile_meals(payload)
     changes.extend(meal_changes)

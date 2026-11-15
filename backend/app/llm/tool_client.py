@@ -13,6 +13,7 @@ import time
 import httpx
 
 from app.llm.guard import ensure_llm_enabled
+from app.llm.deadline import remaining_timeout
 
 
 class ToolCallingClient:
@@ -64,7 +65,7 @@ class ToolCallingClient:
             headers={"Authorization": f"Bearer {self.api_key}",
                      "Content-Type": "application/json"},
             json=body,
-            timeout=self.timeout_s,
+            timeout=remaining_timeout(self.timeout_s),
         )
         if response.status_code != 200:
             raise RuntimeError(f"deepseek {response.status_code}: {response.text[:200]}")

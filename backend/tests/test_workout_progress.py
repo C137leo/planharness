@@ -194,11 +194,17 @@ def test_confirming_preview_authorizes_saved_effect_without_treating_wait_state_
         plan=finish_defaults(d,True);plan['tasks'][0]['user_goal']='仅生成完成摘要，暂不保存，等待确认';return plan
     model.responses.append(preview);post('给我完成摘要先别保存')
     model.responses.append(lambda d:{'action':'confirm','pending_id':d['pending']['pending_id'],'version':d['pending']['version'],'execute_revision':False})
-    def forbidden_review(*args):raise AssertionError('ordinary confirmation is not a parameter change')
-    monkeypatch.setattr(semantic_planner,'review_mixed_authorization',forbidden_review)
+    review = semantic_planner.review_mixed_authorization
+    reviewed = []
+    def independent_review(*args):
+        value = review(*args)
+        reviewed.append(value)
+        assert not value.new_request_text  # Authorization is not a parameter edit.
+        return value
+    monkeypatch.setattr(semantic_planner, 'review_mixed_authorization', independent_review)
     r=post('这次摘要没问题，确认完成并保存')
     assert r['overall_status']=='success',r
-    assert r['workout_records']['session']['status']=='finished' and r['workout_records']['session']['items'][1]['completed_sets']==1
+    assert reviewed and r['workout_records']['session']['status']=='finished' and r['workout_records']['session']['items'][1]['completed_sets']==1
 
 
 def test_finished_legacy_targets_project_to_today_without_rewriting_training_facts(progress_chat):

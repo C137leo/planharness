@@ -52,7 +52,7 @@ async function submit() {
       note: form.note,
     })
     uni.showToast({ title: '已记录', icon: 'success' })
-    setTimeout(() => uni.switchTab({ url: '/pages/today/index' }), 600)
+    setTimeout(goBack, 600)
   } catch (err) {
     error.value = err instanceof Error ? err.message : '保存失败'
   } finally {

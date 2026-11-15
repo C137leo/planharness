@@ -68,6 +68,18 @@ def execute_revision(db,user,snapshot,tasks,confirmed=False):
                 protected['days'][target['date']]=copy.deepcopy(after['days'][target['date']])
                 for sid,value in after['sessions'].items():
                     if value['date']==target['date']:protected['sessions'][sid]=copy.deepcopy(value)
+                date = target['date']
+                # Replacement archives real sets from superseded sessions. The
+                # domain service verifies those derived logs against the old set
+                # facts; hand-entered logs and every other fact stay immutable.
+                if data.get('workout_policy') == 'replace_remaining':
+                    archived = {sid for sid, value in after['sessions'].items()
+                                if value['date'] == date and value['status'] == 'superseded'}
+                    old_logs = before['facts'][date]['workout_logs']
+                    new_logs = after['facts'][date]['workout_logs']
+                    if [r for r in old_logs if r['session_id'] not in archived] != [r for r in new_logs if r['session_id'] not in archived]:
+                        raise ValueError('重排改变了其他训练或手工运动记录，已回滚。')
+                    protected['facts'][date]['workout_logs'] = copy.deepcopy(new_logs)
                 if after!=protected:raise ValueError('草案提交修改了日期范围以外的资源，已回滚。')
             changes=resource_changes(before,after)
             journal=CoachTaskExecution(user_id=user.id,thread=snapshot.thread,

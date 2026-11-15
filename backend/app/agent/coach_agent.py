@@ -181,7 +181,9 @@ def messages_payload(
 def _run(db, user, text, **kwargs):
     """The only production semantic route. No rule router fallback."""
     from app.agent.semantic_runtime import run as run_semantic
-    return run_semantic(db, user, text, **kwargs)
+    from app.llm.deadline import model_budget
+    with model_budget():
+        return run_semantic(db, user, text, **kwargs)
 
 
 def run(db, user, text, *, request_id=None, **kwargs):
@@ -194,6 +196,7 @@ def run(db, user, text, *, request_id=None, **kwargs):
     from fastapi import HTTPException
     from sqlalchemy.exc import IntegrityError
 
+    db.info.pop('coach_claim_id', None)
     db.info["coach_request_key"] = request_id or new_id()
     if not request_id:
         return _run(db, user, text, **kwargs)
@@ -221,6 +224,7 @@ def run(db, user, text, *, request_id=None, **kwargs):
     except IntegrityError:
         db.rollback()
         return replay(db.get(AgentRun, key))
+    db.info['coach_claim_id'] = key
     try:
         result = _run(db, user, text, **kwargs)
         claim = db.get(AgentRun, key)
@@ -232,6 +236,9 @@ def run(db, user, text, *, request_id=None, **kwargs):
     except Exception:
         db.rollback()
         claim = db.get(AgentRun, key)
-        claim.status = "needs_reconciliation"
-        db.commit()
+        if claim.status != 'succeeded':
+            claim.status = "needs_reconciliation"
+            db.commit()
         raise
+    finally:
+        db.info.pop('coach_claim_id', None)

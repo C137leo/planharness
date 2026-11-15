@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript'),vue=require('vue'),{parse,compileTemplate}=require('@vue/compiler-sfc');
 const read=name=>fs.readFileSync('src/pages/'+name+'/index.vue','utf8');
 test('all adjusted page templates compile without invalid nesting',()=>{
- for(const name of ['profile','progress','workout','plan']){const {descriptor,errors}=parse(read(name));assert.deepEqual(errors,[]);const result=compileTemplate({source:descriptor.template.content,filename:name+'.vue',id:name,compilerOptions:{expressionPlugins:['typescript']}});assert.deepEqual(result.errors,[],name);}
+ for(const name of ['profile','progress','workout','plan','today']){const {descriptor,errors}=parse(read(name));assert.deepEqual(errors,[]);const result=compileTemplate({source:descriptor.template.content,filename:name+'.vue',id:name,compilerOptions:{expressionPlugins:['typescript']}});assert.deepEqual(result.errors,[],name);}
 });
 test('zero calories and completion render zero; percent uses absolute 100-percent scale',()=>{
  const source=read('progress').split('<script setup lang="ts">')[1].split('</script>')[0].replace(/^import [\s\S]*? from [^\n]+\n/gm,'');
@@ -34,4 +34,13 @@ test('zoom/horizontal/consumed gestures and page end are not intercepted',()=>{
 test('line and page wheel units scale without altering the child progress',()=>{
  const c=scroller();c.event.deltaMode=1;c.event.deltaY=2;assert(forward(c.element,c.event));assert.equal(c.page.scrollTop,232);assert.equal(c.element.scrollTop,199.4);
  c.event.deltaMode=2;c.event.deltaY=1;assert(forward(c.element,c.event));assert.equal(c.page.scrollTop,532);
+});
+
+test('non-tab workout page does not call hideTabBar; tab pages consume native failure',()=>{
+ const source=fs.readFileSync('src/composables/desktopChrome.ts','utf8');
+ let route='pages/workout/index';const calls=[];
+ const context={exports:{},window:{innerWidth:1440},getCurrentPages:()=>[{route}],uni:{hideTabBar:o=>{calls.push('hide');assert.equal(typeof o.fail,'function');o.fail({errMsg:'not TabBar page'});},showTabBar:()=>calls.push('show')}};
+ vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2020,module:ts.ModuleKind.CommonJS}}).outputText,context);
+ context.exports.syncDesktopChrome();assert.deepEqual(calls,[]);
+ route='pages/today/index';context.exports.syncDesktopChrome();assert.deepEqual(calls,['hide']);
 });

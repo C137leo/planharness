@@ -12,30 +12,49 @@ binding_contract.py 分开表示对象 resolution 和 parameters_resolved。task
 
 ## 能力与边界
 
-注册入口为 capabilities.py:capability。原本地注册表 14 项；另有 commerce_capabilities、workout_capabilities、day_plan_capabilities。可派发定义的实际明细在 [能力清单](audit/capabilities.json)，按源码重新导出。模型收到的是按上下文和配置筛选后的菜单，不能将可派发总数当成每轮已开放数量。
+注册入口为 capabilities.py:capability。本地注册表16项（原14项加实际进食登记/纠错）；另有 commerce_capabilities、workout_capabilities、day_plan_capabilities，以及 initial_plan_runtime 的4个首份计划生命周期能力，共44项可派发定义。实际明细在 [能力清单](audit/capabilities.json)，按源码重新导出。模型收到的是按上下文和配置筛选后的菜单，不能将可派发总数当成每轮已开放数量。
 
 | execution_boundary | 入口 | 约束 |
 |---|---|---|
-| local_database | task_executor.execute_tasks | 局部训练/食物、档案、记忆、查询、补偿；重读和 scope 比较 |
+| local_database | task_executor.execute_tasks | 局部训练/计划食物、实际进食登记/纠错、档案、记忆、查询、补偿；重读和 scope 比较 |
 | commerce | commerce_runtime.execute_mixed | 外部查询、报价与订单独立生命周期；凭证、门店、库存、价格、幂等及未知结果核实 |
 | workout_lifecycle | workout_runtime.execute_mixed | 真实训练会话、组数事实和完成摘要，不靠回复伪造完成 |
+| initial_plan | initial_plan_runtime.execute | 无生效计划时复用 coach.create_draft/confirm_draft；预览不改档案；档案指纹及草案etag保护；生成、修改、确认、取消分阶段 |
 | day_revision | day_plan_runtime.execute_revision | 整日草案按阶段预览、编辑、确认应用；每轮只执行一个生命周期任务 |
 
 新能力必须同时接入注册、执行边界、确认及验证策略；增加提示词或页面按钮不算完成迁移。
+
+首份计划复用 PlanningAgent/skill 生成骨架，聊天另经 initial_requirements 独立提取结构化目标，不从提议工具参数倒推原意。契约保存正式动作数、目录选择、时长语义、天数、目标、食材/过敏限制；typed delta合并保留未提及条件，部分修改保留未授权更改的动作/餐次，实际分钟数分配含热身并重读验证。生产聊天首份草案跳过旧文本显式编辑与确定性文本重试；结构化目录选择仍经过器械/伤病守卫。无法表达的明确要求列为未完成，不能静默忽略。
+
+无契约的独立草案 API 保留旧兼容提取，仅作用于脱离数据库的输入；已带契约草案的反馈复用新契约链，模型不可用时拒绝绕过。两者生成/反馈都不提前保存 Profile。首份反馈保留档案指纹，失败生成保留上一份ready预览；失败修改的未满足条件存于原待办，不能确认旧预览冒充完成新要求。
 
 ## 确认、连续修改和幂等
 
 CoachPendingPlan 保存绑定任务、snapshot_id、问题及 version。结构化确认使用原 pending_id/version；自然语言控制器只能管理当前保存计划。新增目标、修改参数、选择候选和授权执行是不同操作；无关新请求不携带已放弃局部任务的上下文，编辑原任务或延续整日草案时才保留对应工作流；只授权保留任务子集不能重放其余旧任务。整日/商务草案编辑应引用原草案及尚未满足的要求，不能重置上下文。
 
-档案、记忆、补偿和外部提交等按注册策略确认。确认前校验拥有者、当前对象和版本；热身移除、推断绑定或缺参数另有校验。草案预览不是已经应用，批准预览也不等于批准后续实际提交。
+档案、记忆、补偿和外部提交等按注册策略确认。确认前校验拥有者、当前对象和版本；热身移除、推断绑定或缺参数另有校验。草案预览不是已经应用，批准预览也不等于批准后续实际提交。自然语言confirm还需独立复核具体操作授权；控制器与复核结论取交集，暂缓/只预览不因限定范围变成执行。结构化按钮确认仍校验原任务和版本。新请求的局部任务ID由运行时重新分配；未授权旧写任务不会携入只读请求。
 
-可选 request_id 在执行前保存声明；相同键同请求只重放已完成结果，冲突或执行中/待核实返回 409，不盲重试。商务 ExternalOperation 另外声明外部操作；未知结果先查询对账。补偿是有范围/版本条件的后续操作，不宣称可以回滚已产生的外部订单。
+可选 request_id 在执行前保存声明；相同键同请求只重放已完成结果，冲突或执行中/待核实返回 409，不盲重试。GET /agent/requests/{request_id}按当前用户只读查询声明与最终结果；前端聊天请求超时后仅查询同一声明，不重发POST。模型调用共享120秒预算，前端结果恢复查询有180秒窗口；超出窗口仍标为待核实，不能称失败或自动重试。商务 ExternalOperation 另外声明外部操作；未知结果先查询对账。补偿是有范围/版本条件的后续操作，不宣称可以回滚已产生的外部订单。
+
+finish将精确最终结果、消息与本地提交同事务保存到请求声明，响应中断不能把已完成声明覆盖为未知。超过5分钟仍running的声明在查询时只读投影为needs_reconciliation，不自动重发，也不推断后台已停止。前端按账号持久化请求编号/线程/时间，刷新后打开会话可GET核对；不缓存正文或凭证，不是可重放命令队列。
+
+## 业务事实和同步
+
+普通日期快照包含Checkin、独立WorkoutLog和MealLog；无WorkoutSession不代表没有手工运动。Profile快照保留goal_note，区分目标原话与结构化目标。档案更新和UI表单共用profile_sync，同步canonical镜像后做数据库重读验证。备注明确kind与retention_days；短期有效期按用户时区自然日计算，过期条目不向模型开放；旧数据不依据文本自动推测期限或删除。history.undo只面向支持的资源，Profile恢复通过同一同步服务，训练事实仍不能撤销为未发生。
+
+档案与镜像同步在同一事务内，同步失败不能返回保存成功。训练时段及展示标签成对更新/清空，也成对补偿恢复。聊天 memory.archive 只处理独立备注；canonical 镜像必须先通过 profile.update 预览修改对应档案字段，执行器拒绝单独归档。独立记忆管理 API 保留原有同步清空档案的兼容行为。
+
+前端以发送时的token判断迟到结果/401是否仍属于当前账号；旧账号的响应不展示，旧错误不退出新账号。同账号切换对话也不把旧线程结果追加到新线程。恢复仅核对已有声明，不自动续跑中断执行器或外部未知副作用。
+
+nutrition.record_meal绑定day、nutrition.correct_meal绑定本人meal_log，均先确认后写实际进食。事实与计划餐食分离；营养值必须提供或明确核对估算，不能将未知当0。局部事务重读整个业务状态，越界副作用回滚，差异日志记录meal_logs，不能用普通history.undo抹掉实际记录。
+
+reply_evidence独立核查规划器自由回答/问题中的无依据外食过敏安全承诺，拒绝时用固定证据边界说明；复核不可用时暂缓发布候选结论。它与原规划器仍使用模型服务，不等于独立模型准确率已验收，也不是通用医疗文本审核或全部最终字段的整体目标验证。
 
 ## 商务和训练的事实边界
 
 commerce_availability.py 重新核实附近门店及距离；最近门店关闭时，确认替换为营业门店后继续选餐；范围内无营业门店返回业务解释。库存、报价、取餐方式和下单开关均由实际服务校验。
 
-commerce_history.py 区分 active（有效未付）、paid、inactive、unknown；过期/取消不是有效待付。状态未知不能冒充已付款，历史时间本身不足以证明订单失效，需沿用订单生命周期规则。取餐默认/偏好、位置、选餐与确认界面不改变支付授权边界。
+commerce_history.py 区分 active（有效未付）、paid、inactive、unknown；过期/取消不是有效待付。状态未知不能冒充已付款，历史时间本身不足以证明订单失效，需沿用订单生命周期规则。取餐默认/偏好、位置、选餐与确认界面不改变支付授权边界。纯订单状态查询不重新附带购买确认；报价同时提供用户时区expires_at_label。营养数据和偏好过滤不构成外食过敏安全保证。
 
 workout_records.py、workout_replan.py 和 day_revision.py 分离已记录事实与新目标。整日修改要核验具体动作、份量及显式目标约束；不能仅因工具返回 success 就声称所有时间、动作数量和饮食要求都满足。
 

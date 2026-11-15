@@ -9,7 +9,7 @@ import StableScroll from '../../components/StableScroll.vue'
 import { formatKcal } from '../../styles/numbers'
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { api, type AgentAdjustment, type AgentDay, type CurrentPlan, type PlanAction, type PlanPatchSummary, type PlanVersionHistory } from '../../api'
+import { api, ApiError, type AgentAdjustment, type AgentDay, type CurrentPlan, type PlanAction, type PlanPatchSummary, type PlanVersionHistory } from '../../api'
 import GlobalCoachWorkspace from '../../components/GlobalCoachWorkspace.vue'
 import DesktopSidebar from '../../components/DesktopSidebar.vue'
 import { syncDesktopChrome } from '../../composables/desktopChrome'
@@ -71,7 +71,8 @@ async function load() {
     await loadAdjustments()
     await loadCalendar()
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '加载失败'
+    if (err instanceof ApiError && err.statusCode === 404) plan.value = null
+    else error.value = err instanceof Error ? err.message : '加载失败'
   } finally {
     loading.value = false
   }
@@ -347,6 +348,11 @@ onShow(() => {
     <view v-if="loading" class="card muted">正在加载…</view>
     <view v-else-if="error" class="error">{{ error }}</view>
 
+    <view v-else-if="!plan" class="card">
+      <text class="section-title">还没有生效的计划</text>
+      <text class="muted">先核对档案，再生成训练与饮食草案。确认前不会启用。</text>
+      <view class="btn-row"><view class="btn-sm primary" @click="openCoach('根据已保存的档案生成首份训练与饮食计划草案，先预览，不启用。', true)">生成首份计划</view></view>
+    </view>
     <template v-else-if="plan">
       <view v-if="toast" class="notice">{{ toast }}</view>
 

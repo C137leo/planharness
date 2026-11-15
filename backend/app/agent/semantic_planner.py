@@ -4,7 +4,8 @@ from app.agent.binding_contract import BoundPlan, NaturalPendingControl, MixedAu
 from app.agent.business_snapshot import snapshot_public
 from app.agent.capabilities import manifest
 
-SYSTEM = '''你是 AI 健身教练的语义规划器。自然语言、同义词、口语、否定、条件、跨轮引用及对象绑定完全由你负责。
+SYSTEM = '''首次计划：day.plan_id为空且用户希望建立第一份长期训练/饮食计划时，使用plan.create_initial_draft绑定profile，instruction保留本轮原话与明确约束。此能力不改档案、不启用；系统生成完整训练与饮食草案，确认后才plan.confirm_initial_draft。不是day_plan.create_revision，不要求已有计划。只读/假设/咨询不用生成。已有首份草案可plan.cancel_initial_draft；修改要求用plan.revise_initial_draft保持原约束再生成预览，不能直接确认旧草案。
+你是 AI 健身教练的语义规划器。订单报价优先使用expires_at_label展示本地到期时间，不把UTC小时称作用户当地时间；购物预览只读保留无需额外确认，用户未明确购买不得改成submit_order。只读事实以day.recorded_facts中的checkins/workout_logs/meal_logs为准，手工运动不是WorkoutSession，不能因没有会话否认手工记录。profile.goal_note是已保存目标原话，不等于结构化目标字段。可映射到目标、体重、天数、时长、训练时段、地点、动作喜恶、过敏和忌口的结构化长期事实用profile.update；独立背景偏好和备注才用memory.create(kind=long_term)，短期状态必须保留期限，retention_days按用户本地自然日计含今天；例如今天/明天或这周要据date算到对应结束日，不把本周默认等同未来7天；取消已保存备注使用真实active记忆ID调用archive，不继续补齐旧create。canonical记忆是Profile镜像，不可单独memory.archive；取消长期训练时段等应profile.update清空对应字段并预览确认，展示标签随时间字段同步清空。独立备注才用archive。过敏限制保存不等于已核实所有食品配方，尤其外食商品缺少官方过敏原信息时不能承诺绝对安全，明确数据缺口。自然语言、同义词、口语、否定、条件、跨轮引用及对象绑定完全由你负责。
 重排授权以本轮快照status与usable_for_creation为准。stored_status只用于历史审计；expired/stale/pending/cancelled/applied都不能用于生成replace_remaining草案。没有真正可用的批准时先request_replan保存实际待确认任务，不能只输出一句要求确认的话、不能重复调用create_revision复用过期ID。确认保留原记录与放弃旧未做部分后，先生成预览，最终应用仍另行确认。
 unapplied_proposal_reference是上次未执行的候选，仅用于保留目标、数量和约束，不构成执行授权；所有对象及有效授权ID必须重新从本轮快照取得。失败后的“放弃/确认”要结合最近请求和真实待确认问题解析其宾语，可能指旧未完成安排，不只指取消新草案；没有新草案不代表用户没有重排目标。若指代确实不清楚，针对具体选项澄清。
 必须区分会话结束与训练目标完成。历史status=done/finished不是全部完成证据，以day.current_progress的已记录/目标/剩余组数为准；remaining_sets仍有值或done_sets<total_sets时不能声称全部完成、没有可重排内容。记录只是系统已有自报数据，不是实时观测；用户反映没做完时先核对冲突，不能抹掉记录或按计划补齐。
@@ -54,7 +55,7 @@ commerce_account.focused_product是最近真实读取的对象，只是只读焦
 当前支持能力之外的目标在 answer 说明限制，不调用不存在工具。不要把永久偏好当成本次计划修改。
 若操作或参数本身尚未确定，parameters_resolved=false，保存待澄清目标，不能把不确定的参数作为已批准方案。
 editing_saved_task若parameters_resolved=false，本轮是在补充saved_question中的缺失内容。结合完整原目标和最新真实草案，把用户选择转为真实arguments并验证，不能只置parameters_resolved=true或重放缺少proposal的旧任务。修改day_plan.update_revision时proposal.actions必须为完整目标列表，使用草案target_plan的动作ID（不是旧有效计划ID）；保留未要求改动的热身、餐次和约束，数量写入constraints.max_workout_actions。完成选择不等于应用草案，必须先展示更新后的预览。
-严格区分添加目的地与新增内容：添加动作的 selected_id 是 day，exercise_id 是目录 exercise；添加食物的 selected_id 是 meal，ingredient_id 是目录 ingredient。不得互换角色。
+实际进食登记用nutrition.record_meal绑定真实day；纠错用nutrition.correct_meal绑定meal_log，只改用户指定字段。餐次、描述、热量及蛋白需要用户提供或明确核对估算，未知营养不能填0，缺值先澄清；假设、计划吃、不记录和只查询不登记。不要用meal.add_food代替事实记录；按计划吃完也必须先展示具体实际值让用户确认，不推断其他餐已吃。\n严格区分添加目的地与新增内容：添加动作的 selected_id 是 day，exercise_id 是目录 exercise；添加食物的 selected_id 是 meal，ingredient_id 是目录 ingredient。不得互换角色。
 档案体重更新不等于热量及训练负荷已重算。用户要求重算时，只有存在足够依据才能输出具体 meal.set_quantity / workout.update_action；缺少能力或依据必须列入 unfulfilled_goals 并说明还需要的信息，不能只更新体重就宣称完成整体目标。
 每个写目标必须得到 user_goal、合法 arguments 及 resolution。不要输出 confidence 数字。
 训练计划与实际事实分开，但明确的用户自报完成也是有效记录来源。用户说某个动作/热身已完成时，用workout.record_progress绑定进行中session_item并复制父session.record_revision，明确完成用as_planned，实际仅做几组用actual总数；必须真正写入进度，不能只回复“记下了”或虚称不支持。已完成同一条目再次报告不重复累计。缺少会话或对象不唯一时澄清，不编造。
@@ -102,8 +103,11 @@ def structured_call(client, system, data, schema, trace, stage):
             trace.append({'stage':stage+'_started','status':'started','timestamp':utcnow().isoformat(),'context_input':context_input})
         except Exception:
             pass
+        from app.llm.deadline import remaining_timeout
+        remaining_timeout()
         response = client.complete(messages, response_format={"type": "json_object"},
                                    temperature=0, max_tokens=6000 if attempt else 4000, reasoning_effort="low")
+        remaining_timeout()
         raw = (response.get("message") or {}).get("content") or ""
         try:
             # pydantic验证?
@@ -121,6 +125,18 @@ def structured_call(client, system, data, schema, trace, stage):
 
 
 def plan(client, text, snapshot, recent, date, server_date, trace, *, source_text=None):
+    parsed = _plan(client, text, snapshot, recent, date, server_date, trace, source_text=source_text)
+    from app.agent.reply_evidence import review as review_reply
+    if parsed.mode != 'load_context':
+        for task in parsed.tasks:
+            if task.capability_id in {'plan.create_initial_draft', 'plan.revise_initial_draft'} and task.parameters_resolved and task.resolution.status == 'resolved':
+                from app.agent.initial_requirements import extract
+                goal = extract(client, source_text or text, task, snapshot, trace, recent)
+                task.arguments = {**task.arguments, 'goal_contract': goal.model_dump()}
+    return review_reply(client, parsed, snapshot, trace)
+
+
+def _plan(client, text, snapshot, recent, date, server_date, trace, *, source_text=None):
     from app.agent.task_executor import validate_tasks, TaskFailure
     data = {"user_text": text, "source_user_text":source_text or text, "date": str(date), "server_date": str(server_date),
             "snapshot": snapshot_public(snapshot), "capabilities": planner_manifest(snapshot), "recent_messages": recent}
@@ -265,6 +281,15 @@ def control(client, text, pending, snapshot, trace):
             if disposition.action=='retain':return command.model_copy(update={'action':'clarify','question':disposition.reply})
         except Exception:
             return command.model_copy(update={'action':'clarify','question':'方案已保留，尚未应用。请明确是继续预览，还是取消整份方案。'})
+    # A controller's `confirm` is a proposal, not execution authority. Independently
+    # compare concrete saved effects with the current utterance, fail closed.
+    if command.action == 'confirm' and all(t.get('parameters_resolved', True) for t in pending.tasks):
+        candidate = command.model_copy(update={'keep_task_ids': [t['task_id'] for t in pending.tasks]})
+        reviewed = review_mixed_authorization(client, text, pending, candidate, trace)
+        if reviewed.new_request_text.strip():
+            return reviewed.model_copy(update={'action': 'new_request'})
+        if set(reviewed.keep_task_ids) != {t['task_id'] for t in pending.tasks}:
+            return command.model_copy(update={'action': 'clarify', 'question': '尚未执行修改。请核对预览；只有明确确认本次修改后才会保存。'})
     # 如果是 修订,澄清,新要求的话判断是否要混合任务
     unresolved={t['task_id'] for t in pending.tasks if not t.get('parameters_resolved',True)}
     if command.action in {'revise','clarify','new_request'} or (unresolved and command.action=='confirm'):
@@ -275,16 +300,21 @@ def control(client, text, pending, snapshot, trace):
             return reviewed.model_copy(update={'action':'new_request',
                 'new_request_text':reviewed.new_request_text or text,
                 'execute_revision':bool(command.execute_revision and reviewed.keep_task_ids)})
-        if command.action=='new_request':return command.model_copy(update={'edit_task_ids':reviewed.edit_task_ids})
+        if command.action=='new_request':return reviewed.model_copy(update={'new_request_text': reviewed.new_request_text or command.new_request_text})
         if unresolved and command.action in {'confirm','revise'}:
             return command.model_copy(update={'action':'clarify','parameter_resolutions':[],
                 'question':command.question or pending.question})
+        if command.action == 'revise' and command.execute_revision:
+            if not reviewed.keep_task_ids:
+                return command.model_copy(update={'execute_revision': False})
+            return reviewed.model_copy(update={'action': 'revise'})
     return command
 
 
 def review_mixed_authorization(client, text, pending, command, trace):
     verdict = structured_call(client,
         "你独立审核混合输入的执行授权，不参考前一个模型的推理。将每个旧任务的具体操作效果与用户当前完整表达比较。"
+        "本轮仍然不要保存、先核对、暂不执行等表达不授权写入，approved_task_ids必须为空。不要把限定修改范围误读为立即执行。"
         "仅返回本轮明确批准且方向和参数完全不变的旧任务 ID。用户说对但随后否定、恢复、保留、修改方向时，不能批准相反的旧操作。"
         "未执行的删除不需要通过先删再恢复来实现保留。new_request_text 用完整实体名称和具体要求重述新增部分，保留条件否定，不能用含糊的它或刚才那个。"
         "修改数量、次数、时间、完成摘要默认值等参数也是新要求，即使只要求修改预览也必须在new_request_text重述，保留其余已选默认值及原目标。不能只改确认问题文字。"
@@ -308,11 +338,14 @@ def review_mixed_authorization(client, text, pending, command, trace):
     return command.model_copy(update={"keep_task_ids": approved,
         "parameter_resolutions": [id for id in command.parameter_resolutions if id in approved],
         "selections": {id: value for id, value in command.selections.items() if id in approved},
-        "execute_revision": bool(approved), "new_request_text": verdict.new_request_text,'edit_task_ids':verdict.modified_task_ids})
+        "execute_revision": bool(approved) and (command.action == 'confirm' or command.execute_revision), "new_request_text": verdict.new_request_text,'edit_task_ids':verdict.modified_task_ids})
 
 
 def planner_manifest(snapshot):
     result = manifest()
+    if any(o['type'] == 'profile' for o in snapshot.payload['objects']) and not any(o.get('plan_id') for o in snapshot.payload['objects'] if o['type'] == 'day'):
+        from app.agent.initial_plan_runtime import CAPABILITIES as INITIAL_CAPABILITIES
+        result += [c.public() for c in INITIAL_CAPABILITIES.values()]
     if snapshot.payload.get('day_revision'):
         from app.agent.day_plan_capabilities import CAPABILITIES as DAY_CAPABILITIES
         result += [c.public() for c in DAY_CAPABILITIES.values()]

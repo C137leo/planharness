@@ -43,6 +43,7 @@ const form = reactive({
   equipment: [] as string[],
   allergiesText: '',
   dietText: '',
+  dislikesText: '',
   likesText: '',
   preferred_time_label: '',
   preferred_time_window: '',
@@ -97,6 +98,7 @@ function applyProfile(profile: Profile) {
   form.equipment = [...(profile.equipment || [])]
   form.allergiesText = (profile.allergies || []).join('、')
   form.dietText = (profile.diet_preferences || []).join('、')
+  form.dislikesText = (profile.dislikes || []).join('、')
   form.likesText = (profile.likes || []).join('、')
   form.preferred_time_label = profile.preferred_time_label || ''
   form.preferred_time_window = profile.preferred_time_window || ''
@@ -173,6 +175,7 @@ async function save(): Promise<boolean> {
       equipment: form.equipment,
       allergies: splitList(form.allergiesText),
       diet_preferences: splitList(form.dietText),
+      dislikes: splitList(form.dislikesText),
       likes: splitList(form.likesText),
       preferred_time_label: form.preferred_time_label,
       preferred_time_window: form.preferred_time_window,
@@ -481,6 +484,8 @@ onShow(() => {
         <view class="field">
           <text class="label">忌口 / 不吃的</text>
           <input v-model="form.dietText" class="input" placeholder="例如：牛肉、香菜" />
+          <text class="muted">教练记录的不喜欢 / 不吃（包括动作或食物）</text>
+          <input class="input" v-model="form.dislikesText" placeholder="例如：香菜" />
         </view>
       </view>
 </view>

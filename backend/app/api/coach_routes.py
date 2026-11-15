@@ -297,6 +297,26 @@ def agent_chat(
     return ok(request, result)
 
 
+@router.get("/agent/requests/{request_id}")
+def agent_request_result(request_id: str, request: Request,
+                         user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Read-only reconciliation; never dispatch or replay a timed-out write."""
+    from uuid import NAMESPACE_URL, uuid5
+    from app.models import AgentRun
+    if not request_id or len(request_id) > 128:
+        raise HTTPException(422, '请求编号无效')
+    row = db.get(AgentRun, str(uuid5(NAMESPACE_URL, f'coach:{user.id}:{request_id}')))
+    if row is None or row.user_id != user.id or row.kind != 'coach_request':
+        raise HTTPException(404, '尚未查询到该请求，请核对消息记录，不要重复提交')
+    from app.domain.timeutil import as_utc
+    state = row.status
+    if state == 'running' and dt.datetime.now(dt.timezone.utc) - as_utc(row.created_at) > dt.timedelta(minutes=5):
+        # Read-only projection: an old claim is uncertain, never permission to retry.
+        state = 'needs_reconciliation'
+    return ok(request, {'request_id': request_id, 'status': state, 'thread': row.input.get('thread', 'coach'),
+                        'result': row.output if state == 'succeeded' else None})
+
+
 @router.get("/agent/messages")
 def agent_messages(
     request: Request,

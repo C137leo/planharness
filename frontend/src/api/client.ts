@@ -1,4 +1,5 @@
 import { resetCoachWorkspace } from '../composables/coachWorkspace'
+import { lastSavedChatRequest, rememberChatRequest, forgetChatRequest } from './chatRequests'
 import type {
   MealLogItem,
   AgentChatResult,
@@ -74,17 +75,20 @@ export function setStoredToken(token: string): void {
 }
 
 /** 麦当劳 MCP token 按登录用户分别存在本机；是否映射服务端 token 由后端配置决定。 */
-function mcdStorageKey(): string {
-  const auth = getStoredToken()
-  if (!auth) return `${MCD_TOKEN_KEY}:anon`
+function accountStorageId(auth = getStoredToken()): string {
+  if (!auth) return ''
   try {
     const raw = auth.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
     const padded = raw.padEnd(Math.ceil(raw.length / 4) * 4, '=')
     const payload = JSON.parse(globalThis.atob(padded)) as { sub?: string }
-    return `${MCD_TOKEN_KEY}:${payload.sub || 'anon'}`
+    return typeof payload.sub === 'string' ? payload.sub : ''
   } catch {
-    return `${MCD_TOKEN_KEY}:anon`
+    return ''
   }
+}
+
+function mcdStorageKey(): string {
+  return `${MCD_TOKEN_KEY}:${accountStorageId() || 'anon'}`
 }
 
 export function getStoredMcdToken(): string {
@@ -134,6 +138,7 @@ async function rawRequest<T>(
     uni.request({
       url: `${API_BASE}${path}`,
       method,
+      timeout: path === '/agent/chat' ? 15000 : 60000,
       data: data as object,
       header: {
         'Content-Type': 'application/json',
@@ -197,18 +202,73 @@ async function request<T>(
   try {
     token = await ensureToken()
   } catch (err) {
-    if (err instanceof ApiError && err.statusCode === 401) handleUnauthorized()
+    if (err instanceof ApiError && err.statusCode === 401 && !getStoredToken()) handleUnauthorized()
     throw err
   }
   try {
-    return await rawRequest<T>(method, path, data, token, extraHeaders)
+    const result = await rawRequest<T>(method, path, data, token, extraHeaders)
+    if (getStoredToken() !== token) throw new ApiError('登录账户已变化，已丢弃旧请求结果。', 409)
+    return result
   } catch (error) {
-    if (error instanceof ApiError && error.statusCode === 401) {
-      // 不再悄悄换一个身份重试：把用户送回登录页，由他决定登哪个账号
+    if (error instanceof ApiError && error.statusCode === 401 && getStoredToken() === token) {
+      // 旧账号的延迟响应不能清除用户刚切换的新登录态。
       handleUnauthorized()
     }
     throw error
   }
+}
+
+async function chatWithRecovery(payload: Record<string, unknown>, headers: Record<string, string>): Promise<AgentChatResult> {
+  const auth = getStoredToken()
+  const owner = accountStorageId(auth)
+  const requestId = String(payload.request_id)
+  rememberChatRequest(owner, requestId, String(payload.thread || 'coach'))
+  const sameAccount = () => {
+    if (getStoredToken() !== auth) throw new ApiError('登录账户已变化，已停止读取旧请求。', 409)
+  }
+  try {
+    const result = await request<AgentChatResult>('POST', '/agent/chat', payload, headers)
+    sameAccount()
+    forgetChatRequest(owner, requestId)
+    return result
+  } catch (err) {
+    sameAccount()
+    if (!(err instanceof ApiError) || (err.statusCode !== 0 && err.statusCode < 500)) {
+      forgetChatRequest(owner, requestId)
+      throw err
+    }
+    const deadline = Date.now() + 180000
+    while (Date.now() < deadline) {
+      sameAccount()
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      let saved: { status: string; result: AgentChatResult | null }
+      try {
+        saved = await request('GET', `/agent/requests/${encodeURIComponent(String(payload.request_id))}`)
+      } catch (pollError) {
+        if (pollError instanceof ApiError && pollError.statusCode === 401) throw pollError
+        continue
+      }
+      sameAccount()
+      if (saved.status === 'succeeded' && saved.result) {
+        forgetChatRequest(owner, requestId)
+        return saved.result
+      }
+      if (saved.status !== 'running') throw new ApiError('该请求需要核对执行记录，未重复提交。请查看聊天历史后继续。', 0, { request_pending: true, request_id: payload.request_id })
+    }
+    throw new ApiError('请求结果仍待核实，未重复提交。请稍后重新打开聊天查看最终结果。', 0, { request_pending: true, request_id: payload.request_id })
+  }
+}
+
+async function recoverSavedChat(thread: string): Promise<{ request_id: string; status: string; result: AgentChatResult | null } | null> {
+  const auth = getStoredToken(), owner = accountStorageId(auth)
+  const saved = lastSavedChatRequest(owner, thread)
+  if (!saved) return null
+  const result = await request<{request_id: string; status: string; thread: string; result: AgentChatResult | null}>(
+    'GET', `/agent/requests/${encodeURIComponent(saved.request_id)}`)
+  if (auth !== getStoredToken()) throw new ApiError('登录账户已变化，已停止读取旧请求。', 409)
+  if (result.thread !== thread) throw new ApiError('上次请求所属会话不一致，请核对聊天历史。', 409)
+  if (result.status === 'succeeded' && result.result) forgetChatRequest(owner, saved.request_id)
+  return result
 }
 
 /** 后端版本可能比前端旧：把可能缺失的数组字段补成空数组。
@@ -432,6 +492,8 @@ export const api = {
   getRun: (runId: string) => request<RunDetail>('GET', `/runs/${runId}`),
 
   // ---- 统一教练 Agent：所有页面共用同一个入口 ----
+  recoverSavedChat,
+  recoverableChatThread: () => lastSavedChatRequest(accountStorageId())?.thread || '',
   commerceStatus: () => request<{ status: 'ready' | 'token_required'; guide_url: string; allow_order: boolean }>('GET', '/agent/commerce/status', undefined, mcdHeaders(getStoredMcdToken())),
   commerceOrders: (group: import('./types').CommerceOrderGroup = 'active', cursor = '') => request<import('./types').CommerceOrderPage>('GET', `/agent/commerce/orders?group=${group}&limit=20&cursor=${encodeURIComponent(cursor)}`, undefined, mcdHeaders(getStoredMcdToken())),
   commerceOrderDetail: (id: string) => request<import('./types').CommerceHistoryOrder>('GET', `/agent/commerce/orders/${encodeURIComponent(id)}`, undefined, mcdHeaders(getStoredMcdToken())),
@@ -451,7 +513,7 @@ export const api = {
     checkoutAction?: import('./types').CheckoutAction,
     commerceAction?: import('./types').CommerceAction,
   ) =>
-    request<AgentChatResult>('POST', '/agent/chat', {
+    chatWithRecovery({
       request_id: requestId,
       confirmation,
       checkout_action: checkoutAction,

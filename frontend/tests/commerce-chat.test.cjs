@@ -14,7 +14,7 @@ test('checkout chips preserve server draft/version and use structured actions',a
 test('chat API sends token in header and checkout action in body',()=>{
  const client=fs.readFileSync('src/api/client.ts','utf8');
  const code=client.slice(client.indexOf('  agentChat: ('),client.indexOf('  agentMessages: ('));
- const calls=[];const ctx={request:(...args)=>calls.push(args),mcdHeaders:t=>({'X-MCD-Token':t}),getStoredMcdToken:()=> 'test-token'};
+ const calls=[];const ctx={chatWithRecovery:(payload,headers)=>calls.push(['POST','/agent/chat',payload,headers]),mcdHeaders:t=>({'X-MCD-Token':t}),getStoredMcdToken:()=> 'test-token'};
  compile('const api={'+code+'};globalThis.api=api',ctx);
  ctx.api.agentChat('外带','today','2026-11-12','',{},'thread','req',undefined,{action:'choose_take_way',checkout_id:'id',version:2,take_way_code:'locker-out'});
  assert.equal(calls[0][1],'/agent/chat');assert.equal(calls[0][2].checkout_action.version,2);assert.equal(calls[0][3]['X-MCD-Token'],'test-token');

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.domain.day_plan import effective_day, ensure_object_ids, save_override
 from app.domain.timeutil import as_utc
 from app.models import (CoachBindingObject, CoachBusinessSnapshot, CoachTaskExecution,
-                        Memory, Profile, WorkoutSession, new_id)
+                        Memory, Profile, WorkoutSession, PlanDraft, Plan, Checkin, WorkoutLog, MealLog, new_id)
 
 
 def digest(value):
@@ -26,7 +26,7 @@ def identity(db, user, kind, key, payload):
 
 def profile_data(db, user):
     row = db.get(Profile, user.id)
-    keys = ("goal", "weight_kg", "weekly_days", "session_minutes", "preferred_time_window",
+    keys = ("goal", "goal_note", "sex", "birth_year", "height_cm", "training_experience", "timezone", "weight_kg", "weekly_days", "session_minutes", "preferred_time_window", "preferred_time_label",
             "preferred_location", "dislikes", "likes", "allergies", "diet_preferences", "equipment")
     return {key: copy.deepcopy(getattr(row, key)) for key in keys} if row else {}
 
@@ -45,9 +45,20 @@ def business_state(db, user, dates):
     sessions = {s.id: {"date": s.date.isoformat(), "status": s.status, "items": copy.deepcopy(s.items)}
                 for s in db.scalars(select(WorkoutSession).where(WorkoutSession.user_id == user.id,
                             WorkoutSession.date.in_([dt.date.fromisoformat(d) for d in dates])))}
-    memories = {m.id: {"category": m.category, "value": m.value, "status": m.status, "structured": m.structured}
+    memories = {m.id: {"category": m.category, "value": m.value, "status": m.status, "structured": m.structured,
+                          "kind": m.kind, "expires_at": as_utc(m.expires_at).isoformat() if m.expires_at else None}
                 for m in db.scalars(select(Memory).where(Memory.user_id == user.id))}
-    return {"days": days, "profile": profile_data(db, user), "sessions": sessions, "memories": memories}
+    facts = {}
+    for date in dates:
+        facts[date] = {}
+        for label, model, keys in (
+            ('checkins', Checkin, ('id', 'weight_kg', 'sleep_hours', 'adherence_pct', 'note')),
+            ('workout_logs', WorkoutLog, ('id', 'action_ref', 'duration_min', 'sets', 'reps', 'session_id', 'details')),
+            ('meal_logs', MealLog, ('id', 'slot', 'title', 'kcal', 'protein_g', 'note')),
+        ):
+            facts[date][label] = [{key: copy.deepcopy(getattr(row, key)) for key in keys}
+                for row in db.scalars(select(model).where(model.user_id == user.id, model.date == dt.date.fromisoformat(date)).order_by(model.id))]
+    return {"days": days, "profile": profile_data(db, user), "sessions": sessions, "memories": memories, "facts": facts}
 
 
 def build_snapshot(db, user, thread, dates, *, exercise_catalog=False, history_limit=12, day_revision=False):
@@ -82,7 +93,7 @@ def build_snapshot(db, user, thread, dates, *, exercise_catalog=False, history_l
             for item in meal["items"]:
                 objects.append({**copy.deepcopy(item), "type": "food_item", "date": date, "parent_id": meal["id"]})
     if db.get(Profile, user.id):
-        objects.append({"id": user.id, "type": "profile", **profile_data(db, user)})
+        objects.append({"id": user.id, "type": "profile", "name": "个人档案", **profile_data(db, user)})
     from app.domain.nutrition_catalog import FOOD_MACROS_PER_100G
     for name, macros in FOOD_MACROS_PER_100G.items():
         row = identity(db, user, "ingredient", name, {"name": name, "macros_per_100g": macros})
@@ -98,6 +109,20 @@ def build_snapshot(db, user, thread, dates, *, exercise_catalog=False, history_l
     if db.info.get("commerce_provider"):
         from app.domain.commerce import snapshot_objects
         objects.extend(snapshot_objects(db,user.id,thread,db.info["commerce_provider"]))
+    facts = business_state(db, user, dates)['facts']
+    for date, values in facts.items():
+        objects.extend({**row, 'type': 'meal_log', 'date': date, 'name': row['title']}
+                       for row in values['meal_logs'])
+    for obj in objects:
+        if obj['type'] == 'day':
+            obj['recorded_facts'] = facts[obj['date']]
+    from app.agent.initial_plan_runtime import draft_revision
+    for draft in db.scalars(select(PlanDraft).where(PlanDraft.user_id == user.id,
+            PlanDraft.plan_id.is_(None), PlanDraft.status == 'ready').order_by(PlanDraft.created_at.desc()).limit(5)):
+        objects.append({'id': draft.id, 'type': 'initial_plan_draft', 'name': '首份训练与饮食计划草案',
+                        'etag': draft_revision(draft), 'status': draft.status, 'instruction': draft.instruction,
+                        'goal_contract': draft.payload.get('meta', {}).get('goal_contract'),
+                        'days': draft.payload.get('days', []), 'meals': draft.payload.get('meals', [])})
     state = business_state(db, user, dates)
     if day_revision:
         from app.domain import day_revision as revisions
@@ -128,14 +153,15 @@ def build_snapshot(db, user, thread, dates, *, exercise_catalog=False, history_l
                         "target_basis":"historical_session" if session.status in {'finished','superseded','abandoned'} else 'live_session'}
                        for item in shown["items"])
     for mid, value in state["memories"].items():
-        if value["status"] == "active":
+        if value["status"] == "active" and (not value.get('expires_at') or dt.datetime.fromisoformat(value['expires_at']) > dt.datetime.now(dt.timezone.utc)):
             objects.append({"id": mid, "type": "memory", **value})
     history = list(db.scalars(select(CoachTaskExecution).where(CoachTaskExecution.user_id == user.id,
                          CoachTaskExecution.thread == thread).order_by(CoachTaskExecution.created_at.desc()).limit(history_limit)))
     for row in reversed(history):
         objects.append({"id": row.id, "type": "execution", "date": row.effective_date.isoformat(),
                         "task_id": row.task_id, "request_key": row.request_key, "operation": row.operation,
-                        "goal": row.goal, "status": row.status, "changes": row.resource_changes})
+                        "goal": row.goal, "status": row.status, "changes": row.resource_changes,
+                        "undo_supported": bool(row.resource_changes) and all(c['kind'] in {'actions', 'meals', 'profile'} or (c['kind'] == 'memories' and row.operation == 'profile.update') for c in row.resource_changes) and row.domain not in {'day_revision', 'workout_lifecycle', 'initial_plan'}})
     ids = [o["id"] for o in objects]
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate_snapshot_object_id")

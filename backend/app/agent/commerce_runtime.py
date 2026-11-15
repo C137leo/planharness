@@ -98,7 +98,7 @@ def _service_call(db,user,snapshot,task,confirmed):
     raise service.CheckoutError('不支持该商务能力。')
 
 
-def attach_checkout(db,user,thread,result,checkout,dates):
+def attach_checkout(db,user,thread,result,checkout,dates, *, offer_submission=True):
     from app.agent.semantic_runtime import make_pending, pending_payload
     result['checkout']=checkout
     status=checkout['status']
@@ -125,6 +125,9 @@ def attach_checkout(db,user,thread,result,checkout,dates):
         result['actions']=ways
         result['reply']+='\n请选择取餐方式后核对并确认。'
     elif status=='awaiting_confirmation':
+        if not offer_submission:
+            result['actions'] = []
+            return
         if not service.provider(db).allow_orders:
             result['actions']=[]
             result['reply']+='\n当前配置关闭订单提交，此预览不能下单。'
@@ -219,7 +222,8 @@ def execute_mixed(db,user,snapshot,tasks,confirmed):
     if order_conflict:result['order_conflict']=order_conflict
     if catalog:result['commerce_catalog']=catalog
     if recovery:result.update(recovery)
-    if last_checkout and not recovery:attach_checkout(db,user,snapshot.thread,result,last_checkout,snapshot.payload['dates'])
+    if last_checkout and not recovery:attach_checkout(db,user,snapshot.thread,result,last_checkout,snapshot.payload['dates'],
+        offer_submission=any(t.capability_id in {'commerce.prepare_order','commerce.revise_order','commerce.submit_order'} for t in tasks))
     return result
 
 
@@ -312,7 +316,7 @@ def structured_action(db,user,thread,day,command):
         db.commit();data={'checkout':service.public_draft(row),'message':service.preview_text(row),'status':'success'}
     result={'overall_status':data['status'],'reply':data['message'],'actions':[],'task_results':[]}
     if data.get('order'):result['order']=data['order']
-    attach_checkout(db,user,thread,result,data['checkout'],[str(day)])
+    attach_checkout(db,user,thread,result,data['checkout'],[str(day)], offer_submission=command.action!='query')
     return result
 
 

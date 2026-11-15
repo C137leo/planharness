@@ -10,7 +10,7 @@ from decimal import Decimal
 from urllib.parse import urlparse, parse_qs
 from sqlalchemy import select, update
 from sqlalchemy.orm import sessionmaker
-from app.models import CommerceObject, CheckoutDraft, ExternalOperation, User, new_id, utcnow
+from app.models import Profile, CommerceObject, CheckoutDraft, ExternalOperation, User, new_id, utcnow
 from app.domain.timeutil import as_utc
 from app.domain import external_operations, order_lifecycle
 from app.food.commerce_contract import CartLine
@@ -90,9 +90,17 @@ def draft_owned(db,user_id,thread,account,id):
 
 
 def public_draft(row):
+    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+    zone = row.quote.get('timezone') or 'Asia/Shanghai'
+    try:
+        local_expiry = as_utc(row.expires_at).astimezone(ZoneInfo(zone))
+    except (ZoneInfoNotFoundError, ValueError):
+        zone = 'Asia/Shanghai'
+        local_expiry = as_utc(row.expires_at).astimezone(ZoneInfo(zone))
     return {'id':row.id,'type':'checkout','version':row.version,'status':row.status,'cart':row.cart,
             'store_id':row.store_id,
             'quote':row.quote,'take_way_code':row.take_way_code,'expires_at':as_utc(row.expires_at).isoformat(),
+            'expires_at_label':local_expiry.strftime('%Y-%m-%d %H:%M')+'（'+zone+'）',
             'operation_id':row.operation_id,'name':'麦当劳订单预览',
             'order':order_lifecycle.present(row.quote.get('order'),utcnow()) if row.quote.get('order') else None,
             'order_conflict':row.quote.get('order_conflict')}
@@ -345,6 +353,8 @@ def quote_preview(db,uid,thread,p,store_id,lines,take_way,*,key=None,draft_id=No
             return row
         row=CheckoutDraft(id=new_id(),user_id=uid,thread=thread,account_key=p.account_key,store_id=store_id,request_key=key)
         db.add(row)
+    profile = db.get(Profile, uid)
+    quote = {**quote, 'timezone': getattr(profile, 'timezone', 'Asia/Shanghai')}
     row.cart,row.quote,row.take_way_code=cart,quote,take_way
     row.status='awaiting_confirmation' if take_way else 'needs_selection'
     row.expires_at=utcnow()+dt.timedelta(minutes=5)
@@ -635,8 +645,18 @@ def query_checkout(db,uid,thread,p,id):
         db.commit()
         return {'status':'success' if verified else 'unknown','checkout':public_draft(draft),'order':observed,
                 'message':('已核实订单状态。' if verified else '已读取官方订单状态；餐品等完整信息仍待核实。') if observed['lifecycle']!='unknown' else '订单仍待核实，未重新提交。'}
-    return {'status':'unknown' if draft.status in {'unknown','submitting','verifying'} else draft.status,
-            'checkout':public_draft(draft),'message':'没有可验证的远程订单编号；未重新下单，请在麦当劳账号核对。' if draft.status in {'unknown','submitting','verifying'} else preview_text(draft)}
+    if draft.status in {'unknown', 'submitting', 'verifying'}:
+        message = '没有可验证的远程订单编号；未重新下单，请在麦当劳账号核对。'
+    elif draft.status in {'awaiting_confirmation', 'needs_selection'}:
+        message = '只有报价预览，尚未提交订单。'
+        if as_utc(draft.expires_at) <= utcnow():
+            message += '报价已过期，需要重新报价。'
+    elif draft.status == 'cancelled':
+        message = '订单草案已取消，未提交订单。'
+    else:
+        message = preview_text(draft)
+    return {'status': 'unknown' if draft.status in {'unknown', 'submitting', 'verifying'} else draft.status,
+            'checkout': public_draft(draft), 'message': message}
 
 
 def cancel_existing_order(db,uid,thread,p,id,version,existing_id,fingerprint,*,confirmed):

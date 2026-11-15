@@ -21,6 +21,10 @@ class Scripted:
         assert "JSON" in messages[0]["content"]  # Provider json_object protocol requirement.
         data = json.loads(messages[-1]["content"])
         self.calls.append(data)
+        if 'reply_evidence_input' in data:
+            return {'message': {'content': json.dumps({'unsupported_safety_claim': False})}}
+        if 'initial_goal_input' in data:
+            return {'message': {'content': '{}'}}
         if 'revision_goal_input' in data:
             # Legacy protocol fixtures make no independent semantic claim.
             # Goal-agreement regressions supply a dedicated independent model;
@@ -36,7 +40,7 @@ class Scripted:
                 'meal_slots':sorted(meal_slots-{'workout'}),'meal_rules':rules.get('meal_ingredient_rules',[])}
         elif "saved_tasks" in data:
             previous = self.last_output
-            output = {"approved_task_ids": previous.get("keep_task_ids", []), "new_request_text": previous.get("new_request_text", ""),"modified_task_ids":previous.get('edit_task_ids',[])}
+            output = {"approved_task_ids": (previous.get("keep_task_ids", []) if previous.get("action") != "confirm" else [t["task_id"] for t in data["saved_tasks"]]), "new_request_text": previous.get("new_request_text", ""),"modified_task_ids":previous.get('edit_task_ids',[])}
         else:
             output = self.responses.pop(0)(data)
         self.last_output = output
@@ -112,7 +116,7 @@ def test_required_phrase_after_multiple_edits_and_confirmation(env):
     assert after["days"][str(DAY)]["actions"] == [a for a in before["days"][str(DAY)]["actions"] if a["name"] not in {"深蹲", "动态热身"}]
     assert after["profile"] == before["profile"]
     assert after["days"][str(DAY)]["meals"] == before["days"][str(DAY)]["meals"]
-    assert len(client.calls) == 3  # Ordinary confirmation executes the saved effect.
+    assert len(client.calls) == 4  # Ordinary confirmation executes the saved effect.
 
 
 def test_partial_confirmation(env):
@@ -375,7 +379,8 @@ def test_profile_and_memory_share_binding_confirmation(env):
     r = request(env, "记住这次反馈", Scripted([memory_plan]))
     r = request(env, "确认", None, confirmation=command(r["pending_confirmation"]))
     assert r["overall_status"] == "success", r
-    mid = next(iter(state(env)["memories"]))
+    mid = next(mid for mid, value in state(env)["memories"].items()
+               if value['category'] == 'training_state' and value['value'] == '近期训练有点累')
     def archive(d):
         return {"snapshot_id": d["snapshot"]["snapshot_id"], "tasks": [task(mid, "memory.archive").model_dump()]}
     r = request(env, "忘掉刚记的那条", Scripted([archive]))
