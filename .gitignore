@@ -31,3 +31,4 @@ docs/assets/exercise-sources/*.png
 # 测试实际读取的固定数据放 backend/tests/fixtures/，应纳入版本管理。
 docs/evidence/
 backend/eval_intent_result.json
+interview-knowledge/08-项目介绍面试话术.md
