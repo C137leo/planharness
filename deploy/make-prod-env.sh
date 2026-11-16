@@ -81,6 +81,7 @@ cat > "$TMP" <<EOF
 # ============================================================
 
 ENV=prod
+DEMO_LOGIN_ENABLED=false
 DATABASE_URL=postgresql+psycopg://${DB_USER}:${ENCODED_PW}@${DB_HOST}:${DB_PORT}/${DB_NAME}
 SECRET_KEY=${SECRET_KEY}
 CORS_ORIGINS=https://${DOMAIN}

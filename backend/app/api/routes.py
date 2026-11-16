@@ -124,8 +124,16 @@ def health(request: Request, db: Session = Depends(get_db)):
     })
 
 
+@router.get("/auth/options")
+def auth_options(request: Request):
+    """公开登录选项；前端默认隐藏 demo，读取成功且明确开启后才展示。"""
+    return ok(request, {"demo_login_enabled": request.app.state.settings.demo_login_enabled})
+
+
 @router.post("/auth/demo", response_model=None)
 def demo_login(payload: DemoLoginIn, request: Request, db: Session = Depends(get_db)):
+    if not request.app.state.settings.demo_login_enabled:
+        raise HTTPException(status_code=404, detail="demo login is disabled")
     # 演示账号是公开入口，按 IP 限流，避免被脚本当成发 token 的机器
     from app.abuse import RateLimiter
     from app.api.auth_routes import client_ip
@@ -139,11 +147,9 @@ def demo_login(payload: DemoLoginIn, request: Request, db: Session = Depends(get
             headers={"Retry-After": str(max(1, decision.retry_after))},
         )
     """demo 登录：校验预置用户后签发 JWT，用于本地演示与自动化测试。"""
-    user_id = payload.user_id or DEMO_USER_ID
-    user = db.get(User, user_id)
+    user = db.get(User, DEMO_USER_ID)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="demo user not found")
-    # token = create_access_token(user.id, request.app.state.settings)
     token = issue_token(user, request.app.state.settings)
     return ok(request, TokenOut(access_token=token, user_id=user.id).model_dump())
 

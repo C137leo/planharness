@@ -36,6 +36,7 @@ def client(tmp_path):
         # 一次性票据的"最短填表耗时"由 tests/test_auth_abuse.py 专门测；
         # 其余用例不需要为此真的 sleep 一两秒。
         auth_min_fill_ms=0,
+        demo_login_enabled=True,  # 测试显式开启固定演示账号，不改变运行默认值
     )
     app = create_app(settings)
     with TestClient(app) as test_client:

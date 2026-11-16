@@ -181,12 +181,12 @@ onShow(() => {
           <text class="metric-sub">{{ insights?.weekly.avg_difficulty ?? '—' }}/5 平均难度</text>
         </view>
         <view class="metric-card">
-          <text class="metric-label">近 7 天消耗</text>
+          <text class="metric-label">{{ stats?.unknown_duration_logs ? '近 7 天已知消耗' : '近 7 天消耗' }}</text>
           <view class="metric-value-row">
             <text class="metric-value">{{ stats?.total_kcal ?? 0 }}</text>
             <text class="metric-unit">kcal</text>
           </view>
-          <text class="metric-sub">只算训练消耗</text>
+          <text class="metric-sub">{{ stats?.unknown_duration_logs ? `${stats.unknown_duration_logs} 条记录时长未知，未计入消耗` : '只算训练消耗' }}</text>
         </view>
         <view class="metric-card">
           <text class="metric-label">体重变化</text>
@@ -273,7 +273,7 @@ onShow(() => {
           <view v-for="log in logs" :key="log.log_id" class="log-row">
             <view class="log-main">
               <text class="log-name">{{ actionName(log.action_ref) }}</text>
-              <text class="log-meta">{{ log.date }} · {{ log.duration_min }} 分钟 · {{ log.kcal }} kcal</text>
+              <text class="log-meta">{{ log.date }} · {{ log.actual_duration_known === false ? '时长未记录 · 消耗无法估算' : `${log.duration_min} 分钟 · ${log.kcal} kcal` }}</text>
             </view>
           </view>
           </StableScroll>

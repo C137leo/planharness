@@ -423,7 +423,17 @@ def execute_tasks(db, user, snapshot, tasks, *, confirmed=False):
                     execution_id = journal.id
                     if undone:
                         undone.compensated_by = execution_id
-                message = ("已完成：" if cap.mutates_state else "已读取：") + task.user_goal
+                message = ("已保存修改。" if cap.mutates_state else "已读取记录。")
+
+                if cap.executor in {'food', 'action'}:
+                    from app.domain.catalog import display_action_name
+                    saved_day = after['days'][target['date']]
+                    if cap.executor == 'food':
+                        mid = target['id'] if target['type'] == 'meal' else target['parent_id']
+                        meal = next(m for m in saved_day['meals'] if m['id'] == mid)
+                        message += '\n当前餐食：' + '、'.join(f"{i['name']} {i.get('grams', 0):g}克" for i in meal['items'])
+                    else:
+                        message += '\n当前训练：' + '；'.join(display_action_name(a) + f" {a.get('sets') or 1}组" for a in saved_day['actions'])
                 if cap.executor == 'profile':
                     labels = {'session_minutes': '每次训练时长', 'weekly_days': '每周训练天数', 'weight_kg': '档案体重',
                         'goal': '长期目标', 'allergies': '过敏限制', 'likes': '喜欢', 'dislikes': '不喜欢',

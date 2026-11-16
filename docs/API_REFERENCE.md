@@ -110,7 +110,8 @@
 | POST | `/api/v1/knowledge/ask` | [knowledge_routes.py:48](../backend/app/api/knowledge_routes.py#L48) |
 | GET | `/api/v1/knowledge/rag` | [knowledge_routes.py:57](../backend/app/api/knowledge_routes.py#L57) |
 | GET | `/api/v1/health` | [routes.py:99](../backend/app/api/routes.py#L99) |
-| POST | `/api/v1/auth/demo` | [routes.py:128](../backend/app/api/routes.py#L128) |
+| GET | `/api/v1/auth/options` | 公开登录选项，返回 `demo_login_enabled`，读取失败时前端隐藏 demo |
+| POST | `/api/v1/auth/demo` | 默认关闭（404）；`DEMO_LOGIN_ENABLED=true` 时仅接受 `{}`，只登录固定演示账号，指定 `user_id` 返回 422 |
 | POST | `/api/v1/auth/wechat` | [routes.py:152](../backend/app/api/routes.py#L152) |
 | GET | `/api/v1/me/profile` | [routes.py:164](../backend/app/api/routes.py#L164) |
 | PUT | `/api/v1/me/profile` | [routes.py:248](../backend/app/api/routes.py#L248) |

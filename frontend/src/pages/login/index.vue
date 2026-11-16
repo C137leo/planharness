@@ -14,6 +14,7 @@ import { resetCoachWorkspace } from '../../composables/coachWorkspace'
 
 const mode = ref<'login' | 'register'>('login')
 const busy = ref(false)
+const demoLoginEnabled = ref(false)
 const error = ref('')
 const notice = ref('')
 const lockUntil = ref(0)
@@ -209,7 +210,7 @@ async function submit() {
 
 /** demo 账号：演示用，同样受服务端 IP 限流约束。 */
 async function useDemo() {
-  if (busy.value) return
+  if (busy.value || !demoLoginEnabled.value) return
   busy.value = true
   error.value = ''
   try {
@@ -240,6 +241,9 @@ function handleError(err: unknown) {
 }
 
 onMounted(() => {
+  void api.getAuthOptions().then(options => {
+    demoLoginEnabled.value = options.demo_login_enabled === true
+  }).catch(() => { demoLoginEnabled.value = false })
   // 打开页面就签发：用户输手机号 + 密码的时间（通常 >2 秒）就是真实的填表耗时
   fetchChallenge()
 })
@@ -307,7 +311,7 @@ onMounted(() => {
         <view class="btn-sm primary" :class="{ disabled: !canSubmit }" @click="submit">
           {{ busy ? '处理中…' : lockedSeconds ? `等待 ${lockedSeconds}s` : isRegister ? '注册并开始' : '登录' }}
         </view>
-        <view class="btn-sm" @click="useDemo">先用演示账号看看</view>
+        <view v-if="demoLoginEnabled" class="btn-sm" @click="useDemo">先用演示账号看看</view>
       </view>
 
       <view class="muted" style="margin-top: 12px">

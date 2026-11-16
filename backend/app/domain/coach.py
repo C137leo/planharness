@@ -195,7 +195,10 @@ def create_draft(
     if memory_text:
         instruction = (instruction or "") + "\n长期偏好：" + memory_text
     agent = PlanningAgent(bridge or get_bridge(), client=client)
-    proposal: PlanProposal = _propose(agent, profile, instruction or "", feedback, memory)
+    # A typed goal has already been semantically understood. Do not send it
+    # through a second planner that can reinterpret scope or ask for it again.
+    proposal: PlanProposal = (_propose_deterministic(agent, profile, "", memory)
+        if goal_contract is not None else _propose(agent, profile, instruction or "", feedback, memory))
     if goal_contract is not None and parent_draft_id and proposal.payload.get('status') == 'ready':
         parent = load_draft(db, user, parent_draft_id)
         if goal_contract.preserve_actions:
@@ -787,9 +790,9 @@ def _flatten_actions(days: list[dict]) -> list[dict]:
     rows: list[dict] = []
     for day in days:
         day_index = int(day.get("day_index") or 1)
-        for action in day.get("actions") or []:
+        for position, action in enumerate(day.get("actions") or [], 1):
             slot = str(action.get("slot") or "strength")
-            seq = int(action.get("seq") or 1)
+            seq = position
             rows.append({
                 "day_index": day_index,
                 "slot": slot,

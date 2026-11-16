@@ -21,6 +21,8 @@ class Settings(BaseSettings):
 
     app_name: str = "PlanHarness API"
     env: str = "dev"
+    # 公开演示登录必须显式开启；生产默认关闭。
+    demo_login_enabled: bool = False
     # 默认落本地 SQLite，零依赖即可跑通；生产用 DATABASE_URL 指向 Postgres
     database_url: str = "sqlite:///./planharness.db"
     # 仅开发可用的默认密钥，生产必须用环境变量覆盖

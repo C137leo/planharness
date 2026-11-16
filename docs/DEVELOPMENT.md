@@ -28,6 +28,10 @@ Skill 缺失时桥接返回 unavailable，上层部分独立计划接口有保�
 
 ## 增量检查
 
+Console 顶部的大模型总开关仅向 `/auth/me` 返回 `is_llm_admin=true` 的账号展示；默认运营手机号为 `13772692821`（配置项 `LLM_ADMIN_PHONE`）。读取与修改仍由 `/admin/llm-switch` 在后端校验权限。暂停影响全站模型调用，不影响登录与已保存内容读取；进入 Console 时读取实际状态，支持暂停、恢复和失败后刷新。
+
+公开演示登录由 `DEMO_LOGIN_ENABLED` 控制，默认 `false`，生产保持关闭。登录页仅在 `/auth/options` 明确返回 `demo_login_enabled=true` 时展示入口；关闭时 `/auth/demo` 返回 404。开启后请求体也只能是 `{}`，传 `user_id` 等额外字段返回 422，只签发服务端固定 `DEMO_USER_ID` 的令牌。种子数据继续保留；共享测试 fixture 显式开启演示登录。关闭入口不会撤销已签发令牌，也不会改变正常手机号登录、大模型管理权限或暂停状态。
+
 ```bash
 cd backend
 uv run pytest tests/test_runtime_console.py tests/test_capability_migration_contract.py

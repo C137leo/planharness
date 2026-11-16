@@ -6,6 +6,23 @@ import StableScroll from '../../components/StableScroll.vue'
 import RuntimeEvidence from '../../components/RuntimeEvidence.vue'
 const conversations=ref<any[]>([]),messages=ref<any[]>([]),selected=ref<any>(null)
 const messageTop=ref(0)
+const isLlmAdmin=ref(false),llmPaused=ref<boolean|null>(null),llmBusy=ref(false),llmError=ref('')
+let adminRevision=0
+async function loadLlmSwitch(){
+ const version=++adminRevision;isLlmAdmin.value=false;llmPaused.value=null;llmError.value=''
+ try{
+  const me=await api.me();if(!alive||version!==adminRevision||!me.is_llm_admin)return
+  isLlmAdmin.value=true
+  const state=await api.getLlmSwitch();if(alive&&version===adminRevision)llmPaused.value=state.paused
+ }catch(e){if(alive&&version===adminRevision)llmError.value=e instanceof Error?e.message:'读取开关失败'}
+}
+async function toggleLlm(){
+ if(!isLlmAdmin.value||llmPaused.value===null||llmBusy.value)return
+ const version=adminRevision;llmBusy.value=true;llmError.value=''
+ try{const state=await api.setLlmSwitch(!llmPaused.value);if(alive&&version===adminRevision)llmPaused.value=state.paused}
+ catch(e){if(alive&&version===adminRevision)llmError.value=e instanceof Error?e.message:'操作失败，请刷新状态后重试'}
+ finally{llmBusy.value=false}
+}
 const thread=ref(''),search=ref(''),filter=ref(''),text=ref(''),error=ref(''),busy=ref(false),loading=ref(false),before=ref(''),tab=ref('chat')
 const statusNames:Record<string,string>={idle:'尚未开始',success:'执行成功',succeeded:'执行成功',completed:'执行完成',failed:'失败',partial:'部分成功',partial_success:'部分成功',confirmation_required:'等待确认',clarification_required:'需要澄清',cancelled:'已取消',rejected:'已拒绝',blocked:'被阻止',unknown:'待核实',not_executed:'尚未执行',running:'执行中'}
 const label=(value:string)=>statusNames[value]||value||'未记录'
@@ -40,12 +57,17 @@ async function send(action?:'confirm'|'cancel'){
 function enter(event:any){if(event.isComposing||event.keyCode===229)return;if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();void send()}}
 async function reload(){try{await refreshList();let saved='';try{saved=uni.getStorageSync('runtime_console_thread')}catch{};const value=conversations.value.find(x=>x.thread===saved)?.thread||conversations.value[0]?.thread;if(value)await openThread(value)}catch(e){error.value=e instanceof Error?e.message:'加载失败'}}
 function back(){uni.switchTab({url:'/pages/today/index'})}
-onShow(()=>{void reload()});onUnmounted(()=>{alive=false;revision++;detailRevision++})
+onShow(()=>{void reload();void loadLlmSwitch()});onUnmounted(()=>{alive=false;revision++;detailRevision++;adminRevision++})
 </script>
 <template>
  <view class="runtime-console">
   <view class="runtime-top"><view><text class="runtime-kicker">COACH AGENT · RUNTIME</text><view class="runtime-title">运行工作台</view><text class="runtime-sub">从用户表达，到实际执行证据。</text></view><view class="runtime-top-actions"><button @click="reload" :disabled="busy">刷新历史</button><button @click="back">返回今天 ↗</button></view></view>
   <view v-if="error" class="runtime-error" role="alert">{{ error }}</view>
+  <view v-if="isLlmAdmin" class="runtime-llm-admin">
+   <view><text>大模型总开关 · {{ llmPaused===null?'状态未加载':llmPaused?'已暂停':'运行中' }}</text><text class="runtime-muted">影响所有用户的大模型调用，登录与已保存内容仍可使用。</text></view>
+   <view class="runtime-top-actions"><button :disabled="llmBusy||llmPaused===null" @click="toggleLlm">{{ llmBusy?'正在更新…':llmPaused?'恢复大模型':'暂停大模型' }}</button><button :disabled="llmBusy" @click="loadLlmSwitch">刷新状态</button></view>
+   <text v-if="llmError" class="danger" role="alert">{{ llmError }}</text>
+  </view>
   <view class="runtime-mobile-tabs"><button @click="tab='sessions'">会话</button><button @click="tab='chat'">聊天</button><button @click="tab='details'">执行详情</button></view>
   <view class="runtime-grid" :class="'mobile-'+tab">
    <view class="runtime-panel runtime-sessions"><view class="runtime-panel-head"><text>真实会话 · {{ conversations.length }}</text><button @click="create" :disabled="busy">＋ 新会话</button></view><view class="runtime-filters"><input v-model="search" placeholder="搜索会话标题"/><view class="runtime-filter-row"><button @click="filter=''">全部</button><button @click="filter='confirmation_required'">待确认</button><button @click="filter='success'">成功</button><button @click="filter='failed'">失败</button></view></view><StableScroll scroll-y class="runtime-scroll"><button v-for="c in visible" :key="c.thread" class="runtime-session" :class="{chosen:thread===c.thread}" :disabled="busy" @click="openThread(c.thread);tab='chat'"><text>{{ c.title }}</text><text class="runtime-muted">{{ c.preview }}</text><text class="runtime-session-meta">{{ label(c.status) }} · {{ c.updated_at?.slice(0,16).replace('T',' ') }} UTC</text></button><view v-if="!visible.length" class="runtime-empty">暂无匹配会话。创建会话后，直接向真实 Agent 提问。</view></StableScroll></view>
@@ -55,6 +77,7 @@ onShow(()=>{void reload()});onUnmounted(()=>{alive=false;revision++;detailRevisi
  </view>
 </template>
 <style scoped>
+.runtime-llm-admin{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;margin-bottom:12px;background:#fff4dc;border:1px solid #ebd5ae;border-radius:12px}.runtime-llm-admin>view:first-child{display:flex;flex-direction:column;gap:4px}.runtime-llm-admin>text{width:100%}
 .runtime-console{padding:24px;height:100vh;display:flex;flex-direction:column;box-sizing:border-box;color:#3c3028;background:#f5f2ed;font-size:12px}.runtime-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:12px}.runtime-kicker{font-size:9px;letter-spacing:2px;color:#ac7957}.runtime-title{font-size:26px;font-weight:800;margin:5px 0}.runtime-sub,.runtime-muted{color:#9c8a7b;font-size:10px;line-height:1.7}.runtime-top-actions{display:flex;gap:8px}button{font-size:11px;line-height:1.6;border:1px solid #e5d9cb;border-radius:9px;padding:7px 10px;background:#fffdf9;color:#8a5437;margin:0;cursor:pointer}button::after{border:0}button[disabled]{opacity:.5}.runtime-grid{flex:1;min-height:0;display:grid;grid-template-columns:240px minmax(300px,1fr) minmax(350px,1.05fr);gap:14px}.runtime-panel{background:white;border:1px solid #e7dfd5;border-radius:16px;min-height:0;min-width:0;display:flex;flex-direction:column;overflow:hidden}.runtime-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:14px;border-bottom:1px solid #eee6dd;font-weight:700}.runtime-panel-head button{padding:3px 8px}.runtime-scroll{flex:1;min-height:0}.runtime-filters{padding:12px}.runtime-filters input{font-size:12px;background:#f8f5ef;border-radius:8px;padding:8px;height:34px}.runtime-filter-row{display:flex;gap:6px;margin-top:8px}.runtime-filter-row button{font-size:10px;padding:3px 8px}.runtime-session{display:flex;flex-direction:column;gap:6px;text-align:left;margin:5px 10px;padding:12px;border-color:transparent;white-space:normal}.runtime-session.chosen{background:#fff1e4;border-color:#ebc9aa}.runtime-session-meta{font-size:9px;color:#ac8a70}.runtime-empty{padding:26px 16px;font-size:12px;line-height:1.8;color:#a28b78}.runtime-messages{padding:16px;background:#fffcf7}.runtime-message{padding:13px;border:1px solid #ecdfd0;border-radius:13px;background:white;margin-bottom:13px;cursor:pointer}.runtime-message.user{background:#fff0e2;margin-left:25px}.runtime-message-head{display:flex;justify-content:space-between;font-size:10px;font-weight:700;color:#b0764c;margin-bottom:8px}.runtime-message-head button{border:0;background:none;padding:0;font-size:9px}.runtime-message-text{white-space:pre-wrap;overflow-wrap:anywhere;display:block;font-size:12px;line-height:1.9}.runtime-turn{display:block;font-size:8px;color:#b6a593;margin-top:10px;overflow-wrap:anywhere}.runtime-composer{display:flex;align-items:flex-end;padding:12px;gap:10px;border-top:1px solid #eee6dd}.runtime-composer textarea{height:70px;flex:1;min-width:0;padding:10px;border-radius:10px;background:#f7f4ee;font-size:12px}.runtime-composer>button{background:#dc542b;color:white;border:0}.runtime-pending{padding:12px;background:#fff4dc;font-size:11px;line-height:1.7;max-height:230px;overflow:auto}.runtime-pending>text{display:block;white-space:pre-wrap}.runtime-pending>view{display:flex;gap:8px;margin-top:8px}.runtime-detail-body{padding:14px}.runtime-section-title{font-size:12px;font-weight:750;margin:18px 0 10px}.runtime-task{border:1px solid #e8dfd4;padding:11px;border-radius:11px;margin:10px 0;font-size:11px;line-height:1.8}.runtime-task>view:first-child{display:flex;justify-content:space-between;gap:8px;overflow-wrap:anywhere;font-weight:700}.runtime-event{border-left:2px solid #e7d2bc;padding:5px 0 5px 12px;margin:10px 0}.runtime-event>text{display:block;font-size:11px}.runtime-note{font-size:10px;color:#9c8a7b;padding:14px 0;line-height:1.8}.runtime-error{background:#ffe8df;color:#a33724;padding:12px;border-radius:10px;margin-bottom:12px;line-height:1.7}.danger{color:#b93625}.runtime-mobile-tabs{display:none}
 @media(max-width:1100px){.runtime-grid{grid-template-columns:200px minmax(280px,1fr)}.runtime-details{grid-column:1/-1;min-height:400px}.runtime-console{height:auto;min-height:100vh}.runtime-sessions,.runtime-chat{height:70vh}.runtime-details{height:70vh}}
 @media(max-width:700px){.runtime-console{padding:14px;height:100vh;min-height:0}.runtime-top{margin-bottom:12px}.runtime-title{font-size:22px}.runtime-top-actions{flex-direction:column}.runtime-grid{display:flex;flex-direction:column}.runtime-panel{display:none;height:auto;flex:1}.mobile-chat .runtime-chat,.mobile-sessions .runtime-sessions,.mobile-details .runtime-details{display:flex}.runtime-mobile-tabs{display:flex;gap:8px;margin-bottom:10px}.runtime-mobile-tabs button{flex:1}.runtime-pending{max-height:180px}.runtime-sub{font-size:9px}}

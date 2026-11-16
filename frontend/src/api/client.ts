@@ -306,6 +306,7 @@ export const api = {
   login: (payload: LoginPayload) =>
     rawRequest<TokenPayload>('POST', '/auth/login', payload),
   demoLogin: () => rawRequest<TokenPayload>('POST', '/auth/demo', {}),
+  getAuthOptions: () => rawRequest<{ demo_login_enabled: boolean }>('GET', '/auth/options'),
   me: () => request<Me>('GET', '/auth/me'),
   // 公开状态：登录页也能读，用来显示维护提示
   getSystemStatus: () => rawRequest<SystemStatus>('GET', '/system/status'),

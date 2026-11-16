@@ -137,6 +137,10 @@ function toggleEquipment(key: string) {
 }
 
 function memoryValue(item: MemoryItem): string {
+  if (item.category === 'experience') {
+    const labels: Record<string, string> = { beginner: '初学者', intermediate: '有一定经验', advanced: '经验丰富' }
+    return labels[item.value] || item.value
+  }
   // 后端存的是裸数字（0/2），展示时翻译成用户语言。
   if (item.category === 'training_state' && /^\d+$/.test(item.value)) {
     return item.value === '0' ? '最近训练完成度正常' : `连续 ${item.value} 次未完成`

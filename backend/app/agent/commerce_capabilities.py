@@ -5,7 +5,7 @@ from app.food.commerce_contract import SearchStores, PrepareOrder, ReviseOrder, 
 SPECS=[
  ('commerce.nutrition','查询麦当劳官方营养表，可结合档案和今日饮食提出建议；不是门店供应或价格，不能保证过敏安全。',NoArgs,('commerce_account',),False,'never',{'list-nutrition-foods'}),
  ('commerce.search_stores','查询麦当劳到店自取门店，使用本轮明确城市和地标，缺少时可引用当前用户saved_location；没有可靠城市先澄清，不猜默认城市。用户要求最近餐厅时selection_policy=nearest，指定某餐厅specific，只浏览browse。最近店关闭时必须确认改用最近营业店。距离仅为接口结果，不能冒充用户GPS定位。',SearchStores,('commerce_account',),False,'never',{'query-nearby-stores'}),
- ('commerce.select_store','确认从本次实际搜索结果改用另一家营业门店；search_revision复制store_search.revision。确认只选门店，不授权提交订单；之后继续原点餐目标。',StoreSelection,('commerce_store',),True,'always',{'query-nearby-stores'}),
+ ('commerce.select_store','确认从本次实际搜索结果改用另一家营业门店；search_revision复制store_search.revision。确认只选门店，不授权提交订单；用户已明确指定该营业门店时无需重复询问，否则必须等待改店确认；之后继续原点餐目标。',StoreSelection,('commerce_store',),True,'uncertain',{'query-nearby-stores'}),
  ('commerce.menu','读取所选真实门店当前菜单及价格；选择商品前必须查询。',NoArgs,('commerce_store',),False,'never',{'query-meals'}),
  ('commerce.product_detail','读取已绑定SKU的详情，区分套餐组与顶层特制组；无额外选项仍是有效商品，不能据此说用户没选大小/冷热。返回真实选项ID及当前商品信息。',NoArgs,('commerce_product',),False,'never',{'query-meal-detail'}),
  ('commerce.prepare_order','为所选门店准备真实报价草案，不提交订单。items必须用该店的product_id；套餐需选择选项ID或明确使用官方默认组合。未指定取餐方式时留空，系统从真实选项默认外带；明确堂食时take_way_preference=dine_in，无需先知道官方code。',PrepareOrder,('commerce_store',),True,'never',{'query-meals','query-meal-detail','calculate-price'}),

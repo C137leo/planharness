@@ -267,6 +267,9 @@ def continue_plan(db,user,text,snapshot,recent,date,client,trace,result):
         if result.get('overall_status')=='failed' and any(r['status']=='success' for r in accumulated):result['overall_status']='partial_success'
         result.pop('unfulfilled_goals',None)
         if plan.unfulfilled_goals:
+            from app.agent.reply_evidence import remaining_commerce_goals
+            plan.unfulfilled_goals = remaining_commerce_goals(client,plan.unfulfilled_goals,result,trace)
+        if plan.unfulfilled_goals:
             result['unfulfilled_goals']=plan.unfulfilled_goals;result['reply']+='\n尚未完成：'+'；'.join(plan.unfulfilled_goals)
         if not (plan.continue_after_tools and can_advance(plan.tasks,result)
                 and all(r['status']=='success' for r in accumulated[-len(plan.tasks):])):

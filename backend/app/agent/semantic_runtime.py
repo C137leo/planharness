@@ -43,12 +43,12 @@ def pending_result(p):
             **({'checkout':p.result['checkout']} if (p.result or {}).get('checkout') else {}),
             "pending_confirmation": pending_payload(p), "task_plan": p.tasks,
             "task_results": [{"task_id": t["task_id"], "status": "confirmation_required", "message": t["user_goal"]} for t in p.tasks],
-            "actions": ways+([] if any(not t.get('parameters_resolved',True) for t in p.tasks) else [{"type": "confirm_tasks", "label": confirm_label, "pending_id": p.id, "version": p.version}])+[
+            "actions": ways+([] if any(not t.get('parameters_resolved',True) for t in p.tasks) or (p.result or {}).get('unresolved_edits') or (p.result or {}).get('unresolved_initial_requirements') or (p.result or {}).get('unresolved_goal_input') else [{"type": "confirm_tasks", "label": confirm_label, "pending_id": p.id, "version": p.version}])+[
                         {"type": "cancel_tasks", "label": "取消", "pending_id": p.id, "version": p.version}]}
 
 
 def pending_question(db, user, snapshot, tasks, question):
-    names = {o["id"]: o.get("name") or o.get("title") or o.get("value") or o.get("action_ref") or o["id"] for o in snapshot.payload["objects"]}
+    names = {o["id"]: o.get("name") or o.get("title") or o.get("value") or o.get("action_ref") or {"execution":"上次修改","profile":"个人档案","day":"当天安排"}.get(o["type"],"已选择项目") for o in snapshot.payload["objects"]}
     lines = []
     for t in tasks:
         ids = t.resolution.candidate_ids or ([t.resolution.selected_id] if t.resolution.selected_id else [])
@@ -164,7 +164,7 @@ def apply_control(db, user, thread, command, *, cancel_checkout=True, resume_con
         raise TaskFailure("ownership_scope", "待确认任务不存在或不属于当前会话。")
     if p.status in {"completed", "failed"}:
         return {**p.result, "confirmation_replayed": True}
-    if (p.result or {}).get('unresolved_initial_requirements') and command.action in {'confirm','revise'}:
+    if ((p.result or {}).get('unresolved_initial_requirements') or (p.result or {}).get('unresolved_edits') or (p.result or {}).get('unresolved_goal_input')) and (command.action == 'confirm' or (command.action == 'revise' and command.execute_revision)):
         response = pending_result(p)
         response['reply'] = '上次要求的修改尚未满足，旧预览没有应用。请继续修改约束或取消草案，不能把旧方案当作新要求确认。'
         return response
@@ -318,6 +318,7 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
     db.info['coach_user_text']=text
     db.info['semantic_client'] = client
     db.info.pop('initial_edit_pending_id', None)
+    db.info.pop('revision_edit_pending_id', None)
     result = {"intent": "semantic_binding", "intent_label": "教练任务", "scope": "bound_objects",
               "actions": [], "changes": [], "memory_saved": [], "session": None, "plan_draft": None,
               "patch_request": None, "today_brief": None, "memories": None, "guidance": [], "warnings": []}
@@ -346,6 +347,8 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
                 CoachPendingPlan.thread == thread, CoachPendingPlan.status == "pending").order_by(CoachPendingPlan.created_at.desc()))
             if p:
                 workflow_day_context=any(t['capability_id'].startswith('day_plan.') for t in p.tasks)
+                if workflow_day_context:db.info['revision_edit_pending_id']=p.id
+                if any(t['capability_id']=='plan.confirm_initial_draft' for t in p.tasks):db.info['initial_edit_pending_id']=p.id
                 snapshot = db.get(CoachBusinessSnapshot, p.snapshot_id)
                 # 控制器--管理一个已保存的待确认计划，不重新做完整意图分类。只输出符合 JSON Schema 的 JSON 理解
                 command = semantic_planner.control(client, text, p, snapshot, trace)
@@ -363,7 +366,7 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
                         'unfulfilled_goals':(p.result or {}).get('unfulfilled_goals',[]),
                         'current_user_expression':text} for t in p.tasks if t['task_id'] in command.edit_task_ids]
                     completing_tasks=[t for t in p.tasks if t['task_id'] in command.edit_task_ids and not t.get('parameters_resolved',True)]
-                    preview_edits=[t for t in p.tasks if t['task_id'] in command.edit_task_ids and t['capability_id'] in {'day_plan.apply_revision','day_plan.update_revision','day_plan.extend_revision'}]
+                    preview_edits=[t for t in p.tasks if t['capability_id'] in {'day_plan.confirm_replan','day_plan.apply_revision','day_plan.update_revision','day_plan.extend_revision'}]
                     if preview_edits:db.info['revision_edit_pending_id']=p.id
                     if any(t['task_id'] in command.edit_task_ids and t['capability_id']=='plan.confirm_initial_draft' for t in p.tasks):
                         db.info['initial_edit_pending_id'] = p.id
@@ -372,7 +375,8 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
                         editing_context.append({'role':'agent','active_saved_workflow':{
                             'tasks':p.tasks,'question':p.question,'day_revision':(p.result or {}).get('day_revision'),
                             'unresolved_edits':(p.result or {}).get('unresolved_edits',[]),
-                            'unresolved_initial_requirements':(p.result or {}).get('unresolved_initial_requirements')},
+                            'unresolved_initial_requirements':(p.result or {}).get('unresolved_initial_requirements'),
+                            'unresolved_goal_input':(p.result or {}).get('unresolved_goal_input')},
                             'text':'此为真实仍存在的待确认工作流，仅供引用，不授权执行。若当前在继续修改预览，必须保留该草案及尚未落实的要求；无关请求不执行这些旧任务。'})
                     if (not set(command.keep_task_ids) <= known
                             or not set(command.parameter_resolutions) <= set(command.keep_task_ids)
@@ -449,7 +453,7 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
                 allowed={(t['capability_id'],t['resolution']['selected_id']) for t in completing_tasks}
                 if any((t.capability_id,t.resolution.selected_id) not in allowed and (t.capability_id,None) not in allowed for t in parsed.tasks):
                     raise TaskFailure('parameter_completion','补充信息只能完善原目标，不能改成应用草案或其他操作。')
-            if handoff and preview_edits and parsed.mode=='execute' and any(t.capability_id not in {'day_plan.create_revision','day_plan.update_revision','day_plan.extend_revision','day_plan.preview_revision'} for t in parsed.tasks):
+            if handoff and preview_edits and parsed.mode=='execute' and any(capability(t.capability_id).mutates_state and t.capability_id.startswith(('meal.', 'workout.')) and capability(t.capability_id).execution_boundary != 'workout_lifecycle' for t in parsed.tasks):
                 raise TaskFailure('draft_edit_boundary','本轮只编辑已保存草案，不能转成对实际计划的局部写入。')
             if handoff:
                 identities = {t.task_id: new_id() for t in parsed.tasks}
@@ -467,7 +471,9 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
                     carried.resolution.selected_id = choice
                     carried.resolution.candidate_ids = [choice]
                     carried.resolution.status = "resolved"
-            new_tasks = parsed.tasks if parsed.mode == "execute" else []
+            # A proposed concrete local mutation is a saved preview, not disposable prose.
+            local_preview = parsed.mode == 'propose' and any(capability(t.capability_id).mutates_state and capability(t.capability_id).execution_boundary == 'local_database' for t in parsed.tasks)
+            new_tasks = parsed.tasks if parsed.mode == "execute" or local_preview else []
             edited_checkouts = {t.resolution.selected_id for t in new_tasks if t.capability_id in {"commerce.revise_order", "commerce.cancel_checkout"}}
             preparing_quote = any(t.capability_id=="commerce.prepare_order" for t in new_tasks)
             invalidated = [t.task_id for t in carried_tasks if t.capability_id=="commerce.submit_order" and
@@ -496,6 +502,8 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
             result["task_plan"] = [t.model_dump() for t in tasks]
             if carried_tasks and parsed.mode in {"propose", "noop"}:
                 result.update(pending_result(make_pending(db, user, thread, snapshot, carried_tasks, parsed.answer or parsed.question)))
+            elif local_preview:
+                result.update(pending_result(make_pending(db,user,thread,snapshot,tasks,parsed.question)))
             elif parsed.mode in {"propose", "noop"} or not tasks:
                 result.update(overall_status="proposed" if parsed.mode == "propose" else "noop", execution_mode=parsed.mode,
                               reply=parsed.answer or parsed.question or "请补充希望执行的目标。")
@@ -511,6 +519,9 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
                 result.update(continue_plan(db,user,planning_text,snapshot,recent,day,client,trace,result))
                 continued_tools = True
             save_read_continuation(db,result,tasks,planning_text,parsed.continue_after_tools or bool(parsed.unfulfilled_goals))
+            if parsed.unfulfilled_goals and not continued_tools:
+                from app.agent.reply_evidence import remaining_commerce_goals
+                parsed.unfulfilled_goals = remaining_commerce_goals(client,parsed.unfulfilled_goals,result,trace)
             if parsed.unfulfilled_goals and not continued_tools:
                 result["unfulfilled_goals"] = parsed.unfulfilled_goals
                 result["reply"] += "\n尚未完成：" + "；".join(parsed.unfulfilled_goals)
@@ -550,15 +561,19 @@ def finish(db, user, text, page, day, thread, result, trace, started, snapshot):
     if initial_edit_id and result.get('overall_status') in {'failed','clarification_required','stale'}:
         saved = db.get(CoachPendingPlan, initial_edit_id)
         understood = next((e['parsed'] for e in reversed(trace) if e.get('stage')=='initial_requirements_merged' and e.get('status')=='ok'), None)
-        if saved and saved.status=='pending' and understood:
-            saved.result = {**(saved.result or {}), 'unresolved_initial_requirements': understood}
+        if saved and saved.status=='pending':
+            saved.result = {**(saved.result or {}), 'unresolved_goal_input': text, **({'unresolved_initial_requirements':understood} if understood else {})}
+            saved.version += 1
     editing_id=db.info.pop('revision_edit_pending_id',None)
     if editing_id and result.get('overall_status') in {'failed','clarification_required','stale'}:
         saved=db.get(CoachPendingPlan,editing_id)
         if saved and saved.status=='pending':
             history=(saved.result or {}).get('unresolved_edits',[])
             understood=next((t.get('parsed') for t in reversed(trace) if t.get('stage') in {'revision_requirements','revision_requirements_merged'} and t.get('status')=='ok'),None)
-            saved.result={**(saved.result or {}),'unresolved_edits':[*history,{'user_text':text,'status':'not_materialized','requirements':understood}][-6:]}
+            saved.result={**(saved.result or {}),'unresolved_goal_input':text,'unresolved_edits':[*history,{'user_text':text,'status':'not_materialized','requirements':understood}][-6:]}
+            saved.version += 1  # Invalidate every button issued before this failed goal revision.
+    from app.agent.reply_evidence import public_reply
+    result["reply"] = public_reply(result.get("reply", ""), snapshot)
     result["latency_ms"], result["trace"] = round((time.monotonic() - started) * 1000), trace
     result["day"] = effective_day(db, user, day, fallback_next=False)
     result["context_used"] = {"snapshot_id": snapshot.id, "revision": snapshot.revision} if snapshot else {}

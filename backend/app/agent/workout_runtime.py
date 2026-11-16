@@ -61,6 +61,7 @@ def execute_mixed(db,user,snapshot,tasks,confirmed=False):
                 count=sum(int(i.get('completed_sets') or 0) for i in data['session']['items'])
                 message=label+'\n已记录 '+str(count)+' 组；'+str(len(data['unrecorded_items']))+' 个条目存在未记录或未完成部分。'
                 if not cap.mutates_state:
+                    message += '\n' + record_details(data)
                     if data['record_scope']=='prior_cycle':
                         message+='\n以上是重排前记录，单独保留，不计入当前新方案进度：'+ '；'.join(i['name']+' '+str(i.get('completed_sets') or 0)+'组' for i in data['session']['items'] if int(i.get('completed_sets') or 0)>0)+'。'
                     progress=data['current_day_progress']
@@ -78,5 +79,21 @@ def execute_mixed(db,user,snapshot,tasks,confirmed=False):
     n=sum(r['status']=='success' for r in results)
     result={'overall_status':'success' if n==len(results) else 'partial_success' if n else 'failed',
         'task_plan':[t.model_dump() for t in tasks],'task_results':results,'reply':'\n'.join(r['message'] for r in results),'actions':[]}
-    if latest:result['workout_records']=latest
+    if latest:
+        result['workout_records']=latest
+        result['session']=latest['session']  # Same reloaded facts for the shared training card.
     return result
+
+
+def record_details(data):
+    lines=[]
+    for item in data['session']['items']:
+        sets=item.get('set_logs') or []
+        detail=[]
+        for entry in sets:
+            reps=entry.get('reps');weight=entry.get('weight_kg')
+            detail.append(f"第{entry['set_no']}组：" + (f"{reps}次" if reps is not None else '次数未记录') + '，' + (f"{weight:g}公斤" if weight is not None else '重量未记录'))
+        lines.append(item['name']+f"：已记录{int(item.get('completed_sets') or 0)}组"+('；'+'；'.join(detail) if detail else ''))
+    minutes=data['session'].get('actual_minutes')
+    lines.append(f"整场实际时长：{minutes}分钟" if data['actual_minutes_known'] else '整场实际时长未记录')
+    return '\n'.join(lines)

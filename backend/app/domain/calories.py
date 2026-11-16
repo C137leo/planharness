@@ -71,6 +71,7 @@ def burn_for_log(log, weight_kg: float) -> dict:
         "action_ref": log.action_ref,
         "kind": log.kind,
         "duration_min": log.duration_min,
+        "actual_duration_known": (getattr(log, "details", None) or {}).get("actual_duration_known", True),
         "met": met,
         "met_fallback": fallback,
         "kcal": kcal,
@@ -94,6 +95,7 @@ def summarize(rows: list[dict], weight_kg: float) -> dict:
 
     return {
         "weight_kg": weight_kg,
+        "unknown_duration_logs": sum(row.get("actual_duration_known") is False for row in rows),
         "total_kcal": round(sum(row["kcal"] for row in rows), 1),
         "total_duration_min": sum(row["duration_min"] for row in rows),
         "days": [by_date[key] for key in sorted(by_date)],

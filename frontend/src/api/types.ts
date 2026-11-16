@@ -392,6 +392,7 @@ export interface WorkoutLogPayload {
 }
 
 export interface WorkoutLogItem {
+  actual_duration_known?: boolean
   log_id: string
   date: string
   action_ref: string
@@ -411,6 +412,7 @@ export interface CalorieDay {
 }
 
 export interface CalorieStats {
+  unknown_duration_logs?: number
   weight_kg: number
   weight_source: 'checkin' | 'profile' | 'default'
   total_kcal: number

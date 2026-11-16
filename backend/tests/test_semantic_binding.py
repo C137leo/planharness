@@ -21,6 +21,8 @@ class Scripted:
         assert "JSON" in messages[0]["content"]  # Provider json_object protocol requirement.
         data = json.loads(messages[-1]["content"])
         self.calls.append(data)
+        if 'commerce_goal_review_input' in data:
+            return {'message': {'content': json.dumps({'kinds':['other'] * len(data['commerce_goal_review_input'])})}}
         if 'reply_evidence_input' in data:
             return {'message': {'content': json.dumps({'unsupported_safety_claim': False})}}
         if 'initial_goal_input' in data:

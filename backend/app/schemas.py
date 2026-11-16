@@ -16,9 +16,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class DemoLoginIn(BaseModel):
-    """demo 登录入参；不传 user_id 时登录预置演示账号。"""
+    """只接受空对象；永久禁止客户端指定登录账号。"""
 
-    user_id: str | None = None
+    model_config = ConfigDict(extra="forbid")
 
 
 class TokenOut(BaseModel):

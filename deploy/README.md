@@ -87,6 +87,8 @@ sudo deploy/make-prod-env.sh --db-password '密码' --domain www.agentworkout.on
 
 字段清单见 [`deploy/planharness.env.example`](planharness.env.example)（不含任何真实值）。
 
+生产保持 `DEMO_LOGIN_ENABLED=false`（代码默认值也为 false），公开演示登录将返回 404，登录页隐藏入口。该开关不删除演示种子、不影响手机号登录或运营大模型总开关，也不撤销已签发令牌。独立演示环境若显式开启，也只能登录固定演示账号，禁止指定用户 ID。
+
 > **为什么不用仓库里的 `.env`？**
 > 配置的加载顺序是「环境变量 > `.env`（按启动目录找）> 代码默认值」。
 > 仓库里放 `.env` 会因为"从哪个目录启动"而读到不同内容，而且很容易被误提交。

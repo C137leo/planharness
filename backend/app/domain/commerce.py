@@ -369,7 +369,7 @@ def preview_text(row):
     items.extend(['门店：'+q['store']['name']+'；'+q['store']['address'],
                   '方式：到店自取；'+ways.get(row.take_way_code,'请先选择取餐方式'),
                   '官方总额：¥'+format(Decimal(q['total_cents'])/100,'.2f'),
-                  '餐具：不需要；本次将创建待支付订单，不会自动付款。'])
+                  '餐具：不需要；当前仅为报价预览，尚未创建订单或付款。'])
     return '\n'.join(items)
 
 

@@ -81,6 +81,7 @@ const isOpen = computed(() => props.mode === 'inline' || props.visible)
 const messages = coachWorkspaceMessages
 const input = ref('')
 const busy = ref(false)
+const initializing = ref(false)
 // 评审：只有"正在输入"无法判断是否卡死。给出真实的等待秒数，超过 20s 提示可以稍后看结果。
 const busyElapsed = ref(0)
 let busyTimer: ReturnType<typeof setInterval> | null = null
@@ -179,7 +180,7 @@ function persistMcdOrdersByMessage() {
 }
 const pendingDelete = ref<AgentConversation | null>(null)
 const deletingConversation = ref(false)
-const session = computed(() => result.value?.session || activeSession.value)
+const session = computed(() => result.value?.workout_records?.session || activeSession.value || result.value?.session)
 const scrollTop = ref(0)
 const workspaceDomId = computed(() => `coach-ws-${pageKey.value}-${props.mode || 'modal'}`)
 const hasRichResult = computed(() =>
@@ -619,29 +620,33 @@ watch(
       lastAutoText.value = ''
       return
     }
-    error.value = ''
-    confirming.value = false
-    coachWorkspaceLastPage.value = pageKey.value
-    coachWorkspaceLastContext.value = props.context || {}
-    input.value = props.initialText || ''
-    await ensureConversation()
-    await recoverPendingChat()
-    if (props.sessionId) {
-      try {
-        activeSession.value = await api.getWorkout(props.sessionId)
-      } catch {
-        activeSession.value = null
+    initializing.value = true
+    try {
+      error.value = ''
+      confirming.value = false
+      coachWorkspaceLastPage.value = pageKey.value
+      coachWorkspaceLastContext.value = props.context || {}
+      input.value = props.initialText || ''
+      await ensureConversation()
+      await recoverPendingChat()
+      if (props.sessionId) {
+        try {
+          activeSession.value = await api.getWorkout(props.sessionId)
+        } catch {
+          activeSession.value = null
+        }
       }
-    }
-    if (props.initialText && props.autoSend && !recoveryStatus.value) {
-      lastAutoText.value = props.initialText
-      await nextTick()
-      await send(props.initialText)
-      return
-    }
-    // 等 v-show 的滚动容器完成布局后再定位，避免首次打开停在最早一条。
-    await new Promise((resolve) => setTimeout(resolve, 120))
-    await scrollChatToBottom()
+      if (props.initialText && props.autoSend && !recoveryStatus.value) {
+        lastAutoText.value = props.initialText
+        await nextTick()
+        initializing.value = false
+        await send(props.initialText)
+        return
+      }
+      // 等 v-show 的滚动容器完成布局后再定位，避免首次打开停在最早一条。
+      await new Promise((resolve) => setTimeout(resolve, 120))
+      await scrollChatToBottom()
+    } finally { initializing.value = false }
   },
   { immediate: true },
 )
@@ -691,7 +696,7 @@ function onComposerConfirm() {
 
 async function send(text?: string, confirmation?: { action: 'confirm' | 'cancel'; pending_id: string; version: number }, checkoutAction?: CheckoutAction, commerceAction?: CommerceAction) {
   const raw = (text ?? input.value).trim()
-  if (!raw || busy.value) return
+  if (!raw || busy.value || initializing.value) return
   const value = redactMcdToken(raw)
   clearingComposer = true
   input.value = ''
@@ -736,6 +741,19 @@ async function send(text?: string, confirmation?: { action: 'confirm' | 'cancel'
     if ((commerceAction || checkoutAction) && ['failed','clarification_required','stale'].includes(next.overall_status || '') && !next.commerce_catalog && !next.checkout) {
       next.checkout=previousCommerce?.checkout;next.commerce_catalog=previousCommerce?.commerce_catalog
     }
+    if (next.session) activeSession.value = next.session
+    else if (next.workout_records) activeSession.value = next.workout_records.session
+    else if (props.sessionId || activeSession.value?.session_id) {
+      try {
+        const fresh = await api.getWorkout(props.sessionId || activeSession.value!.session_id)
+        if (sentThread !== coachWorkspaceThreadId.value) return
+        activeSession.value = fresh
+      } catch {
+        // Do not display an old session as current evidence after a failed read.
+        activeSession.value = null
+      }
+    }
+    if (sentThread !== coachWorkspaceThreadId.value) return
     result.value = next
     selectedMeals.value = {}
     if (next.mcd_order) {
@@ -1868,7 +1886,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                 @confirm="onComposerConfirm"
                 @keydown="onComposerKeydown"
               />
-              <view class="composer-send" :class="{ disabled: !input.trim() || busy }" @click="send()">
+              <view class="composer-send" :class="{ disabled: !input.trim() || busy || initializing }" @click="send()">
                 {{ busy ? '…' : '发送' }}
               </view>
             </view>
