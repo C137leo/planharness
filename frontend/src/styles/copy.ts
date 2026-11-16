@@ -1,3 +1,4 @@
+import exerciseLabels from '../../../backend/app/domain/exercise_labels.json'
 /** 文案与人话映射：页面和组件共用，避免同一个动作名三处不一致。 */
 
 /** 餐次展示顺序：早 → 午 → 晚 → 加餐（后端已排好，前端再兜一层）。 */
@@ -23,6 +24,7 @@ export const SLOT_LABELS: Record<string, string> = {
 }
 
 export const ACTION_NAMES: Record<string, string> = {
+  ...exerciseLabels,
   // skill 目录用的连字符写法（旧数据里 meta.name_zh 可能直接存了 slug）
   'goblet-squat': '高脚杯深蹲',
   'glute-bridge': '臀桥',
@@ -103,7 +105,7 @@ export const QUICK_ACTIONS: Array<{ key: string; label: string; text: string; hi
 
 /** 动作名：查表失败就原样显示 ref，绝不显示空字符串。 */
 export function actionName(ref: string): string {
-  return ACTION_NAMES[ref] || ref
+  return ACTION_NAMES[ref] || '未命名动作'
 }
 
 /** 优先用计划里带的 meta.name_zh（skill 生成的动作名都在那里）。 */

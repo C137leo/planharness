@@ -463,7 +463,7 @@ def _build_days(program: dict, start_weekday: int | None = None) -> list[dict]:
     days: list[dict] = []
     used_slugs: set[str] = set()
     for offset, session in enumerate(program.get("sessions") or []):
-        day_index = ((start - 1 + offset) % 7) + 1
+        day_index = ((start - 1 + (offset * 7 // max(1, len(program.get("sessions") or [])))) % 7) + 1
         focus = str(session.get("focus") or "")
         slot = "cardio" if "cardio" in focus.lower() else "strength"
         actions = []
@@ -655,7 +655,7 @@ def _build_meals(profile_payload: dict, nutrition: dict) -> list[dict]:
 
     # 加餐只给增肌：减脂/心肺目标是控制总热量，多一顿加餐反而更难执行
     goal_text = str(profile_payload.get("goal") or "")
-    with_snack = "增肌" in goal_text
+    with_snack = False  # default to three meals; snacks require an explicit user request
     templates = [t for t in MEAL_TEMPLATES if with_snack or t[0] != "snack"]
     if with_snack:
         shares = {slot: share for slot, _title, share, *_rest in MEAL_TEMPLATES}

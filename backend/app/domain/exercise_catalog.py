@@ -318,3 +318,10 @@ def name_of(ref: str) -> str:
     """动作中文名；没有中文名就退回英文名，再退回 slug。"""
     item = EXERCISE_CATALOG.get(ref) or {}
     return item.get('name_zh') or item.get('name_en') or ref
+
+# One maintained vocabulary is also bundled by the frontend.
+import json as _json
+from pathlib import Path as _Path
+_LABELS = _json.loads(_Path(__file__).with_name("exercise_labels.json").read_text())
+for _slug, _entry in EXERCISE_CATALOG.items():
+    _entry["name_zh"] = _LABELS[_slug]

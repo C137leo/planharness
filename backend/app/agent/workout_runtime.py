@@ -1,4 +1,5 @@
 """Verified local lifecycle tasks; no natural-language interpretation here."""
+from app.agent.task_executor import safe_error
 import copy
 import datetime as dt
 from app.agent.capabilities import capability
@@ -75,7 +76,7 @@ def execute_mixed(db,user,snapshot,tasks,confirmed=False):
                 revisions[sid]=(initial_revision,data['record_revision'])
             success.add(task.task_id);results.append(one)
         except Exception as exc:
-            results.append({**base,'status':'failed','message':str(exc)[:300],'actual_changes':[],'unrelated_changes':[]})
+            results.append({**base,'status':'failed','message':safe_error(exc)[:300],'actual_changes':[],'unrelated_changes':[]})
     n=sum(r['status']=='success' for r in results)
     result={'overall_status':'success' if n==len(results) else 'partial_success' if n else 'failed',
         'task_plan':[t.model_dump() for t in tasks],'task_results':results,'reply':'\n'.join(r['message'] for r in results),'actions':[]}

@@ -1,3 +1,4 @@
+import { decodeAccountId, AUTH_TOKEN_KEY } from './accountStorage'
 import { resetCoachWorkspace } from '../composables/coachWorkspace'
 import { lastSavedChatRequest, rememberChatRequest, forgetChatRequest } from './chatRequests'
 import type {
@@ -51,7 +52,7 @@ import type {
 } from './types'
 
 const API_BASE = (import.meta.env.VITE_API_BASE || '/api/v1').replace(/\/$/, '')
-const TOKEN_KEY = 'planharness_token'
+const TOKEN_KEY = AUTH_TOKEN_KEY
 export const MCD_TOKEN_KEY = 'planharness_mcd_token'
 
 export class ApiError extends Error {
@@ -74,17 +75,9 @@ export function setStoredToken(token: string): void {
   uni.setStorageSync(TOKEN_KEY, token)
 }
 
-/** 麦当劳 MCP token 按登录用户分别存在本机；是否映射服务端 token 由后端配置决定。 */
-function accountStorageId(auth = getStoredToken()): string {
-  if (!auth) return ''
-  try {
-    const raw = auth.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-    const padded = raw.padEnd(Math.ceil(raw.length / 4) * 4, '=')
-    const payload = JSON.parse(globalThis.atob(padded)) as { sub?: string }
-    return typeof payload.sub === 'string' ? payload.sub : ''
-  } catch {
-    return ''
-  }
+/** 麦当劳 MCP token 按登录用户分别存在本机；未登录或未填写不连接，不继承全局凭证。 */
+export function accountStorageId(auth = getStoredToken()): string {
+  return decodeAccountId(auth)
 }
 
 function mcdStorageKey(): string {
@@ -92,20 +85,16 @@ function mcdStorageKey(): string {
 }
 
 export function getStoredMcdToken(): string {
+  if (!accountStorageId()) return ''
   const key = mcdStorageKey()
   const current = (uni.getStorageSync(key) as string) || ''
   if (current) return current
-  // 兼容旧版本：以前存在全局 key 上，第一次读取时迁移到当前用户名下。
-  const legacy = (uni.getStorageSync(MCD_TOKEN_KEY) as string) || ''
-  if (legacy) {
-    uni.setStorageSync(key, legacy)
-    uni.removeStorageSync(MCD_TOKEN_KEY)
-    return legacy
-  }
+  // 无法核对旧全局凭证的所属账号，不自动归给当前用户。
   return ''
 }
 
 export function setStoredMcdToken(token: string): void {
+  if (!accountStorageId()) return
   const key = mcdStorageKey()
   if (token) uni.setStorageSync(key, token)
   else uni.removeStorageSync(key)
@@ -494,6 +483,7 @@ export const api = {
 
   // ---- 统一教练 Agent：所有页面共用同一个入口 ----
   recoverSavedChat,
+  cancelAgentRequest: (id: string) => request<{status:string;message?:string}>('POST', `/agent/requests/${encodeURIComponent(id)}/cancel`, {}),
   recoverableChatThread: () => lastSavedChatRequest(accountStorageId())?.thread || '',
   commerceStatus: () => request<{ status: 'ready' | 'token_required'; guide_url: string; allow_order: boolean }>('GET', '/agent/commerce/status', undefined, mcdHeaders(getStoredMcdToken())),
   commerceOrders: (group: import('./types').CommerceOrderGroup = 'active', cursor = '') => request<import('./types').CommerceOrderPage>('GET', `/agent/commerce/orders?group=${group}&limit=20&cursor=${encodeURIComponent(cursor)}`, undefined, mcdHeaders(getStoredMcdToken())),

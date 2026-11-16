@@ -45,7 +45,7 @@ test('only real day changes get adjustment labels; profile changes and generic s
  assert.equal(dayAttachment({day:{summary:'训练已更新'},task_results:[{status:'success',actual_changes:[{kind:'actions'}]}]}).kind,'今日调整');
 });
 test('day inspections are labelled current arrangement, never a mutation',()=>{
- assert.equal(dayAttachment({day:{},task_plan:[{capability_id:'state.inspect'}],task_results:[]}).kind,'今日安排');
+ assert.equal(dayAttachment({day:{},task_plan:[{capability_id:'context.inspect'}],task_results:[]}).kind,'今日安排');
 });
 
 test('editing another date cannot label the accompanying current snapshot as today changed',()=>{

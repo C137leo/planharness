@@ -435,6 +435,7 @@ def save_override(
     changes: list[str] | None = None,
     meals: list[dict] | None = None,
     expected_adjustment_id: str | None | object = _UNSPECIFIED_REVISION,
+    sync_sessions: bool = True,
 ) -> dict:
     if expected_adjustment_id is not _UNSPECIFIED_REVISION:
         # Serialize compare-and-write. SQLite ignores FOR UPDATE, so reserve its
@@ -485,8 +486,9 @@ def save_override(
     )
     db.add(row)
     db.flush()
-    from app.domain.workout import sync_day_sessions
-    sync_day_sessions(db,user,day,actions)
+    if sync_sessions:
+        from app.domain.workout import sync_day_sessions
+        sync_day_sessions(db,user,day,actions)
     return {
         **adjustment_payload(row),
         "weekday": day.isoweekday(),

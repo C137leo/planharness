@@ -12,7 +12,7 @@ import { api, ApiError, getStoredMcdToken, type AgentDay, type CurrentPlan, type
 import GlobalCoachWorkspace from '../../components/GlobalCoachWorkspace.vue'
 import DesktopSidebar from '../../components/DesktopSidebar.vue'
 import { syncDesktopChrome } from '../../composables/desktopChrome'
-import { coachWorkspaceLastMcdOrder, isMcdOrderExpired } from '../../composables/coachWorkspace'
+import { coachWorkspaceLastMcdOrder, isMcdOrderExpired, revealPlanOnToday } from '../../composables/coachWorkspace'
 import FoodOptionsSheet from '../../components/FoodOptionsSheet.vue'
 import KnowledgeSheet from '../../components/KnowledgeSheet.vue'
 import McdOrderSheet from '../../components/McdOrderSheet.vue'
@@ -28,11 +28,13 @@ const error = ref('')
 const hasPlan = ref(true)
 const profileReady = ref(false)
 const initialCoachOpen = ref(false)
+const resumeExistingDraft = ref(false)
 // 评审 P-008：教练工作区默认收起，首屏先把"今天练什么/吃什么"露出来。
 const coachOpen = ref(true)
 const dayPlan = ref<AgentDay | null>(null)
 const startingWorkout = ref(false)
 const coachRef = ref<{
+  revealLatestResult: () => void
   sendText: (text: string) => void
   focusInput: () => void
   scrollToLatest: () => void
@@ -849,6 +851,13 @@ function openProgress() {
 }
 
 onShow(() => {
+  if (revealPlanOnToday.value) {
+    revealPlanOnToday.value = false
+    resumeExistingDraft.value = true
+    initialCoachOpen.value = true
+    coachOpen.value = true
+    setTimeout(() => coachRef.value?.revealLatestResult(), 0)
+  }
   syncDesktopChrome()
   // 从其他页面切回来时静默刷新，避免 loading 让教练工作区整块卸载，
   // 触发 uni scroll-view / resize-sensor 的 activated 空 ref 报错。
@@ -909,11 +918,11 @@ onShow(() => {
           </view>
         </view>
         <view class="btn-row">
-          <view v-if="profileReady" class="btn-sm primary" @click="initialCoachOpen = true">生成首份计划</view>
+          <view v-if="profileReady" class="btn-sm primary" @click="resumeExistingDraft = false; initialCoachOpen = true">生成首份计划</view>
           <view class="btn-sm" @click="openProfile">{{ profileReady ? '核对档案' : '去填写' }}</view>
         </view>
       </view>
-      <GlobalCoachWorkspace v-if="initialCoachOpen" :visible="initialCoachOpen" page="today" :date="todayStr()" initial-text="根据已保存的档案生成首份训练与饮食计划草案，先预览，不启用。" :auto-send="true" @close="initialCoachOpen = false" @changed="load(true)" />
+      <GlobalCoachWorkspace v-if="initialCoachOpen" :visible="initialCoachOpen" page="today" :date="todayStr()" :initial-text="resumeExistingDraft ? '' : '根据已保存的档案生成首份训练与饮食计划草案，先预览，不启用。'" :auto-send="!resumeExistingDraft" @close="initialCoachOpen = false" @changed="load(true)" />
     </template>
 
     <template v-else-if="plan">

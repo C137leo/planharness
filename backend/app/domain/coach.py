@@ -257,6 +257,7 @@ def create_draft(
     if goal_contract is not None:
         from app.agent.initial_requirements import prepare
         prepare(proposal.payload, goal_contract, profile)
+        proposal.payload.setdefault('meta',{})['goal_contract']=goal_contract.model_dump()
     guard_changes = enforce_plan_constraints(
         proposal.payload, profile, memory, instruction=instruction,
         formal_action_count=goal_contract.formal_actions if goal_contract is not None else None)
@@ -479,20 +480,27 @@ def confirm_draft(
     if draft.status != "ready":
         raise PatchValidationError([f"draft status is {draft.status}, cannot confirm"])
     payload = draft.payload or {}
+    replacement_basis = payload.get('meta', {}).get('replacement_profile_revision')
+    if replacement_basis and replacement_basis != initial_profile_revision(db,user):
+        raise PatchValidationError(['档案已变化，请重新生成长期计划预览'])
+    if draft.plan_id:
+        current=db.get(Plan,draft.plan_id)
+        if current is None or current.user_id!=user.id or current.current_version!=draft.base_version:
+            raise PatchValidationError(['长期计划版本已变化，请重新生成预览'])
     initial_basis = payload.get('meta', {}).get('initial_profile_revision')
     if initial_basis:
         if initial_basis != initial_profile_revision(db, user):
             raise PatchValidationError(['档案已变化，请重新生成首份计划预览'])
         if db.scalar(select(Plan).where(Plan.user_id == user.id, Plan.status == 'active')):
             raise PatchValidationError(['已有生效计划，不能再次应用首份计划草案'])
+    from app.domain.meal_safety import check_meals
+    check_meals(payload.get('meals') or [],db.get(Profile,user.id))
     days = payload.get("days") or []
     if not days:
         raise PatchValidationError(["draft has no days to commit"])
 
     plan = db.scalar(select(Plan).where(Plan.user_id == user.id, Plan.status == "active"))
     from app.domain.planning import clamp_protein_band
-    from app.models import Profile
-
     profile = db.get(Profile, user.id)
     weight = float(getattr(profile, "weight_kg", 0) or 0)
     nutrition = clamp_protein_band(payload.get("nutrition") or {}, weight)

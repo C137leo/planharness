@@ -36,6 +36,8 @@ const calendarBusy = ref(false)
 let calendarGeneration = 0
 const selectedAgentDay = computed(() => datedDays.value[selectedDate.value] || null)
 const mealGroups = computed(() => plan.value ? weeklyMeals(plan.value) : [])
+const allMealDays = ref(false)
+const visibleMealGroups = computed(() => allMealDays.value ? mealGroups.value : mealGroups.value.slice(0,3))
 const reasonOpen = ref(false)
 const adjustHistoryOpen = ref(false)
 
@@ -516,7 +518,7 @@ onShow(() => {
             <view v-if="!selectedEffectiveActions.length" class="muted">这天没有安排训练。</view>
             <view v-for="action in selectedEffectiveActions" :key="action.id || action.slot_key" class="list-row">
               <view class="list-main">
-                <text class="list-title">{{ action.name }}</text>
+                <text class="list-title">{{ actionLabel(action) }}</text>
                 <text class="list-meta">
                   {{ slotLabel(action.slot) }}
                   <template v-if="action.sets && action.reps"> · {{ action.sets }}×{{ action.reps }}</template>
@@ -592,7 +594,7 @@ onShow(() => {
             class="link exercise-db-link"
             @click.stop="openActionExerciseDb(action)"
           >
-            动作库 · {{ exerciseDbTermForAction(action) }} →
+            动作要领 →
           </text>
         </view>
       </view>
@@ -601,10 +603,10 @@ onShow(() => {
       </StableScroll>
 
       <view v-if="mealGroups.length" class="section-title" style="margin: 20px 8px 8px">长期饮食模板 · v{{ plan.version }}</view>
-      <text v-if="mealGroups.length" class="list-meta plan-scroll-hint">上下滑动查看整周饮食</text>
+      <text v-if="mealGroups.length" class="list-meta plan-scroll-hint">先展示3天饮食，可展开查看整周</text>
       <StableScroll v-if="mealGroups.length" scroll-y chain-to-parent class="plan-list-scroll meals-scroll" aria-label="长期饮食列表">
       <view class="plan-scroll-content">
-      <view v-for="group in mealGroups" :key="`meals-${group.day}`" class="card weekly-meals">
+      <view v-for="group in visibleMealGroups" :key="`meals-${group.day}`" class="card weekly-meals">
         <view class="day-title">{{ WEEKDAY_LABELS[group.day - 1] }} · 饮食</view>
         <view v-for="meal in sortMeals(group.meals)" :key="meal.slot" class="meal-block">
           <view class="row"><text class="list-title">🍽 {{ meal.title }}</text><text class="list-meta">{{ formatKcal(meal.kcal) }} kcal</text></view>
@@ -619,10 +621,11 @@ onShow(() => {
       </view>
       </StableScroll>
 
+      <view v-if="mealGroups.length > 3" class="btn-row"><view class="btn-sm" @click="allMealDays = !allMealDays">{{ allMealDays ? '收起为3天' : '展开整周饮食' }}</view></view>
       <view class="btn-row">
         <view class="btn-sm primary" @click="openCoach('')">改计划</view>
         <view class="btn-sm" @click="undo">{{ busy ? '撤销中…' : '撤销上一次改动' }}</view>
-        <view class="btn-sm" @click="openCoach('换一份计划', true)">换一份计划</view>
+        <view class="btn-sm" @click="openCoach('根据已保存档案重新生成完整长期训练和三餐计划预览，先不应用，保留实际记录。', true)">换一份计划</view>
       </view>
       <view class="muted" style="margin-top: 10px; text-align: center">
         撤销会新建一个版本，历史版本不会被删除。

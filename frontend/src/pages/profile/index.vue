@@ -12,7 +12,7 @@ import { api, type Me, type MemoryItem, type Profile, type TemporaryContextItem 
 import GlobalCoachWorkspace from '../../components/GlobalCoachWorkspace.vue'
 import DesktopSidebar from '../../components/DesktopSidebar.vue'
 import { syncDesktopChrome } from '../../composables/desktopChrome'
-import { resetCoachWorkspace } from '../../composables/coachWorkspace'
+import { resetCoachWorkspace, revealPlanOnToday } from '../../composables/coachWorkspace'
 
 const loading = ref(true)
 const busy = ref(false)
@@ -150,7 +150,7 @@ function memoryValue(item: MemoryItem): string {
 
 function splitList(text: string): string[] {
   return text
-    .split(/[、,，\s]+/)
+    .split(/[、,，;；/\s]+/)
     .map((item) => item.trim())
     .filter(Boolean)
 }
@@ -198,8 +198,12 @@ async function save(): Promise<boolean> {
   }
 }
 
+const navigateAfterDraft = ref(false)
 async function saveThenDraft() {
-  if (await save()) openCoach('根据我的资料生成计划', true)
+  if (await save()) {
+    navigateAfterDraft.value = true
+    openCoach('根据已保存的完整档案生成长期训练和三餐计划预览，已有计划则重新生成替换草案，先不应用。', true)
+  }
 }
 
 function openCoach(text = '', auto = false) {
@@ -281,8 +285,15 @@ function removeMemory(memory: MemoryItem) {
   })
 }
 
-async function onAgentChanged() {
+async function onAgentChanged(result?: import('../../api').AgentChatResult) {
+  applyProfile(await api.getProfile())
   await loadMemories()
+  if (navigateAfterDraft.value && result?.plan_draft?.status === 'ready') {
+    navigateAfterDraft.value = false
+    coachOpen.value = false
+    revealPlanOnToday.value = true
+    uni.switchTab({ url: '/pages/today/index' })
+  }
 }
 
 function onOpenWorkout(payload: { sessionId?: string; date?: string }) {
@@ -575,7 +586,7 @@ onShow(() => {
       <view class="btn-row">
         <view class="btn-sm primary" @click="save">{{ busy ? '保存中…' : '保存' }}</view>
         <view class="btn-sm" @click="saveThenDraft">保存并生成计划</view>
-        <view class="btn-sm" @click="openCoach('换一份计划', true)">换一份计划</view>
+        <view class="btn-sm" @click="openCoach('按已保存档案重新生成一份完整长期训练和三餐计划预览，先不应用，保留已发生的训练和进食记录。', true)">换一份计划</view>
       </view>
 
       <!-- #ifdef H5 -->

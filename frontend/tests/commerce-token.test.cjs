@@ -6,7 +6,7 @@ function card(status,initial=null,stored='') {
  vm.runInNewContext(ts.transpileModule(script+'\nglobalThis.view={tokenOpen,connection,toggleTokenPanel,saveToken,token}',{compilerOptions:{target:ts.ScriptTarget.ES2020}}).outputText,ctx);
  return {ctx,props,view:ctx.view,mount:mounted[0]};
 }
-test('server credential is sufficient even with empty local token and a stale missing-token attachment',async()=>{
+test('fresh ready status replaces stale missing-token attachment',async()=>{
  const c=card('ready',{commerce_connection:{status:'token_required'}});await c.mount();assert.equal(c.view.tokenOpen.value,false);assert.equal(c.view.connection.value,'ready');
 });
 test('missing credential automatically shows input and saved local credentials stay collapsed',async()=>{
@@ -25,7 +25,7 @@ test('saving collapses input; authentication failure reopens it even if a token 
  const c=card('ready',null,'saved-token');await c.mount();c.view.toggleTokenPanel();c.view.token.value='replacement';c.view.saveToken();assert.equal(c.view.tokenOpen.value,false);
  c.props.result={commerce_connection:{status:'token_required'}};await vue.nextTick();assert.equal(c.view.tokenOpen.value,true);
 });
-test('status outage does not confuse missing local storage with missing server credentials',async()=>{
+test('status outage remains unknown and allows manual credential settings',async()=>{
  const c=card(()=>Promise.reject(Error('offline')));await c.mount();assert.equal(c.view.connection.value,'unknown');assert.equal(c.view.tokenOpen.value,false);
  c.view.toggleTokenPanel();assert.equal(c.view.tokenOpen.value,true);
 });

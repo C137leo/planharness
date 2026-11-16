@@ -1,4 +1,5 @@
 """Day revisions: isolated domain execution, saved confirmation, truthful results."""
+from app.agent.task_executor import safe_error
 import copy
 import datetime as dt
 import json
@@ -111,9 +112,9 @@ def execute_revision(db,user,snapshot,tasks,confirmed=False):
             if row and getattr(exc,'code',None) in {'conflict','expired'}:
                 row.status='conflicted' if exc.code=='conflict' else 'expired'
             if row:data=service.payload(row)
-        return {'overall_status':'failed','reply':'草案未能执行：'+str(exc)[:300],
+        return {'overall_status':'failed','reply':'草案未能执行：'+safe_error(exc)[:300],
                 'task_plan':[task.model_dump()],'day_revision':data,'actions':[],
-                'task_results':[{**base,'status':'failed','message':str(exc)[:300],'actual_changes':[],'unrelated_changes':[]}]}
+                'task_results':[{**base,'status':'failed','message':safe_error(exc)[:300],'actual_changes':[],'unrelated_changes':[]}]}
 
 
 def replan_question(data):
@@ -237,5 +238,5 @@ def resume_replan(db,user,snapshot,result,client,day,trace):
         next_result['task_results']=result['task_results']+next_result.get('task_results',[])
         return next_result
     except Exception as exc:
-        return {'overall_status':'clarification_required','reply':'已保留本次重排确认，但新目标尚未生成：'+str(exc)[:200]+' 原安排未改变，可继续调整方案。',
+        return {'overall_status':'clarification_required','reply':'已保留本次重排确认，但新目标尚未生成：'+safe_error(exc)[:200]+' 原安排未改变，可继续调整方案。',
                 'workout_replan':data,'actions':[],'task_results':result['task_results']}

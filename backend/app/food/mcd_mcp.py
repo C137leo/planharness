@@ -27,15 +27,13 @@ import time
 
 import httpx
 
-# 模块级常量优先（单元测试直接改它）；否则读 Settings（backend/.env），
-# 最后退回环境变量，保证「配置文件」和「export」两种部署方式都能用。
+# URL/超时等部署参数保留模块级覆盖；请求凭证必须由用户显式提供。
 MCD_MCP_URL = ""
 MCD_MCP_TOKEN = ""
 DEFAULT_TOOL = ""
 TIMEOUT = 0.0
 
-# 模块级变量优先（测试可直接改）；否则读 Settings / 环境变量。
-# 这是"口令"不是 token，真实 token 只在 MCD_MCP_TOKEN 里。
+# 旧Token/口令常量仅保留兼容导入，不参与请求凭证解析。
 MCD_MCP_TOKEN_ALIAS = ""
 
 # 营养表几乎不变：缓存一段时间，省掉每个用户每次规划都打一次官方接口
@@ -53,34 +51,15 @@ NOTE = ("热量/蛋白质为麦当劳官方营养表数值，不是价格，也�
         "这里只做推荐，不代下单。")
 
 
-def _configured_token() -> str:
-    from app.config import get_settings
-
-    settings = get_settings()
-    return MCD_MCP_TOKEN or settings.mcd_mcp_token or os.environ.get("MCD_MCP_TOKEN", "")
-
-
-def _configured_alias() -> str:
-    from app.config import get_settings
-
-    settings = get_settings()
-    return (MCD_MCP_TOKEN_ALIAS or settings.mcd_mcp_token_alias
-            or os.environ.get("MCD_MCP_TOKEN_ALIAS", "")).strip()
-
-
 def resolve_token(user_token: str | None = None) -> str:
     """解析本次请求实际使用的 token。
 
-    - 空：用服务端配置（兼容原来的行为）；
-    - 与服务端配置的私有口令相同：用服务端配置，方便演示时不用把真 token 发给用户；
-    - 其它：用用户自己输入的 token。
+    只使用用户本次提供的凭证；空值不继承服务器Token或演示口令。
     """
-    supplied = (user_token or "").strip()[:512]
-    configured = _configured_token().strip()
-    alias = _configured_alias()
-    if alias and supplied == alias:
-        return configured
-    return supplied or configured
+    supplied = (user_token or "").strip()
+    if len(supplied) > 512:
+        raise ValueError('MCP凭证过长')
+    return supplied
 
 
 def _config(user_token: str | None = None) -> tuple[str, str, str, float]:

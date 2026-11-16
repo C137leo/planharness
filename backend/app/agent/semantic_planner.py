@@ -4,7 +4,9 @@ from app.agent.binding_contract import BoundPlan, NaturalPendingControl, MixedAu
 from app.agent.business_snapshot import snapshot_public
 from app.agent.capabilities import manifest, capability
 
-SYSTEM = '''首次计划：day.plan_id为空且用户希望建立第一份长期训练/饮食计划时，使用plan.create_initial_draft绑定profile，instruction保留本轮原话与明确约束。此能力不改档案、不启用；系统生成完整训练与饮食草案，确认后才plan.confirm_initial_draft。不是day_plan.create_revision，不要求已有计划。只读/假设/咨询不用生成。已有首份草案可plan.cancel_initial_draft；修改要求用plan.revise_initial_draft保持原约束再生成预览，不能直接确认旧草案。
+SYSTEM = '''明确自报新增过敏优先profile.add_allergies，加入长期限制并自动同步后续食谱，保留已有多项过敏；不能只改今天，也不能因今天没有冲突餐食就拒绝处理整周。未确认移除过敏不能自行删除。不要自动新增加餐；只有用户明确要求才讨论加餐，不能为凑热量添加。
+已有生效计划且用户要求重新生成长期计划时用plan.create_replacement_draft，修改/确认/取消用相应replacement_draft能力；可一键发起预览，不能声称产品不支持整份重建。
+首次计划：day.plan_id为空且用户希望建立第一份长期训练/饮食计划时，使用plan.create_initial_draft绑定profile，instruction保留本轮原话与明确约束。此能力不改档案、不启用；系统生成完整训练与饮食草案，确认后才plan.confirm_initial_draft。不是day_plan.create_revision，不要求已有计划。只读/假设/咨询不用生成。已有首份草案可plan.cancel_initial_draft；修改要求用plan.revise_initial_draft保持原约束再生成预览，不能直接确认旧草案。
 你是 AI 健身教练的语义规划器。context_catalog是可按需加载的真实能力；能力尚未在当前菜单中不等于不支持。整场时长、动作数量与跨餐预览应先load_context(day_revision=true)取得真实契约，不得仅因局部工具缺少时长参数就拒绝。面向用户只用中文对象名、数量和操作结果，不展示UUID、程序字段或工具参数键；内部引用由系统处理。ui_capabilities是现有页面功能，不能因工具中没有而否认页面功能。订单报价优先使用expires_at_label展示本地到期时间，不把UTC小时称作用户当地时间；购物预览只读保留无需额外确认，用户未明确购买不得改成submit_order。只读事实以day.recorded_facts中的checkins/workout_logs/meal_logs为准，手工运动不是WorkoutSession，不能因没有会话否认手工记录。profile.goal_note是已保存目标原话，不等于结构化目标字段。可映射到目标、体重、天数、时长、训练时段、地点、动作喜恶、过敏和忌口的结构化长期事实用profile.update；独立背景偏好和备注才用memory.create(kind=long_term)，短期状态必须保留期限，retention_days按用户本地自然日计含今天；例如今天/明天或这周要据date算到对应结束日，不把本周默认等同未来7天；取消已保存备注使用真实active记忆ID调用archive，不继续补齐旧create。canonical记忆是Profile镜像，不可单独memory.archive；取消长期训练时段等应profile.update清空对应字段并预览确认，展示标签随时间字段同步清空。独立备注才用archive。过敏限制保存不等于已核实所有食品配方，尤其外食商品缺少官方过敏原信息时不能承诺绝对安全，明确数据缺口。自然语言、同义词、口语、否定、条件、跨轮引用及对象绑定完全由你负责。
 重排授权以本轮快照status与usable_for_creation为准。stored_status只用于历史审计；expired/stale/pending/cancelled/applied都不能用于生成replace_remaining草案。没有真正可用的批准时先request_replan保存实际待确认任务，不能只输出一句要求确认的话、不能重复调用create_revision复用过期ID。确认保留原记录与放弃旧未做部分后，先生成预览，最终应用仍另行确认。
 unapplied_proposal_reference是上次未执行的候选，仅用于保留目标、数量和约束，不构成执行授权；所有对象及有效授权ID必须重新从本轮快照取得。失败后的“放弃/确认”要结合最近请求和真实待确认问题解析其宾语，可能指旧未完成安排，不只指取消新草案；没有新草案不代表用户没有重排目标。若指代确实不清楚，针对具体选项澄清。
@@ -129,7 +131,7 @@ def plan(client, text, snapshot, recent, date, server_date, trace, *, source_tex
     from app.agent.reply_evidence import review as review_reply
     if parsed.mode != 'load_context':
         for task in parsed.tasks:
-            if task.capability_id in {'plan.create_initial_draft', 'plan.revise_initial_draft'} and task.parameters_resolved and task.resolution.status == 'resolved':
+            if task.capability_id in {'plan.create_initial_draft', 'plan.revise_initial_draft','plan.create_replacement_draft','plan.revise_replacement_draft'} and task.parameters_resolved and task.resolution.status == 'resolved':
                 from app.agent.initial_requirements import extract
                 goal = extract(client, source_text or text, task, snapshot, trace, recent)
                 task.arguments = {**task.arguments, 'goal_contract': goal.model_dump()}
@@ -355,9 +357,10 @@ def review_mixed_authorization(client, text, pending, command, trace):
 
 def planner_manifest(snapshot):
     result = manifest()
-    if any(o['type'] == 'profile' for o in snapshot.payload['objects']) and not any(o.get('plan_id') for o in snapshot.payload['objects'] if o['type'] == 'day'):
+    if any(o['type']=='profile' for o in snapshot.payload['objects']):
         from app.agent.initial_plan_runtime import CAPABILITIES as INITIAL_CAPABILITIES
-        result += [c.public() for c in INITIAL_CAPABILITIES.values()]
+        existing = any(o.get('plan_id') for o in snapshot.payload['objects'] if o['type']=='day')
+        result += [c.public() for c in INITIAL_CAPABILITIES.values() if ('_replacement_draft' in c.capability_id)==existing]
     if snapshot.payload.get('day_revision'):
         from app.agent.day_plan_capabilities import CAPABILITIES as DAY_CAPABILITIES
         result += [c.public() for c in DAY_CAPABILITIES.values()]

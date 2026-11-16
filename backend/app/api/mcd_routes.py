@@ -56,7 +56,7 @@ class OrderIn(QuoteIn):
 
 # 已知错误码 → 给用户看的一句话（优先于官方原文，官方那句往往只有四个字）
 FRIENDLY = {
-    "mcd_mcp_unavailable": "还没配置 MCD_MCP_TOKEN",
+    "mcd_mcp_unavailable": "请先填写你自己的麦当劳 MCP Token",
     "mcd_unauthorized": "MCD Token 无效或已过期",
     "mcd_need_city_and_keyword": "官方要求城市和关键词都填（例如 上海 / 人民广场）",
     "mcd_no_store": "没搜到门店，换个关键词试试",
@@ -76,7 +76,7 @@ def _fail(result: dict) -> None:
 
 
 def _mcd_token(x_mcd_token: str | None = Header(default=None, alias="X-MCD-Token")) -> str:
-    """用户自己的 token 从请求头来；配置了私有口令时由 resolve_token 映射到服务端 token。"""
+    """只使用当前用户请求头中的token，不使用服务器默认凭证。"""
     return resolve_token(x_mcd_token)
 
 

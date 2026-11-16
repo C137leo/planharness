@@ -950,7 +950,7 @@ class CoachTaskExecution(Base):
     operation: Mapped[str] = mapped_column(String(64))
     domain: Mapped[str] = mapped_column(String(32))
     scope: Mapped[str] = mapped_column(String(32))
-    goal: Mapped[str] = mapped_column(String(500), default="")
+    goal: Mapped[str] = mapped_column(Text, default="")
     tool: Mapped[str] = mapped_column(String(128))
     arguments: Mapped[dict] = mapped_column(JSON, default=dict)
     resource_changes: Mapped[list] = mapped_column(JSON, default=list)

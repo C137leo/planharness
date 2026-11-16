@@ -186,8 +186,8 @@ def _fit_day(day: dict, minutes: int, changes: list[str], formal_action_count: i
 def reconcile_meals(payload: dict) -> list[str]:
     """核对每日餐食与热量目标，并把差额写进 payload 供 UI 明示。
 
-    不擅自加餐：减脂模板只有三餐（增肌才加 snack），改餐次会改变产品语义。
-    差额用"剩余 X kcal 可加餐"展示，避免"目标 2220、三餐 1903"却没有任何解释。
+    默认模板只安排三餐，不为凑目标自动新增 snack。
+    将实际差额记录供界面展示，不把差额冒充已经安排的食物。
     """
     meals = payload.get("meals") or []
     nutrition = payload.get("nutrition") or {}
@@ -315,6 +315,25 @@ def enforce_plan_constraints(payload: dict, profile, memory: dict | None = None,
         day["actions"] = kept
         _fit_day(day, minutes, changes, formal_action_count)
 
+    # Equipment substitution can collapse different skill sessions to the same
+    # bodyweight fallback. Vary within allowed equipment and safety constraints.
+    seen = set()
+    fixed_selection = bool(((payload.get('meta') or {}).get('goal_contract') or {}).get('selected_action_refs'))
+    for day in days:
+        signature=tuple(a.get('action_ref') for a in day['actions'])
+        if signature in seen and not fixed_selection:
+            used={_ref_key(str(a.get('action_ref'))) for a in day['actions']} | disliked
+            for index, action in reversed(list(enumerate(day['actions']))):
+                if action.get('slot')=='warmup':continue
+                candidate=_replace_for_equipment(action,allowed,injured,used)
+                if candidate:
+                    day['actions'][index]=candidate
+                    changes.append(f"第{day['day_index']}天采用不同的同类动作，保留训练负荷与安全约束")
+                    break
+        seen.add(tuple(a.get('action_ref') for a in day['actions']))
+
+    from app.domain.meal_safety import check_meals
+    check_meals(payload.get('meals') or [],profile)
     meal_changes = reconcile_meals(payload)
     changes.extend(meal_changes)
 

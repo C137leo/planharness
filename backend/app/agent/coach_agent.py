@@ -226,7 +226,25 @@ def run(db, user, text, *, request_id=None, **kwargs):
         return replay(db.get(AgentRun, key))
     db.info['coach_claim_id'] = key
     try:
-        result = _run(db, user, text, **kwargs)
+        from app.llm.cancellation import cancellation_scope, ModelCancelled
+        from sqlalchemy.orm import Session as ControlSession
+        def cancelled():
+            with ControlSession(db.get_bind()) as control:
+                return control.get(AgentRun,key).status=='cancel_requested'
+        def begin():
+            db.commit()  # Persist only planning/snapshot artifacts before dispatch; release SQLite writer lock.
+            with ControlSession(db.get_bind()) as control:
+                row=control.scalar(select(AgentRun).where(AgentRun.id==key).with_for_update())
+                if row.status=='cancel_requested': raise ModelCancelled()
+                row.input={**row.input,'phase':'executing'}
+                control.commit()
+        try:
+            with cancellation_scope(cancelled,begin):
+                result = _run(db,user,text,**kwargs)
+        except ModelCancelled:
+            db.rollback()
+            result={'overall_status':'cancelled','reply':'已停止本次处理，未执行本次修改。','actions':[]}
+            _record_messages(db,user,text,result,thread=kwargs.get('thread','coach'))
         claim = db.get(AgentRun, key)
         claim.output = result
         claim.status = "succeeded"

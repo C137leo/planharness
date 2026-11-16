@@ -73,6 +73,8 @@ def resolve_tags(terms: list[str] | str | None) -> tuple[set[str], list[str]]:
                     break
         if not hit:
             unmatched.append(term)
+    if "seafood" in tags:
+        tags.add("fish")  # broad seafood restriction includes fish as well as shellfish
     return tags, unmatched
 
 

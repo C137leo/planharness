@@ -96,6 +96,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         logging.getLogger("planharness.migrations").exception(
             "additive schema migration failed"
         )
+        if engine.dialect.name == "postgresql":
+            raise
     # 全局大模型开关：底层客户端和接口依赖都读它
     configure_llm_guard(session_factory)
 

@@ -3,10 +3,10 @@
 只做**加法**：
 - 新表由 `Base.metadata.create_all` 创建；
 - 已有表缺的列用 `ALTER TABLE ADD COLUMN` 补；
-- 不删除、不改类型，避免在 SQLite / Postgres 之间写两套迁移。
+- 不删除、不缩短；PostgreSQL额外把旧VARCHAR容量扩至当前ORM契约，Text字段可转TEXT。
 
 生产环境如果数据库账号没有 DDL 权限，需要由 DBA 预先执行等价 SQL；
-失败会记录日志并继续启动（接口运行时会暴露出缺列错误，便于定位）。
+PostgreSQL必要迁移失败会阻止启动，避免带不兼容字段继续接收业务请求。
 """
 
 from __future__ import annotations
@@ -106,7 +106,44 @@ def ensure_additive_schema(engine: Engine) -> list[str]:
         if "workout_logs" in existing_tables:
             statement = "CREATE UNIQUE INDEX IF NOT EXISTS uq_workout_log_session_item ON workout_logs (session_id, session_item_id)"
             conn.execute(text(statement))
+    executed.extend(ensure_postgres_text_capacity(engine))
     return executed
+
+
+def ensure_postgres_text_capacity(engine: Engine) -> list[str]:
+    """Widen legacy varchar columns to current ORM contracts, never truncate data.
+
+    PostgreSQL enforces varchar lengths while SQLite does not. create_all cannot
+    update old column types. This migration is required: DDL failures stop startup.
+    """
+    if engine.dialect.name != 'postgresql':
+        return []
+    from sqlalchemy import String, Text
+    from app.db import Base
+    inspector = inspect(engine)
+    tables = set(inspector.get_table_names())
+    statements = []
+    quote = engine.dialect.identifier_preparer.quote
+    with engine.begin() as conn:
+        for name, table in Base.metadata.tables.items():
+            if name not in tables:
+                continue
+            actual = {c['name']: c['type'] for c in inspector.get_columns(name)}
+            for column in table.columns:
+                old = actual.get(column.name)
+                wanted = column.type
+                if not isinstance(old, String) or isinstance(old, Text):
+                    continue
+                if isinstance(wanted, Text):
+                    target = 'TEXT'
+                elif isinstance(wanted, String) and wanted.length and old.length and old.length < wanted.length:
+                    target = f'VARCHAR({wanted.length})'
+                else:
+                    continue
+                statement = f'ALTER TABLE {quote(name)} ALTER COLUMN {quote(column.name)} TYPE {target}'
+                conn.execute(text(statement))
+                statements.append(statement)
+    return statements
 
 
 def backfill_lifecycle_data(

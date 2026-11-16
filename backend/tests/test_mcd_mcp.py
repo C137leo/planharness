@@ -86,12 +86,12 @@ def test_unavailable_without_token(monkeypatch) -> None:
     assert result["error"] == "mcd_mcp_unavailable"
 
 
-def test_user_token_alias_and_own_token() -> None:
-    """配置的口令用服务端 token；其它输入用用户自己的 token；空值回落服务端。"""
-    assert mcd_mcp.resolve_token("test-alias") == TOKEN
+def test_no_server_default_or_alias_for_user_credentials() -> None:
+    """所有请求只使用用户凭证，空值不继承服务器配置或演示口令。"""
+    assert mcd_mcp.resolve_token("test-alias") == "test-alias"
     assert mcd_mcp.resolve_token("user-token") == "user-token"
-    assert mcd_mcp.resolve_token("") == TOKEN
-    assert mcd_mcp.resolve_token(None) == TOKEN
+    assert mcd_mcp.resolve_token("") == ""
+    assert mcd_mcp.resolve_token(None) == ""
 
 
 def test_call_tool_uses_user_token_header() -> None:
@@ -108,7 +108,7 @@ def test_call_tool_does_handshake_first() -> None:
     http = FakeHttp([_init_ok(), _initialized_ok(),
                      FakeResponse(200, json.dumps({"jsonrpc": "2.0", "id": 2,
                                                    "result": {"content": []}}))])
-    result = mcd_mcp.call_tool("list-nutrition-foods", {}, client=http)
+    result = mcd_mcp.call_tool("list-nutrition-foods", {}, client=http, token=TOKEN)
     assert result["status"] == "ok"
     methods = [call["json"]["method"] for call in http.calls]
     assert methods == ["initialize", "notifications/initialized", "tools/call"]
@@ -122,7 +122,7 @@ def test_fetch_nutrition_parses_table_and_caches() -> None:
             "  中薯条,null,1210,289,4,12,38,165,18\n"
             "  坏行,只有两个字段\n")
     http = FakeHttp([_init_ok(), _initialized_ok(), FakeResponse(200, _nutrition_body(rows))])
-    first = mcd_mcp.fetch_nutrition(client=http)
+    first = mcd_mcp.fetch_nutrition(client=http, token=TOKEN)
     assert first["status"] == "ok"
     items = first["data"]["items"]
     assert [item["name"] for item in items] == ["猪柳麦满分", "中薯条"]
@@ -130,7 +130,7 @@ def test_fetch_nutrition_parses_table_and_caches() -> None:
     assert first["data"]["fetched_at"]
 
     # 第二次命中缓存，不再发请求
-    second = mcd_mcp.fetch_nutrition(client=FakeHttp([]))
+    second = mcd_mcp.fetch_nutrition(client=FakeHttp([]), token=TOKEN)
     assert second["data"]["items"] == items
 
 
@@ -138,12 +138,12 @@ def test_sse_response_is_parsed() -> None:
     sse = "event: message\ndata: " + json.dumps({"jsonrpc": "2.0", "id": 2,
                                                  "result": {"content": []}}) + "\n"
     http = FakeHttp([_init_ok(), _initialized_ok(), FakeResponse(200, sse)])
-    assert mcd_mcp.call_tool("list-nutrition-foods", {}, client=http)["status"] == "ok"
+    assert mcd_mcp.call_tool("list-nutrition-foods", {}, client=http, token=TOKEN)["status"] == "ok"
 
 
 def test_unauthorized_is_not_retryable() -> None:
     http = FakeHttp([FakeResponse(401, "{}")])
-    result = mcd_mcp.call_tool("list-nutrition-foods", {}, client=http)
+    result = mcd_mcp.call_tool("list-nutrition-foods", {}, client=http, token=TOKEN)
     assert result["status"] == "error"
     assert result["error"] == "mcd_unauthorized"
     assert result["retryable"] is False
@@ -151,7 +151,7 @@ def test_unauthorized_is_not_retryable() -> None:
 
 def test_http_error_is_retryable() -> None:
     http = FakeHttp([FakeResponse(502, "bad gateway")])
-    result = mcd_mcp.call_tool("list-nutrition-foods", {}, client=http)
+    result = mcd_mcp.call_tool("list-nutrition-foods", {}, client=http, token=TOKEN)
     assert result["status"] == "error"
     assert result["retryable"] is True
 

@@ -26,7 +26,7 @@ def identity(db, user, kind, key, payload):
 
 def profile_data(db, user):
     row = db.get(Profile, user.id)
-    keys = ("goal", "goal_note", "sex", "birth_year", "height_cm", "training_experience", "timezone", "weight_kg", "weekly_days", "session_minutes", "preferred_time_window", "preferred_time_label",
+    keys = ("goal", "goal_note", "activity_level", "sex", "birth_year", "height_cm", "training_experience", "timezone", "weight_kg", "weekly_days", "session_minutes", "preferred_time_window", "preferred_time_label",
             "preferred_location", "dislikes", "likes", "allergies", "diet_preferences", "equipment")
     return {key: copy.deepcopy(getattr(row, key)) for key in keys} if row else {}
 
@@ -118,8 +118,8 @@ def build_snapshot(db, user, thread, dates, *, exercise_catalog=False, history_l
             obj['recorded_facts'] = facts[obj['date']]
     from app.agent.initial_plan_runtime import draft_revision
     for draft in db.scalars(select(PlanDraft).where(PlanDraft.user_id == user.id,
-            PlanDraft.plan_id.is_(None), PlanDraft.status == 'ready').order_by(PlanDraft.created_at.desc()).limit(5)):
-        objects.append({'id': draft.id, 'type': 'initial_plan_draft', 'name': '首份训练与饮食计划草案',
+            PlanDraft.status == 'ready').order_by(PlanDraft.created_at.desc()).limit(5)):
+        objects.append({'id': draft.id, 'type': 'replacement_plan_draft' if draft.plan_id else 'initial_plan_draft', 'name': '长期替换计划草案' if draft.plan_id else '首份训练与饮食计划草案',
                         'etag': draft_revision(draft), 'status': draft.status, 'instruction': draft.instruction,
                         'goal_contract': draft.payload.get('meta', {}).get('goal_contract'),
                         'days': draft.payload.get('days', []), 'meals': draft.payload.get('meals', [])})
@@ -161,7 +161,7 @@ def build_snapshot(db, user, thread, dates, *, exercise_catalog=False, history_l
         objects.append({"id": row.id, "type": "execution", "date": row.effective_date.isoformat(),
                         "task_id": row.task_id, "request_key": row.request_key, "operation": row.operation,
                         "goal": row.goal, "status": row.status, "changes": row.resource_changes,
-                        "undo_supported": bool(row.resource_changes) and all(c['kind'] in {'actions', 'meals', 'profile'} or (c['kind'] == 'memories' and row.operation == 'profile.update') for c in row.resource_changes) and row.domain not in {'day_revision', 'workout_lifecycle', 'initial_plan'}})
+                        "undo_supported": bool(row.resource_changes) and all(c['kind'] in {'actions', 'meals', 'profile'} or (c['kind'] == 'memories' and row.operation == 'profile.update') for c in row.resource_changes) and row.domain not in {'day_revision', 'workout_lifecycle', 'initial_plan'} and row.operation != 'profile.add_allergies'})
     ids = [o["id"] for o in objects]
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate_snapshot_object_id")

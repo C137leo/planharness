@@ -254,9 +254,15 @@ def validate(base, target, scope, constraints, *, allow_workout_replacement=Fals
              'include_warmup':constraints.include_warmup_in_action_count})
     if 'workout' in scope and target['actions'] and target['actions'][0]['slot']!='warmup':
         raise RevisionError('warmup','训练安排必须以热身开始。')
-    excluded=set(constraints.excluded_ingredients)|set(base['profile'].get('allergies') or [])
+    from app.domain.allergens import resolve_tags
+    terms = list(constraints.excluded_ingredients) + list(base['profile'].get('allergies') or []) + list(base['profile'].get('diet_preferences') or [])
+    tags, _ = resolve_tags(terms)
+    excluded=set(terms) | tags
+    if 'seafood' in excluded: excluded.add('fish')
     for meal in target['meals']:
         if meal['slot'] not in scope:continue
+        if meal['slot']=='snack' and 'snack' not in old_meals:
+            raise RevisionError('meal_scope','不能自动新增加餐；需要用户明确要求并单独核对。')
         if any(i.get('ingredient_key',i.get('name')) in excluded or FOOD_TAGS.get(i.get('ingredient_key',i.get('name')),set()) & excluded for i in meal['items']):raise RevisionError('ingredient_constraint','草案包含明确排除的食材。')
     meals={m['slot']:m for m in target['meals']}
     for rule in constraints.meal_ingredient_rules:

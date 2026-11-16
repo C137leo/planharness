@@ -189,7 +189,7 @@ def coach_commerce_dependency(request: Request):
     from hashlib import sha256
     settings=request.app.state.settings
     supplied=request.headers.get("X-MCD-Token", "").strip()
-    token=settings.mcd_mcp_token if not supplied or supplied==settings.mcd_mcp_token_alias else supplied
+    token=supplied
     if not token:return None
     if len(token)>512:raise HTTPException(422,"MCP凭证过长")
     url=settings.mcd_mcp_url
@@ -208,7 +208,7 @@ def _history_legacy_key(request:Request):
     from hashlib import sha256
     settings=request.app.state.settings
     supplied=request.headers.get('X-MCD-Token','').strip()
-    token=settings.mcd_mcp_token if not supplied or supplied==settings.mcd_mcp_token_alias else supplied
+    token=supplied
     return sha256(token.encode()).hexdigest() if token else ''
 
 
@@ -295,6 +295,23 @@ def agent_chat(
         commerce_action=payload.commerce_action,
     )
     return ok(request, result)
+
+
+@router.post('/agent/requests/{request_id}/cancel')
+def cancel_agent_request(request_id:str,request:Request,user:User=Depends(get_current_user),db:Session=Depends(get_db)):
+    from uuid import NAMESPACE_URL,uuid5
+    from app.models import AgentRun
+    if not request_id or len(request_id)>128:raise HTTPException(422,'请求编号无效')
+    key=str(uuid5(NAMESPACE_URL,f'coach:{user.id}:{request_id}'))
+    row=db.scalar(select(AgentRun).where(AgentRun.id==key,AgentRun.user_id==user.id,AgentRun.kind=='coach_request').with_for_update())
+    if row is None:raise HTTPException(404,'尚未查询到该请求')
+    if row.status=='succeeded':return ok(request,{'status':'completed','result':row.output})
+    if row.input.get('phase')=='executing':
+        return ok(request,{'status':'too_late','message':'操作已进入执行阶段，无法撤销，请等待实际结果。'})
+    if row.status not in {'running','cancel_requested'}:
+        return ok(request,{'status':'needs_reconciliation','message':'结果需要核对，不能通过停止视为已撤销。'})
+    row.status='cancel_requested';db.commit()
+    return ok(request,{'status':'cancel_requested'})
 
 
 @router.get("/agent/requests/{request_id}")

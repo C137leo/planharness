@@ -275,6 +275,9 @@ def update_profile(
         # Profile 是结构化事实的唯一来源：档案页的修改也要同步 canonical Memory
         try:
             sync_profile_change(db, user, profile, changed)
+            if "allergies" in changed:
+                from app.domain.meal_safety import repair_saved_future_meals
+                repair_saved_future_meals(db,user,profile)
         except Exception:  # noqa: BLE001 - Profile 与镜像必须同成同败
             db.rollback()
             logging.getLogger("planharness.memory").exception(

@@ -5,6 +5,7 @@
  * 都来自这里的模块级单例——页面切换不会开启一个新的 Agent。
  */
 import { ref } from 'vue'
+import { currentAccountId } from '../api/accountStorage'
 import type { AgentConversation, McdOrder } from '../api'
 
 export type CoachAttachment = {
@@ -29,10 +30,11 @@ export const coachWorkspaceMessages = ref<CoachChatMessage[]>([])
 export const coachWorkspaceThreadId = ref('')
 export const coachWorkspaceHistoryThread = ref('')
 export const coachWorkspaceConversations = ref<AgentConversation[]>([])
+export const revealPlanOnToday = ref(false)
 export const coachWorkspaceLastPage = ref('today')
 export const coachWorkspaceLastContext = ref<Record<string, unknown>>({})
 
-const LAST_MCD_ORDER_KEY = 'planharness_last_mcd_order'
+function lastOrderKey() { return `planharness_last_mcd_order:${currentAccountId()}` }
 
 export function isMcdOrderExpired(order: McdOrder | null | undefined): boolean {
   if (!order?.expire_at) return false
@@ -41,10 +43,11 @@ export function isMcdOrderExpired(order: McdOrder | null | undefined): boolean {
 }
 
 function readLastMcdOrder(): McdOrder | null {
+  if (!currentAccountId()) return null
   try {
-    const stored = (uni.getStorageSync(LAST_MCD_ORDER_KEY) as McdOrder) || null
+    const stored = (uni.getStorageSync(lastOrderKey()) as McdOrder) || null
     if (stored && isMcdOrderExpired(stored)) {
-      uni.removeStorageSync(LAST_MCD_ORDER_KEY)
+      uni.removeStorageSync(lastOrderKey())
       return null
     }
     return stored
@@ -58,8 +61,8 @@ export const coachWorkspaceLastMcdOrder = ref<McdOrder | null>(readLastMcdOrder(
 export function setLastMcdOrder(order: McdOrder | null): void {
   coachWorkspaceLastMcdOrder.value = order
   try {
-    if (order) uni.setStorageSync(LAST_MCD_ORDER_KEY, order)
-    else uni.removeStorageSync(LAST_MCD_ORDER_KEY)
+    if (order) uni.setStorageSync(lastOrderKey(), order)
+    else uni.removeStorageSync(lastOrderKey())
   } catch {
     // 本地缓存失败不影响本次会话
   }
@@ -74,7 +77,8 @@ export function resetCoachWorkspace(): void {
   coachWorkspaceThreadId.value = ''
   coachWorkspaceHistoryThread.value = ''
   coachWorkspaceConversations.value = []
+  revealPlanOnToday.value = false
   coachWorkspaceLastPage.value = 'today'
   coachWorkspaceLastContext.value = {}
-  setLastMcdOrder(null)
+  coachWorkspaceLastMcdOrder.value = readLastMcdOrder()
 }

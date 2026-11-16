@@ -12,14 +12,14 @@ binding_contract.py 分开表示对象 resolution 和 parameters_resolved。task
 
 ## 能力与边界
 
-注册入口为 capabilities.py:capability。本地注册表16项（原14项加实际进食登记/纠错）；另有 commerce_capabilities、workout_capabilities、day_plan_capabilities，以及 initial_plan_runtime 的4个首份计划生命周期能力，共44项可派发定义。实际明细在 [能力清单](audit/capabilities.json)，按源码重新导出。模型收到的是按上下文和配置筛选后的菜单，不能将可派发总数当成每轮已开放数量。
+注册入口为 capabilities.py:capability。本地注册表17项；另有 commerce_capabilities、workout_capabilities、day_plan_capabilities，以及 initial_plan_runtime 的8个首份/长期替换计划生命周期能力，共49项可派发定义。实际明细在 [能力清单](audit/capabilities.json)，按源码导出；本轮可调用菜单仍按真实上下文筛选。
 
 | execution_boundary | 入口 | 约束 |
 |---|---|---|
 | local_database | task_executor.execute_tasks | 局部训练/计划食物、实际进食登记/纠错、档案、记忆、查询、补偿；重读和 scope 比较 |
 | commerce | commerce_runtime.execute_mixed | 外部查询、报价与订单独立生命周期；凭证、门店、库存、价格、幂等及未知结果核实 |
 | workout_lifecycle | workout_runtime.execute_mixed | 真实训练会话、组数事实和完成摘要，不靠回复伪造完成 |
-| initial_plan | initial_plan_runtime.execute | 无生效计划时复用 coach.create_draft/confirm_draft；预览不改档案；档案指纹及草案etag保护；生成、修改、确认、取消分阶段 |
+| initial_plan | initial_plan_runtime.execute | 首份及已有长期计划替换均复用 coach.create_draft/confirm_draft；预览不改档案；档案指纹及草案etag保护；生成、修改、确认、取消分阶段 |
 | day_revision | day_plan_runtime.execute_revision | 整日草案按阶段预览、编辑、确认应用；每轮只执行一个生命周期任务 |
 
 新能力必须同时接入注册、执行边界、确认及验证策略；增加提示词或页面按钮不算完成迁移。
@@ -81,3 +81,13 @@ runtime_observation.py 记录 execute_plan **批次边界**的真实开始/完�
 ## 历史路径
 
 旧规则路由保留给 legacy 测试和 CLI；独立 LangGraph 补丁、today Agent、skill 计划生成、知识 API 继续保留。不得将其重新接入生产聊天，也不得仅凭“旧”删除。原始评测轨迹与 holdout 来源仍保留，历史通过率不代表当前模型准确率。
+
+## 长期食谱、完整重建与停止请求
+
+用户明确新增过敏原用 profile.add_allergies，只做长期并集，不自动删除原有项；普通 profile.update 和档案表单的过敏变更同样触发 meal_safety。冲突食材从真实目录替换，保持已有餐次，长期模板以新版本保存，后续未完成餐次的覆盖同步修复，已发生进食/训练事实不改写。海鲜限制包含鱼和甲壳类；所有计划食物写入口使用结构化标签检查，不能把原始中文直接与英文标签相交。未知或目录外成分不能据此承诺医学安全。普通历史撤销不能删除长期过敏限制。
+
+已有长期计划可以 create/revise/confirm/cancel_replacement_draft；预览不写实际安排，确认前核对原计划base_version、档案指纹和草案etag。创建新版本不删除实际日志。首次/替换预览默认三餐，用户明确选择动作时不为增加差异而替换；默认训练日按周分散，器械过滤后重复的动作组合在安全范围内改用同类动作。
+
+POST /agent/requests/{request_id}/cancel 仅停止尚未进入执行阶段的本用户请求。模型网络请求使用独立可取消连接；取消后不执行后续工具。执行阶段用同一请求声明行锁设标记，已进入执行阶段返回too_late，不能声称停止等于回滚已提交修改或远程订单。已完成的取消结果仍按原request_id保存和重放。前端停止按钮、IME composition生命周期和Enter发送分开处理。
+
+MCP只接收当前用户请求头凭证，空值不使用服务端默认Token或演示口令；前端Token和订单缓存按账号隔离，不迁移无法确认归属的旧全局凭证。

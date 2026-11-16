@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import StableScroll from './StableScroll.vue'
+import PlanDraftPreview from './PlanDraftPreview.vue'
+import { currentAccountId } from '../api/accountStorage'
 import McdOrderHistory from './McdOrderHistory.vue'
 import DayRevisionCard from './DayRevisionCard.vue'
 import WorkoutReplanCard from './WorkoutReplanCard.vue'
@@ -70,7 +72,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'changed'): void
+  (e: 'changed', result?: AgentChatResult): void
   (e: 'openWorkout', payload: { sessionId?: string; date?: string }): void
   (e: 'openTodayBrief', output: TodayAgentResult): void
   (e: 'openMemory'): void
@@ -157,11 +159,12 @@ const applyingMeals = ref(false)
 const mcdOrderOpen = ref(false)
 const mcdInstruction = ref('')
 const cancellingMcdOrder = ref(false)
-const MCD_ORDER_MESSAGES_KEY = 'planharness_mcd_order_messages'
+const mcdOrderMessagesKey = () => `planharness_mcd_order_messages:${currentAccountId()}`
 const mcdRequestMessageId = ref('')
 function readMcdOrdersByMessage(): Record<string, McdOrder> {
+  if (!currentAccountId()) return {}
   try {
-    const stored = uni.getStorageSync(MCD_ORDER_MESSAGES_KEY)
+    const stored = uni.getStorageSync(mcdOrderMessagesKey())
     return stored && typeof stored === 'object' ? stored as Record<string, McdOrder> : {}
   } catch {
     return {}
@@ -173,7 +176,7 @@ for (const [messageId, order] of Object.entries(mcdOrdersByMessage.value)) {
 }
 function persistMcdOrdersByMessage() {
   try {
-    uni.setStorageSync(MCD_ORDER_MESSAGES_KEY, mcdOrdersByMessage.value)
+    uni.setStorageSync(mcdOrderMessagesKey(), mcdOrdersByMessage.value)
   } catch {
     // 本地缓存失败不影响当前会话
   }
@@ -502,12 +505,20 @@ async function loadHistory(thread = coachWorkspaceThreadId.value, force = false)
   if (!messages.value.length) pushMessage('agent', greeting.value)
 }
 
+function revealLatestResult() {
+  const latest = messages.value[messages.value.length - 1]
+  if (latest?.role === 'agent' && latest.attachment) showAttachment(latest.attachment, latest.id)
+}
+
 async function ensureConversation() {
   await loadConversations()
   if (!coachWorkspaceThreadId.value) {
     coachWorkspaceThreadId.value = api.recoverableChatThread() || coachWorkspaceConversations.value[0]?.thread || newThreadId()
   }
   await loadHistory(coachWorkspaceThreadId.value)
+  const latest = messages.value[messages.value.length - 1]
+  const saved = latest?.attachment?.result as AgentChatResult | undefined
+  if (saved?.plan_draft?.status === 'ready' && saved.pending_confirmation) revealLatestResult()
 }
 
 async function recoverPendingChat() {
@@ -676,6 +687,31 @@ watch(
 
 // Recreate the native textarea after submission: uni's internal buffer can otherwise
 // emit a late input event and restore the just-submitted value.
+const composing = ref(false)
+let compositionEndedAt = -Infinity
+const stopping = ref(false)
+const activeRequestId = ref('')
+function onCompositionEnd() { composing.value = false; compositionEndedAt = Date.now() }
+async function stopProcessing() {
+  if (!activeRequestId.value || stopping.value) return
+  const requestId = activeRequestId.value
+  stopping.value = true
+  try {
+    // A fast click can arrive before the original POST has registered its claim.
+    for (let attempt = 0; attempt < 15; attempt++) {
+      if (activeRequestId.value !== requestId) return
+      try {
+        const reply = await api.cancelAgentRequest(requestId)
+        if (reply.status !== 'cancel_requested') uni.showToast({title:reply.message || '请求已完成，请核对实际结果',icon:'none'})
+        return
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.statusCode !== 404 || attempt === 14) throw error
+        await new Promise(resolve => setTimeout(resolve, 150))
+      }
+    }
+  } catch { uni.showToast({title:'停止状态尚未确认，请等待实际结果',icon:'none'}) }
+  finally { stopping.value = false }
+}
 const composerEpoch = ref(0)
 let clearingComposer = false
 function onComposerInput(event: { detail?: { value?: string } }) {
@@ -683,7 +719,7 @@ function onComposerInput(event: { detail?: { value?: string } }) {
 }
 function onComposerKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
-  if (event.isComposing || event.keyCode === 229) return
+  if (composing.value || event.isComposing || event.keyCode === 229 || Date.now() - compositionEndedAt < 80) return
   event.preventDefault()
   void send()
 }
@@ -717,6 +753,7 @@ async function send(text?: string, confirmation?: { action: 'confirm' | 'cancel'
   error.value = ''
   const sentThread = coachWorkspaceThreadId.value
   try {
+    activeRequestId.value = `coach-${Date.now()}-${Math.random().toString(36).slice(2)}`
     const next = await api.agentChat(
       value,
       pageKey.value,
@@ -724,7 +761,7 @@ async function send(text?: string, confirmation?: { action: 'confirm' | 'cancel'
       props.sessionId || '',
       props.context || {},
       sentThread,
-      undefined,
+      activeRequestId.value,
       confirmation,
       checkoutAction,
       commerceAction,
@@ -769,12 +806,13 @@ async function send(text?: string, confirmation?: { action: 'confirm' | 'cancel'
     if (next.warnings?.length) {
       // 警告只展示，不改写回复；用户需要看到"长期计划没被改"这类边界
     }
-    emit('changed')
+    emit('changed', next)
   } catch (err) {
     error.value = describeError(err)
     const pending = err instanceof ApiError && (err.detail as { request_pending?: boolean } | null)?.request_pending
     pushMessage('agent', `${pending ? '结果待核实' : '这次没成功'}：${error.value}`)
   } finally {
+    activeRequestId.value = ''
     busy.value = false
   }
 }
@@ -1272,7 +1310,8 @@ function showTodayBrief(output: TodayAgentResult, runId = '') {
   void scrollChatToBottom()
 }
 
-defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrollChatToBottom })
+defineExpose({
+  revealLatestResult, sendText: send, focusInput, showTodayBrief, scrollToLatest: scrollChatToBottom })
 </script>
 
 <template>
@@ -1354,7 +1393,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                 <view v-if="message.role === 'agent'" class="chat-avatar coach">教</view>
                 <view class="chat-bubble" :class="message.role">
                   <text class="chat-text">{{ message.text }}</text>
-                  <text v-if="message.role==='agent' && message.planVersion != null && props.context?.planVersion != null && message.planVersion !== props.context.planVersion" class="result-sub historical-plan-note">
+                  <text v-if="message.role==='agent' && message.planVersion != null && props.context?.planVersion != null && Number(message.planVersion) < Number(props.context.planVersion)" class="result-sub historical-plan-note">
                     此回复基于此前 v{{ message.planVersion }}；当前为 v{{ props.context.planVersion }}，最新组数以当天安排为准。
                   </text>
                 </view>
@@ -1399,8 +1438,8 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                   <view class="result-head"><view><text class="result-kicker">实际训练记录</text><text class="result-title">{{ result.workout_records.session.date }} · {{ ['finished','superseded','abandoned'].includes(result.workout_records.session.status) ? '已结束（以实际组数为准）':'进行中' }}</text></view></view>
                   <text class="result-sub">{{ result.workout_records.actual_minutes_known ? `${result.workout_records.actual_minutes_source==='confirmed_plan_default' ? '按计划确认约' : '自报实际'} ${result.workout_records.session.actual_minutes} 分钟` : '实际时长未记录' }} · 已记录进度与已确认的完成情况</text>
                   <text v-if="result.workout_records.legacy_records_unlinked" class="result-sub">此旧会话尚未关联逐项日志，不能猜测记录归属。</text>
-                  <view v-for="item in result.workout_records.session.items" :key="item.id" class="result-line"><text>{{ item.name }} · 实际 {{ item.completed_sets }} / 计划 {{ item.target_sets }} 组 · {{ ({done:'已完成',partial:'部分完成',skipped:'已跳过',unrecorded:'未记录',pending:'待记录',active:'进行中'} as Record<string,string>)[item.status] || item.status }}</text></view>
-                  <view v-for="log in result.workout_records.logs" :key="log.id" class="result-line"><text>{{ log.details.name }} · 记录版本 {{ log.revision }}</text><text v-for="set in log.details.set_logs" :key="set.set_no" class="result-sub">第 {{ set.set_no }} 组：{{ set.reps==null ? '次数未记录':`${set.reps} 次` }} · {{ set.weight_kg==null ? '重量未记录':`${set.weight_kg} kg` }}</text></view>
+                  <view v-for="item in result.workout_records.session.items" :key="item.id" class="result-line"><text>{{ actionLabel(item) }} · 实际 {{ item.completed_sets }} / 计划 {{ item.target_sets }} 组 · {{ ({done:'已完成',partial:'部分完成',skipped:'已跳过',unrecorded:'未记录',pending:'待记录',active:'进行中'} as Record<string,string>)[item.status] || item.status }}</text></view>
+                  <view v-for="log in result.workout_records.logs" :key="log.id" class="result-line"><text>{{ actionLabel(log) }} · 记录版本 {{ log.revision }}</text><text v-for="set in log.details.set_logs" :key="set.set_no" class="result-sub">第 {{ set.set_no }} 组：{{ set.reps==null ? '次数未记录':`${set.reps} 次` }} · {{ set.weight_kg==null ? '重量未记录':`${set.weight_kg} kg` }}</text></view>
                 </view>
                 <view v-if="result?.task_results?.length && !hasCommerce" class="result-card">
                   <text class="result-kicker">处理结果</text>
@@ -1435,21 +1474,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
               <view v-if="draft.adaptive?.load_reduced" class="result-warn">
                 最近连续 {{ draft.adaptive.consecutive_incomplete }} 次没完成，这一版已主动降低负担。
               </view>
-              <view class="draft-week">
-                <view v-for="weekDay in draft.days || []" :key="weekDay.day_index" class="draft-day">
-                  <view class="draft-day-head">
-                    <text class="draft-day-title">{{ weekdayOf(weekDay.day_index) }} · {{ focusLabel(weekDay.focus) }}</text>
-                    <text class="draft-day-count">{{ (weekDay.actions || []).length }} 个动作</text>
-                  </view>
-                  <text class="draft-day-actions">{{ (weekDay.actions || []).map((a) => actionLabel(a)).join('、') }}</text>
-                </view>
-              </view>
-              <view class="draft-week">
-                <view v-for="(meal, index) in draft.meals || []" :key="`meal-${index}`" class="draft-day">
-                  <text class="draft-day-title">{{ weekdayOf(meal.day_index) }} · {{ MEAL_LABELS[meal.slot] || meal.slot }}</text>
-                  <text class="draft-day-actions">{{ (meal.items || []).map((item) => `${item.name} ${item.grams}g`).join('、') }}</text>
-                </view>
-              </view>
+              <PlanDraftPreview :draft="draft" />
             </view>
 
             <!-- 计划改动草案 -->
@@ -1476,18 +1501,18 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
               <view class="result-head">
                 <view>
                   <text class="result-kicker">今日有效安排</text>
-                  <text class="result-title">{{ day.summary || '按当前计划执行' }}</text>
+                  <text class="result-title">{{ result?.pending_confirmation ? '当前已生效安排（确认前保持不变）' : day.summary || '按当前计划执行' }}</text>
                 </view>
                 <text class="result-pill">{{ day.source === 'agent' ? '临时调整' : '原计划' }}</text>
               </view>
               <view v-for="item in day.actions" :key="item.slot_key" class="result-action-row">
-                <text class="result-action-name">{{ item.name }}</text>
+                <text class="result-action-name">{{ actionLabel(item) }}</text>
                 <text class="result-action-meta">
                   {{ item.sets ? `${item.sets} 组` : '' }}
                   {{ item.duration_min ? ` · ${item.duration_min} 分钟` : '' }}
                 </text>
               </view>
-              <text class="result-sub">只改今天；长期 PlanVersion 没有变化。</text>
+              <text class="result-sub">此卡展示当前生效安排；待确认的变更请查看上方预览。</text>
             </view>
 
             <!-- 今日安排与餐食：直接作为教练回复的一部分显示，不再弹独立面板 -->
@@ -1509,7 +1534,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                     :key="action.action_ref"
                     class="brief-next-action"
                   >
-                    <text v-if="action.time">{{ action.time }} · </text>{{ action.name }}
+                    <text v-if="action.time">{{ action.time }} · </text>{{ actionLabel(action) }}
                     <text v-if="action.sets"> · {{ action.sets }} 组</text>
                     <text v-else-if="action.duration_min"> · {{ action.duration_min }} 分钟</text>
                   </text>
@@ -1856,7 +1881,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                 <view class="typing-dots"><text /><text /><text /></view>
                 <text class="typing-label">
                   {{ busyElapsed > 0 ? `正在处理 · 已 ${busyElapsed}s` : '正在处理' }}
-                  <text v-if="busyElapsed >= 20" class="typing-hint">（生成计划通常需要 10–20s）</text>
+
                 </text>
               </view>
             </view>
@@ -1868,7 +1893,7 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
           </StableScroll>
 
           <!-- 输入区固定 -->
-          <view class="workspace-composer">
+          <view class="workspace-composer" @compositionstart.capture="composing = true" @compositionend.capture="onCompositionEnd">
             <view v-if="recoveryStatus" class="recovery-banner">
               <text>{{ recoveryStatus === 'running' ? '上次请求仍在处理，可核对结果。' : '上次请求结果待核实，请先查看记录，避免重复操作。' }}</text>
               <button class="btn-sm" :disabled="busy" @click="recoverPendingChat">核对上次请求</button>
@@ -1885,8 +1910,11 @@ defineExpose({ sendText: send, focusInput, showTodayBrief, scrollToLatest: scrol
                 confirm-type="send"
                 @confirm="onComposerConfirm"
                 @keydown="onComposerKeydown"
+                @compositionstart="composing = true"
+                @compositionend="onCompositionEnd"
               />
-              <view class="composer-send" :class="{ disabled: !input.trim() || busy || initializing }" @click="send()">
+              <view v-if="busy && activeRequestId" class="composer-send composer-stop" role="button" aria-label="停止本次处理" @click="stopProcessing">{{ stopping ? '停止中' : '停止' }}</view>
+              <view v-else class="composer-send" :class="{ disabled: !input.trim() || busy || initializing }" @click="send()">
                 {{ busy ? '…' : '发送' }}
               </view>
             </view>

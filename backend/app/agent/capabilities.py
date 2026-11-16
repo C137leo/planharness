@@ -30,6 +30,14 @@ class QuantityArgs(StrictModel):
 
 
 class ProfileArgs(StrictModel):
+    sex: Literal['male','female'] | None = None
+    birth_year: int | None = Field(default=None,ge=1900,le=2026)
+    height_cm: int | float | None = Field(default=None,ge=120,le=230)
+    goal_note: str | None = Field(default=None,max_length=500)
+    equipment: list[str] | None = None
+    activity_level: Literal['sedentary','light','moderate','active'] | None = None
+    training_experience: Literal['beginner','intermediate','advanced'] | None = None
+    preferred_time_label: str | None = Field(default=None,max_length=32)
     goal: Literal["fat_loss", "muscle_gain", "cardio", "health"] | None = None
     weight_kg: int | float | None = Field(default=None, ge=30, le=300)
     weekly_days: int | None = Field(default=None, ge=1, le=7)
@@ -40,6 +48,10 @@ class ProfileArgs(StrictModel):
     likes: list[str] | None = None
     allergies: list[str] | None = None
     diet_preferences: list[str] | None = None
+
+
+class AllergyAdditions(StrictModel):
+    allergies: list[str] = Field(min_length=1, max_length=20)
 
 
 class NoteArgs(StrictModel):
@@ -115,6 +127,7 @@ class Capability:
 
 
 SPECS = [
+    ('profile.add_allergies','profile','用户明确自报新增过敏原时加入长期档案，可多项，只做并集不删除原有项；同步修复长期食谱及未完成餐次，不新增餐次。假设、引述、否认过敏不用此能力。移除过敏须profile.update先确认。',AllergyAdditions,('profile',),True,'uncertain','profile'),
     ('nutrition.record_meal', 'nutrition_record', '登记某日期真实已吃的一餐，绑定day；餐次、描述、热量和蛋白必须有用户提供或已核对的估值。先展示确认，不从计划推断已经吃过，不把未知营养填0。', MealRecordArgs, ('day',), True, 'always', 'meal_record'),
     ('nutrition.correct_meal', 'nutrition_record', '修订本人真实进食记录，绑定meal_log；只填写用户要求修改的字段，先展示确认，不改计划餐食。', MealCorrectionArgs, ('meal_log',), True, 'always', 'meal_record'),
     ("workout.remove_action", "training", "移除指定日期的一个动作；热身也合法。", NoArgs, ("workout_action",), True, "uncertain", "action"),
@@ -126,7 +139,7 @@ SPECS = [
     ("meal.remove_food", "nutrition", "从一餐移除一个具体食物实例。", NoArgs, ("food_item",), True, "uncertain", "food"),
     ("meal.replace_food", "nutrition", "将具体食物换成目录食材及份量。", FoodArgs, ("food_item",), True, "uncertain", "food"),
     ("meal.set_quantity", "nutrition", "调整具体食物克数，按原比例重算营养。", QuantityArgs, ("food_item",), True, "uncertain", "food"),
-    ("profile.update", "profile", "更新长期档案，必须确认。仅更新档案值，不会自动重算热量、食物份量或训练负荷。", ProfileArgs, ("profile",), True, "always", "profile"),
+    ("profile.update", "profile", "更新长期档案，必须确认。除过敏更新会同步排除后续食谱冲突食材外，只更新档案值，不会自动重算训练负荷。", ProfileArgs, ("profile",), True, "always", "profile"),
     ("memory.create", "memory", "保存用户明确要求记住的备注或近期反馈。稳定长期偏好必须kind=long_term；本周/近期状态kind=short_term并填写retention_days。取消已保存备注用memory.archive，不补全旧create。", NoteArgs, ("profile",), True, "always", "memory"),
     ("memory.archive", "memory", "归档一个真实独立备注；canonical档案镜像不能单独归档，修改或清空长期字段应使用profile.update并先预览确认。", NoArgs, ("memory",), True, "always", "memory"),
     ("history.undo", "history", "仅补偿undo_supported=true的实际执行（动作、餐食、档案）；逐资源校验，无后续重叠更改才能恢复。记忆用archive，不撤销训练事实。", NoArgs, ("execution",), True, "always", "undo"),

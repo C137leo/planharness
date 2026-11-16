@@ -59,3 +59,13 @@ systemd/Nginx/PG 的备份、权限、数据库角色、checkpointer、回滚步
 优先更新权威文档，不为每次开发另写总结报告。删除须核实真实入口、字符串注册、脚本读取和动态图片映射；不确定则记录 [待确认项](UNUSED_CODE_REVIEW.md)，保留原路径。维护规范见 [AGENTS.md](../AGENTS.md)。
 
 提交时纳入源码、测试、评测样本、配置模板、锁文件及运行所需静态资源。`docs/evidence/` 与 `backend/eval_intent_result.json` 是本地生成的验收输出，保留磁盘并忽略，不把原始模型轨迹、认证响应和大批截图加入 Git。历史数据不是当前通过率。测试实际读取的两份稳定输入位于 `backend/tests/fixtures/`：迁移前能力菜单用于契约比较，官方营养只读样本用于隔离 UI fixture；修改原始报告不应改变这些固定测试输入。
+
+## PostgreSQL 字段兼容检查
+
+启动时 ensure_additive_schema 会调用 ensure_postgres_text_capacity，将旧库中短于当前ORM契约的VARCHAR扩宽；模型为Text而实际仍为VARCHAR的列转为TEXT。不缩短、不截断，不删除数据。失败时PostgreSQL启动终止，避免带错误结构运行。部署前备份，并确保迁移账号具有ALTER权限。本地SQLite不能验证VARCHAR长度，需要真实PostgreSQL回归：
+
+```sh
+PLANHARNESS_TEST_POSTGRES_URL=postgresql+psycopg://... pytest tests/test_postgres_capacity.py
+```
+
+该测试只使用显式提供的测试URL，在随机临时schema中建表并清理，不应填写生产地址。截图对应的旧task_id(32)、goal(32)及快照revision(32)已在隔离PostgreSQL16复现并验证扩容、旧数据保留及幂等。本次未修改生产数据库。

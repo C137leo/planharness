@@ -26,6 +26,7 @@ class ToolCallingClient:
         self.timeout_s = timeout_s
         # low / high / max；留空 = 不传，用服务端默认（deepseek-flash 默认 high）
         self.reasoning_effort = (reasoning_effort or "").strip().lower()
+        self._owns_client = client is None
         self._client = client or httpx.Client(timeout=timeout_s, trust_env=False)
 
     def available(self) -> bool:
@@ -60,13 +61,20 @@ class ToolCallingClient:
             body["reasoning_effort"] = effort
 
         started = time.perf_counter()
-        response = self._client.post(
-            f"{self.base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {self.api_key}",
-                     "Content-Type": "application/json"},
-            json=body,
-            timeout=remaining_timeout(self.timeout_s),
-        )
+        from app.llm.cancellation import active, cancellable_post
+        if active() and self._owns_client:
+            import asyncio
+            response=asyncio.run(cancellable_post(f"{self.base_url}/chat/completions",
+                headers={"Authorization":f"Bearer {self.api_key}","Content-Type":"application/json"},
+                body=body,timeout=remaining_timeout(self.timeout_s)))
+        else:
+            response = self._client.post(
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {self.api_key}",
+                         "Content-Type": "application/json"},
+                json=body,
+                timeout=remaining_timeout(self.timeout_s),
+            )
         if response.status_code != 200:
             raise RuntimeError(f"deepseek {response.status_code}: {response.text[:200]}")
 

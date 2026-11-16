@@ -39,13 +39,16 @@ const lockedSeconds = computed(() =>
 )
 
 const isRegister = computed(() => mode.value === 'register')
-const canSubmit = computed(
-  () =>
-    !busy.value &&
-    lockedSeconds.value === 0 &&
-    /^1[3-9]\d{9}$/.test(form.phone.trim()) &&
-    form.password.length >= 8,
-)
+const submitRestriction = computed(() => {
+  if (busy.value) return '正在提交，请稍候'
+  if (lockedSeconds.value) return `操作过于频繁，请等待 ${lockedSeconds.value} 秒`
+  if (!form.phone.trim()) return '请先填写手机号'
+  if (!/^1[3-9]\d{9}$/.test(form.phone.trim())) return '请输入11位中国大陆手机号'
+  if (form.password.length < 8) return `密码至少8位，目前还差 ${8-form.password.length} 位`
+  if (isRegister.value && passwordHint.value !== '强度够用') return passwordHint.value
+  return ''
+})
+const canSubmit = computed(() => !submitRestriction.value)
 
 const passwordHint = computed(() => {
   const value = form.password
@@ -180,7 +183,7 @@ function startCountdown(seconds: number) {
 }
 
 async function submit() {
-  if (!canSubmit.value) return
+  if (!canSubmit.value) { notice.value = submitRestriction.value; return }
   busy.value = true
   error.value = ''
   notice.value = ''
@@ -307,6 +310,7 @@ onMounted(() => {
         {{ error || '提交太频繁' }}（还剩 {{ lockedSeconds }} 秒）
       </view>
 
+      <text v-if="submitRestriction" class="hint" role="status">{{ submitRestriction }}</text>
       <view class="btn-row login-actions">
         <view class="btn-sm primary" :class="{ disabled: !canSubmit }" @click="submit">
           {{ busy ? '处理中…' : lockedSeconds ? `等待 ${lockedSeconds}s` : isRegister ? '注册并开始' : '登录' }}

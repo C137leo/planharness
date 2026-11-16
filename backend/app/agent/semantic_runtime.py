@@ -1,4 +1,5 @@
 """Production: snapshot -> model -> validate -> confirm -> execute -> reload."""
+from app.agent.task_executor import safe_error
 import copy
 import datetime as dt
 import time
@@ -30,7 +31,7 @@ def pending_payload(p):
 
 
 def pending_result(p):
-    labels = {'commerce.submit_order': '确认创建待支付订单', 'plan.confirm_initial_draft': '确认启用首份计划',
+    labels = {'commerce.submit_order': '确认创建待支付订单', 'plan.confirm_initial_draft': '确认启用首份计划', 'plan.confirm_replacement_draft':'确认启用长期新计划',
               'day_plan.apply_revision': '确认应用新安排'}
     confirm_label = labels.get(p.tasks[0]['capability_id'], '确认') if len(p.tasks) == 1 else '确认以上修改'
     checkout=(p.result or {}).get('checkout') or {}
@@ -54,6 +55,12 @@ def pending_question(db, user, snapshot, tasks, question):
         ids = t.resolution.candidate_ids or ([t.resolution.selected_id] if t.resolution.selected_id else [])
         lines.append(t.user_goal + "：" + (" / ".join(str(names[i]) for i in ids) or "尚未定位") +
                      ("；" + t.resolution.question if t.resolution.question else ""))
+        if t.capability_id=='workout.replace_action' and t.parameters_resolved:
+            source=next((o for o in snapshot.payload['objects'] if o['id']==t.arguments.get('exercise_id')),None)
+            target=next((o for o in snapshot.payload['objects'] if o['id']==t.resolution.selected_id),None)
+            if source and target:
+                from app.domain.catalog import display_action_name
+                lines[-1]+='\n待确认预览：'+display_action_name(target)+' → '+display_action_name({**source,'name':source.get('name_zh')})+'；确认后保存，当前安排尚未改变。'
         if t.capability_id in {'nutrition.record_meal', 'nutrition.correct_meal'}:
             labels = {'slot': '餐次', 'title': '实际进食', 'kcal': '热量(kcal)', 'protein_g': '蛋白质(g)', 'note': '备注'}
             slots = {'breakfast':'早餐', 'lunch':'午餐', 'dinner':'晚餐', 'snack':'加餐'}
@@ -120,6 +127,10 @@ from app.agent.runtime_observation import observe_execution
 def execute_plan(db, user, snapshot, tasks, confirmed=False):
     if snapshot.user_id != user.id:
         raise TaskFailure("ownership_scope", "快照不属于当前用户。")
+    from app.llm.cancellation import check_cancelled, begin_execution
+    check_cancelled()
+    if any(capability(t.capability_id).mutates_state for t in tasks):
+        begin_execution()
     lock_user(db, user)
     if digest(business_state(db, user, snapshot.payload["dates"])) != snapshot.revision:
         return {"overall_status": "stale", "reply": "数据已经变化，请重新核对对象和操作范围后再确认。", "task_results": [], "actions": []}
@@ -192,7 +203,7 @@ def apply_control(db, user, thread, command, *, cancel_checkout=True, resume_con
         if cancel_checkout and command.action in {'cancel','reject'}:
             from app.domain import day_revision as revisions
             for saved in p.tasks:
-                if saved.get('capability_id') == 'plan.confirm_initial_draft':
+                if saved.get('capability_id') in {'plan.confirm_initial_draft','plan.confirm_replacement_draft'}:
                     from app.models import PlanDraft
                     row = db.get(PlanDraft, saved['resolution']['selected_id'])
                     if row and row.user_id == user.id and row.status == 'ready':
@@ -348,7 +359,7 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
             if p:
                 workflow_day_context=any(t['capability_id'].startswith('day_plan.') for t in p.tasks)
                 if workflow_day_context:db.info['revision_edit_pending_id']=p.id
-                if any(t['capability_id']=='plan.confirm_initial_draft' for t in p.tasks):db.info['initial_edit_pending_id']=p.id
+                if any(t['capability_id'] in {'plan.confirm_initial_draft','plan.confirm_replacement_draft'} for t in p.tasks):db.info['initial_edit_pending_id']=p.id
                 snapshot = db.get(CoachBusinessSnapshot, p.snapshot_id)
                 # 控制器--管理一个已保存的待确认计划，不重新做完整意图分类。只输出符合 JSON Schema 的 JSON 理解
                 command = semantic_planner.control(client, text, p, snapshot, trace)
@@ -368,7 +379,7 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
                     completing_tasks=[t for t in p.tasks if t['task_id'] in command.edit_task_ids and not t.get('parameters_resolved',True)]
                     preview_edits=[t for t in p.tasks if t['capability_id'] in {'day_plan.confirm_replan','day_plan.apply_revision','day_plan.update_revision','day_plan.extend_revision'}]
                     if preview_edits:db.info['revision_edit_pending_id']=p.id
-                    if any(t['task_id'] in command.edit_task_ids and t['capability_id']=='plan.confirm_initial_draft' for t in p.tasks):
+                    if any(t['task_id'] in command.edit_task_ids and t['capability_id'] in {'plan.confirm_initial_draft','plan.confirm_replacement_draft'} for t in p.tasks):
                         db.info['initial_edit_pending_id'] = p.id
                     # Preserve a draft being edited, not unrelated discarded tasks.
                     if command.edit_task_ids or workflow_day_context:
@@ -545,11 +556,11 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
             result["commerce_connection"]={"status":"token_required","guide_url":"https://open.mcd.cn/mcp"}
         if prior_result:
             result.update(prior_result)
-            result["reply"] += "\n新增要求尚未执行：" + str(exc)[:300]
+            result["reply"] += "\n新增要求尚未执行：" + safe_error(exc)[:300]
             result["overall_status"] = "partial_success"
         else:
             result.update(overall_status="clarification_required", error=getattr(exc, "stage", type(exc).__name__),
-                      reply="未能可靠执行：" + str(exc)[:300], actions=[])
+                      reply="未能可靠执行：" + safe_error(exc)[:300], actions=[])
         trace.append({"stage": "validation_or_model", "status": "failed", "error_type": type(exc).__name__})
     return finish(db, user, text, page, day, thread, result, trace, started, snapshot)
 

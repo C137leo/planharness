@@ -17,6 +17,10 @@ class TaskFailure(ValueError):
         self.details = details or {}
         super().__init__(message)
 
+def safe_error(exc):
+    from sqlalchemy.exc import SQLAlchemyError
+    return '数据保存失败，本次修改未完成。请稍后重试或联系维护人员核对数据库版本。' if isinstance(exc,SQLAlchemyError) else str(exc)
+
 # 验证任务
 def validate_tasks(tasks, snapshot):
     objects = {o["id"]: o for o in snapshot.payload["objects"]}
@@ -217,8 +221,8 @@ def _food(db, user, task, target, objects, expected):
         ingredient = objects[args["ingredient_id"]]
         profile = db.get(Profile, user.id)
         forbidden = (profile.allergies or []) + (current["constraints"].get("avoid_foods") or [])
-        # Conservative lexical allergy gate only rejects; it never selects a semantic target.
-        if any(term and term in ingredient["name"] for term in forbidden):
+        from app.domain.meal_safety import forbidden as conflicts
+        if conflicts(ingredient['name'],profile) or any(term and term in ingredient['name'] for term in forbidden):
             raise TaskFailure("constraint", "食材与过敏或忌口约束冲突。")
         if item is None:
             item = {"id": new_id()}
@@ -229,6 +233,8 @@ def _food(db, user, task, target, objects, expected):
     if op in {"meal.add_food", "meal.replace_food"}:
         from app.domain.meal_items import merge_food_items
         meal["items"] = merge_food_items(meal["items"], target=item)
+    from app.domain.meal_safety import check_meals
+    check_meals([meal],db.get(Profile,user.id))
     _recalc(meal)
     _save_day(db, user, date, expected, current)
 
@@ -269,11 +275,16 @@ def apply_profile_fields(db, user, args, expected):
     for key, value in args.items():
         setattr(row, key, value)
     expected['profile'].update(args)
+    if 'allergies' in args:
+        from app.domain.meal_safety import repair_saved_future_meals
+        repair_saved_future_meals(db,user,row)
+        expected['days'] = business_state(db,user,list(expected['days']))['days']
     db.flush()
     sync_profile_change(db, user, row, list(args))
     db.flush()
     categories = {'goal': 'goal', 'session_minutes': 'session_minutes', 'weekly_days': 'weekly_days',
         'preferred_time_window': 'schedule', 'preferred_time_label': 'schedule', 'preferred_location': 'location', 'likes': 'like', 'dislikes': 'dislike'}
+    categories.update(training_experience='experience',equipment='equipment')
     allowed = {categories[k] for k in args if k in categories}
     for memory in db.scalars(select(Memory).where(Memory.user_id == user.id, Memory.category.in_(allowed))):
         expected['memories'][memory.id] = {'category': memory.category, 'value': memory.value,
@@ -287,6 +298,8 @@ def _undo(db, user, thread, target, expected):
         raise TaskFailure("scope", "该执行记录不可撤销。")
     if row.domain=='workout_lifecycle':
         raise TaskFailure('constraint','已发生的训练事实不能撤销成未发生；请使用训练记录修订能力。')
+    if row.operation=='profile.add_allergies' or 'allergies' in (row.arguments or {}):
+        raise TaskFailure('constraint','过敏限制不能通过通用撤销删除，请明确核对长期过敏档案。')
     if row.domain=='initial_plan':
         raise TaskFailure('constraint', '首份计划不能用局部补偿撤销；请通过新的完整计划草案调整。')
     if row.domain=='day_revision':
@@ -362,6 +375,8 @@ def execute_tasks(db, user, snapshot, tasks, *, confirmed=False):
                     args = cap.argument_model.model_validate(task.arguments).model_dump(exclude_none=True)
                     if not args:
                         raise TaskFailure("parameters", "没有指定档案更新内容。")
+                    if task.capability_id=='profile.add_allergies':
+                        args['allergies']=list(dict.fromkeys([*(db.get(Profile,user.id).allergies or []),*args['allergies']]))
                     apply_profile_fields(db, user, args, expected)
                 elif cap.executor == 'meal_record':
                     from app.models import MealLog
@@ -444,7 +459,7 @@ def execute_tasks(db, user, snapshot, tasks, *, confirmed=False):
                         for field, value in change['after'].items():
                             if value != change['before'].get(field):
                                 details.append(labels.get(field, '档案项') + '：' + str(change['before'].get(field)) + ' → ' + str(value))
-                    message = '已保存档案修改。' + ('\n' + '；'.join(details) if details else '当前值无需重复修改。')
+                    message = ('已加入长期过敏限制，并核对长期食谱及后续未完成餐次；已发生进食记录保留。' if 'allergies' in task.arguments else '已保存档案修改。') + ('\n' + '；'.join(details) if details else '当前值无需重复修改。')
                 elif cap.executor == 'meal_record':
                     message = ('已登记实际进食：' if task.capability_id == 'nutrition.record_meal' else '已更正实际进食：') + row.title
                     message += f'；{row.kcal} kcal，蛋白质 {row.protein_g:g} g。计划餐食未改变。'
@@ -493,5 +508,5 @@ def execute_tasks(db, user, snapshot, tasks, *, confirmed=False):
                 successful.add(task.task_id)
         except Exception as exc:
             results.append({**base, "status": "failed", "stage": getattr(exc, "stage", "execution"),
-                            "message": str(exc)[:300], "actual_changes": [], "unrelated_changes": []})
+                            "message": safe_error(exc)[:300], "actual_changes": [], "unrelated_changes": []})
     return results

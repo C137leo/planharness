@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { actionLabel } from '../../styles/copy'
 import StableScroll from '../../components/StableScroll.vue'
 /**
  * 训练执行页：从「今天练什么」进入「现在练到哪一组」。
@@ -370,7 +371,7 @@ onUnmounted(stopRest)
         <view class="section-title">这次训练</view>
         <view v-for="(item, index) in summaryItems" :key="index" class="list-row">
           <view class="list-main">
-            <text class="list-title">{{ item.name }}</text>
+            <text class="list-title">{{ actionLabel(item) }}</text>
             <text class="list-meta">
               完成 {{ item.completed_sets }}/{{ item.target_sets }} 组
               <text v-if="item.replaced_from"> · 替换过</text>
@@ -407,7 +408,7 @@ onUnmounted(stopRest)
             <image class="thumb-img" :src="thumbOf(currentItem)" mode="aspectFill" />
           </view>
           <view class="train-titles">
-            <text class="train-name">{{ currentItem.name }}</text>
+            <text class="train-name">{{ actionLabel(currentItem) }}</text>
             <text class="list-meta">
               {{ slotLabel(currentItem.slot) }} · {{ equipmentNames[currentItem.equipment || 'bodyweight'] || currentItem.equipment || '徒手' }}
               <text v-if="currentItem.replaced_from"> · 已替换</text>
@@ -485,7 +486,7 @@ onUnmounted(stopRest)
               <image class="thumb-img" :src="thumbOf(item)" mode="aspectFill" />
             </view>
             <view class="list-main">
-              <text class="list-title">{{ item.name }}</text>
+              <text class="list-title">{{ actionLabel(item) }}</text>
               <text class="list-meta">
                 已做 {{ item.completed_sets }}/{{ item.target_sets }} 组 · 还差 {{ Math.max(0,item.target_sets-item.completed_sets) }} 组
                 <text v-if="item.replaced_from"> · 从 {{ item.replaced_from }} 替换</text>
@@ -516,7 +517,7 @@ onUnmounted(stopRest)
         </view>
         <view v-if="finishForm.completed" class="notice">
           <text>按当前安排确认完成，重量可留空：</text>
-          <view v-for="item in session?.items || []" :key="item.id">{{ item.name }} · {{ item.status==='skipped' ? '已跳过' : `${item.target_sets}组` }} · 约 {{ item.duration_min }} 分钟</view>
+          <view v-for="item in session?.items || []" :key="item.id">{{ actionLabel(item) }} · {{ item.status==='skipped' ? '已跳过' : `${item.target_sets}组` }} · 约 {{ item.duration_min }} 分钟</view>
           <text>提交后按以上默认值保存；实际不同可改选“只完成一部分”，或在聊天中修改摘要。</text>
         </view>
         <view class="field">
