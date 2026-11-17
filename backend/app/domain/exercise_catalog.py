@@ -325,3 +325,6 @@ from pathlib import Path as _Path
 _LABELS = _json.loads(_Path(__file__).with_name("exercise_labels.json").read_text())
 for _slug, _entry in EXERCISE_CATALOG.items():
     _entry["name_zh"] = _LABELS[_slug]
+
+from app.domain.exercise_biomechanics import annotate_catalog as _annotate_catalog
+_annotate_catalog(EXERCISE_CATALOG)

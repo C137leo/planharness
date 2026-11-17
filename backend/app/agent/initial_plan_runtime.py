@@ -33,8 +33,8 @@ CAPABILITIES = {c.capability_id: c for c in [
 
 # The same domain draft service supports replacing an existing long-term plan.
 CAPABILITIES.update({c.capability_id:c for c in [
-    Capability('plan.create_replacement_draft','initial_plan','根据已保存档案重新生成完整长期训练与饮食计划。绑定profile，只预览；保留训练和进食事实，确认后新版本才生效，不是只改今天。',CreateInitial,('profile',),True,'never','initial_plan',execution_boundary='initial_plan'),
-    Capability('plan.revise_replacement_draft','initial_plan','修改未应用的长期替换草案，保留其他目标，expected_revision使用etag。',ReviseInitial,('replacement_plan_draft',),True,'never','initial_plan',execution_boundary='initial_plan'),
+    Capability('plan.create_replacement_draft','initial_plan','创建长期计划修改预览，绑定profile。支持模型判断不适/避开/重点训练部位、食材排除/过敏/希望吃及长短期起止日期；依据目录负荷自行选替代动作，不要求用户逐项指定。局部要求仅调整冲突条目，明确整份重建才重新生成。保留训练和进食事实，确认后新版本生效。',CreateInitial,('profile',),True,'never','initial_plan',execution_boundary='initial_plan'),
+    Capability('plan.revise_replacement_draft','initial_plan','修改未应用的长期计划预览，支持身体部位、食材及日期约束，保留未改目标，expected_revision使用etag。',ReviseInitial,('replacement_plan_draft',),True,'never','initial_plan',execution_boundary='initial_plan'),
     Capability('plan.confirm_replacement_draft','initial_plan','确认已展示的长期替换草案，创建新版本；原有事实保留。',InitialVersion,('replacement_plan_draft',),True,'always','initial_plan',execution_boundary='initial_plan'),
     Capability('plan.cancel_replacement_draft','initial_plan','取消未应用的长期替换草案，原计划保持。',InitialVersion,('replacement_plan_draft',),True,'never','initial_plan',execution_boundary='initial_plan'),
 ]})

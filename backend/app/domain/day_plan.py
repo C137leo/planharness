@@ -620,6 +620,16 @@ def effective_day(
         ],
         "total_minutes": sum(_estimated_minutes(item) for item in actions),
     }
+    if plan is not None and ((plan.program or {}).get('body_preferences') or (plan.program or {}).get('food_preferences')):
+        from app.domain.planning_preferences import project_day
+        payload['actions'],payload['meals']=project_day(plan.program,payload['actions'],payload['meals'],day,
+            allowed_equipment(db.get(Profile,user.id),constraints),overridden=override is not None,profile=db.get(Profile,user.id))
+        # Baseline projections and persisted overrides must expose the same
+        # shape; otherwise a correct preview fails exact read-back verification.
+        payload['actions']=[{**a,'name':display_action_name(a)} for a in payload['actions']]
+        payload['meals']=[{**m,'day_index':weekday} for m in payload['meals']]
+        payload['total_minutes']=sum(_estimated_minutes(item) for item in payload['actions'])
+        payload['constraints']={**constraints,**{key:(plan.program or {}).get(key,[]) for key in ('body_preferences','food_preferences')}}
     # Recurring templates have dated identities without requiring a write just
     # to inspect them. First actual mutation persists these exact IDs.
     import copy

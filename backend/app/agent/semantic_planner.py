@@ -1,8 +1,13 @@
 """One semantic planner, plus a small controller for an already saved plan."""
 import json
-from app.agent.binding_contract import BoundPlan, NaturalPendingControl, MixedAuthorization, DraftDisposition
+from typing import Literal
+from pydantic import Field
+from app.agent.binding_contract import BoundPlan, BoundTask, NaturalPendingControl, MixedAuthorization, DraftDisposition
 from app.agent.business_snapshot import snapshot_public
 from app.agent.capabilities import manifest, capability
+
+COACH_POLICY = '''教练负责先提出完整训练处方（组数、次数或时长、休息），根据目标、经验、器械与伤病建议，不把规划责任推给用户。用户选择此前提供的动作时，继承此前建议的剂量，如此前建议3组×10次，用户说3组死虫式，不再追问次数。用户仅补数值时结合recent_messages、editing_saved_task、saved_question恢复完整原目标，只改明确修改项。实际训练记录不同：不得用建议处方补写未知实际次数和重量。
+所有向用户提供的选择都必须来自真实快照及能力，附可执行参数；目录动作使用type=exercise的当前ID，名称/slug不能作为ID。缺参任务通过new_request且edit_task_ids保留原任务，new_request_text保留完整原目标、已有建议与本轮选择。旧目录引用必须重新从当前快照核验。建议与待确认方案不能声称已加入，只有成功工具结果才能声称完成。'''
 
 SYSTEM = '''长期草案与当天安排是不同对象：active_saved_workflow含plan.confirm_*时，用户要求修改计划是在修改该长期草案，用plan.revise_*；不能切到day_plan或meal/workout实际写入。明确新增过敏用profile.add_allergies，系统也会修复仍有效的长期预览，不必另列每天换虾或确认是否排除过敏原。已取消/被替代草案不在本轮可用对象中，不能根据历史对话重新生成确认任务；单纯确认且当前没有有效草案，应说明已取消，不生成新计划。
 明确自报新增过敏优先profile.add_allergies，加入长期限制并自动同步后续食谱，保留已有多项过敏；不能只改今天，也不能因今天没有冲突餐食就拒绝处理整周。未确认移除过敏不能自行删除。不要自动新增加餐；只有用户明确要求才讨论加餐，不能为凑热量添加。
@@ -124,7 +129,9 @@ def structured_call(client, system, data, schema, trace, stage):
             last = exc
             trace.append({"stage": stage, "status": "invalid_schema", "error": str(exc)[:500]})
             messages.extend([{"role": "assistant", "content": raw},
-                             {"role": "user", "content": "结构校验失败，请纠正 JSON：" + str(exc)[:1500]}])
+                             {"role": "user", "content": json.dumps({**data,
+                                 'output_schema':schema.model_json_schema(),
+                                 'schema_validation_error':str(exc)[:1500]},ensure_ascii=False,default=str)}])
     raise ValueError("model_schema_invalid") from last
 
 
@@ -151,7 +158,7 @@ def _plan(client, text, snapshot, recent, date, server_date, trace, *, source_te
     active_workflows=[m['active_saved_workflow'] for m in recent if m.get('active_saved_workflow')]
     data['active_saved_workflows']=active_workflows
     data['workflow_rules']='编辑长期草案必须绑定当前initial_plan_draft/replacement_plan_draft，不能切为当天草案。新增过敏优先独立profile.add_allergies，它自动修复有效长期预览；如另有明确训练参数修改，可与单个长期草案create/revise组成先保存过敏再预览的两阶段任务，绝不能同时confirm。'
-    parsed = structured_call(client, SYSTEM, data, BoundPlan, trace, "semantic_binding")
+    parsed = structured_call(client, COACH_POLICY + '\n给出可供用户选择的具体修改方案时必须同时填写offered_options，每项label说明完整剂量，tasks使用真实能力、当前ID和完整参数。选项只用于建议预检，不授权执行，不得只在自由文字中虚构方案。用户选择历史选项时读取recent_messages.offered_options并用当前快照重新核对。\n' + SYSTEM, data, BoundPlan, trace, "semantic_binding")
     if parsed.snapshot_id!=snapshot.id:
         fixed=structured_call(client,SYSTEM,{**data,'previous_plan':parsed.model_dump(),
             'repair_instruction':'只修正snapshot_id为本轮snapshot.snapshot_id，其他全部字段保持原样；不要重做任务或更改上下文请求。'},
@@ -161,6 +168,13 @@ def _plan(client, text, snapshot, recent, date, server_date, trace, *, source_te
         parsed=fixed
     if parsed.mode == "load_context":
         return parsed
+    for option in parsed.offered_options:
+        if any(not t.parameters_resolved or t.resolution.status != 'resolved' for t in option.tasks):
+            raise TaskFailure('offered_option', '建议选项尚未形成完整可执行方案，请重新给出完整建议。')
+        if any(t.capability_id == 'workout.add_action' and
+               (t.arguments.get('sets') is None or t.arguments.get('reps') is None) for t in option.tasks):
+            raise TaskFailure('offered_option', '新增训练动作的建议必须包含组数和每组次数。')
+        validate_tasks(option.tasks, snapshot)
     from app.agent import revision_requirements
     active_preview=any(t['capability_id'] in {'day_plan.apply_revision','day_plan.update_revision','day_plan.extend_revision'} for m in recent for t in m.get('active_saved_workflow',{}).get('tasks',[]))
     local_plan_change=any(t.capability_id.startswith(('meal.','workout.')) for t in parsed.tasks)
@@ -199,18 +213,35 @@ def _plan(client, text, snapshot, recent, date, server_date, trace, *, source_te
             #
             repaired = structured_call(client, SYSTEM, {**data, "previous_plan": parsed.model_dump(),
                 "validation_error": {"message": str(original), **original.details},
-                "repair_instruction": "仅修正不合法的对象角色绑定及候选一致性。resolved 必须唯一选择且 candidate_ids 为空或仅含 selected_id；无法唯一决定时保持 ambiguous 并澄清。所有 ID 逐字复制当前 snapshot 的对应 ID，不得补写或改写 UUID。dependencies 只能引用同一份新计划中先出现的任务 ID；已执行历史工具不是待执行依赖。保留全部能力、用户目标、否定和参数。不得删除其他合法任务来躲过校验。"},
+                "repair_instruction": "仅修正不合法的对象角色绑定及候选一致性；不存在或类型错误的exercise_id/ingredient_id可重新绑定同一语义对象的当前目录ID，不得改变动作、食材或其他业务参数。resolved 必须唯一选择且 candidate_ids 为空或仅含 selected_id；无法唯一决定时保持 ambiguous 并澄清。所有 ID 逐字复制当前 snapshot 的对应 ID，不得补写或改写 UUID。dependencies 只能引用同一份新计划中先出现的任务 ID；已执行历史工具不是待执行依赖。保留全部能力、用户目标、否定和参数。不得删除其他合法任务来躲过校验。"},
                 BoundPlan, trace, "binding_repair")
             if len(repaired.tasks) != len(parsed.tasks):
                 raise original
             for old, task in zip(parsed.tasks, repaired.tasks):
-                if (task.capability_id, task.arguments) != (old.capability_id, old.arguments):
+                catalog_keys = {'exercise_id', 'ingredient_id'}
+                if (task.capability_id != old.capability_id or set(task.arguments) != set(old.arguments)
+                    or {k:v for k,v in task.arguments.items() if k not in catalog_keys} != {k:v for k,v in old.arguments.items() if k not in catalog_keys}):
                     raise original
+                objects = {o['id']:o for o in snapshot.payload['objects']}
+                for key,kind in [('exercise_id','exercise'),('ingredient_id','ingredient')]:
+                    if key in task.arguments and task.arguments[key] != old.arguments[key]:
+                        prior = objects.get(old.arguments[key])
+                        if prior and prior['type'] == kind:
+                            raise original
             validate_tasks(repaired.tasks, snapshot)
             return repaired
         except Exception:
             raise original
     return parsed
+
+
+class RevisionEditTask(BoundTask):
+    capability_id: Literal['day_plan.create_revision','day_plan.update_revision','day_plan.extend_revision']
+
+
+class RevisionRepairPlan(BoundPlan):
+    mode: Literal['execute','load_context'] = 'execute'
+    tasks: list[RevisionEditTask] = Field(default_factory=list,max_length=1)
 
 
 def validate_revision_goal(client,data,parsed,snapshot,recent,requirements,trace):
@@ -219,6 +250,19 @@ def validate_revision_goal(client,data,parsed,snapshot,recent,requirements,trace
     current=parsed
     for attempt in range(4):
         try:
+            from app.domain.planning_preferences import merge_rules
+            for task in current.tasks:
+                if task.capability_id in revision_requirements.EDIT_CAPABILITIES:
+                    constraints=dict(task.arguments.get('constraints') or {})
+                    for field in ('body_preferences','food_preferences'):
+                        constraints[field]=merge_rules(constraints.get(field,[]),getattr(requirements,field))
+                    if requirements.workout_volume_change:
+                        constraints['workout_volume_change']=requirements.workout_volume_change
+                    if requirements.nutrient_changes:
+                        supplied=constraints.get('nutrient_changes',[])
+                        current_keys={(r.nutrient,tuple(r.slots)) for r in requirements.nutrient_changes}
+                        constraints['nutrient_changes']=[r for r in supplied if (r['nutrient'],tuple(r.get('slots',[]))) not in current_keys]+[r.model_dump() for r in requirements.nutrient_changes]
+                    task.arguments['constraints']=constraints
             validate_tasks(current.tasks,snapshot)
             revision_requirements.validate(current.tasks[0],snapshot,requirements,recent)
             trace.append({'stage':'revision_goal_verification','status':'passed','requirements':requirements.model_dump()})
@@ -233,7 +277,7 @@ def validate_revision_goal(client,data,parsed,snapshot,recent,requirements,trace
             repaired=structured_call(client,SYSTEM,{**data,'revision_requirements':requirements.model_dump(),
                 'previous_plan':current.model_dump(),'validation_error':{'message':str(error),**error.details},
                 'repair_instruction':'根据独立语义要求与真实校验修正完整草案参数。仅创建/修改/扩展预览，不得应用、取消或调用局部写操作。正在编辑已有草案必须保留该ID，追加餐次改用extend_revision；不能扩大本轮明确范围。时长目标必须使动作合计达到并保存target，不只改上限。保留其他已选内容和事实。无法满足则保留任务并parameters_resolved=false提出具体澄清。'},
-                BoundPlan,trace,'arguments_schema_repair')
+                RevisionRepairPlan,trace,'arguments_schema_repair')
             trace.append({'stage':'revision_goal_repair','status':'completed','repair_attempt':attempt+1})
             if repaired.mode=='load_context' and repaired.snapshot_id==snapshot.id and not repaired.tasks and repaired.context_request and repaired.context_request.day_revision:
                 return repaired
@@ -292,7 +336,7 @@ def repair_arguments(client, data, parsed, snapshot, trace, failure):
 
 def control(client, text, pending, snapshot, trace):
     # 让模型判断该保留那一部分内容
-    command=structured_call(client, CONTROL_SYSTEM,
+    command=structured_call(client, COACH_POLICY + CONTROL_SYSTEM,
         {"user_text": text, "pending": {"pending_id": pending.id, "version": pending.version,
           "tasks": pending.tasks, "question": pending.question,
           "unresolved_goal_input": (pending.result or {}).get("unresolved_goal_input"),

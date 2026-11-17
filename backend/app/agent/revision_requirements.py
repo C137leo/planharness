@@ -8,6 +8,7 @@ from pydantic import Field
 from app.agent.binding_contract import StrictModel
 from app.domain import day_revision as domain
 from app.domain.day_plan import _estimated_minutes
+from app.domain.planning_preferences import BodyPreference,FoodPreference,merge_rules,serialized
 
 EDIT_CAPABILITIES={'day_plan.create_revision','day_plan.update_revision','day_plan.extend_revision'}
 
@@ -21,6 +22,13 @@ class DurationRequirement(StrictModel):
 
 
 class RevisionRequirements(StrictModel):
+    workout_volume_change: Literal['decrease','increase'] | None = Field(default=None,
+        description='减少/增加运动量等相对目标；用户未给具体组次时仍可由教练建议剂量并比较实际变化，不要求用户规划。')
+    nutrient_changes: list[domain.NutrientChange] = Field(default_factory=list,max_length=12,
+        description='相对营养目标，如减少碳水为carb_g/decrease；不是必须指定食材或克数。依据原话决定，不从提议参数倒推。')
+    body_preferences: list[BodyPreference] = Field(default_factory=list,max_length=30,
+        description='模型判断不适/疼痛/避开或重点训练的部位与长短期，保存实际生效日期；不依赖用户点名具体动作。')
+    food_preferences: list[FoodPreference] = Field(default_factory=list,max_length=30)
     edit_existing_preview: bool
     workout_change: bool
     action_selection_change: bool
@@ -69,8 +77,22 @@ def extract(client,source_text,snapshot,recent,trace):
         'meal_slots只列用户本轮要求改变的餐次；meal_rules保存指定食材、否定及明确克数，选真实食材枚举键，未指定份量不编克数。明确替换食物时include新食材且exclude原餐被替换食材，不能把替换理解为并列追加。'
         '结合当前用户原话和原待确认问题理解省略或指代。unresolved_edits是同一草案先前尚未落实的用户要求，除本轮明确改掉或撤回外仍需一并落实；已经体现在草案中的条件从草案保留，不重复解释为本轮新变更。参数补全保留原目标，选择动作不是完成训练。不得扩大未提及餐次。',
         {'revision_goal_input':source_text,'selected_dates':snapshot.payload['dates'],'unresolved_requirements':unresolved,
+         'current_days':[{'date':o['date'],'day':o.get('revision_context',{}).get('day'),
+             'facts':o.get('revision_context',{}).get('facts',{})} for o in snapshot.payload['objects'] if o['type']=='day'],
+         'exercise_catalog':[{k:o.get(k) for k in ('action_ref','name_zh','target_regions','loaded_regions','hand_usage')} for o in snapshot.payload['objects'] if o['type']=='exercise'],
          'editing_context':[m for m in recent if m.get('editing_saved_task') or m.get('active_saved_workflow')], 'saved_drafts':drafts},
         RevisionRequirements,trace,'revision_requirements')
+    if result.body_preferences:
+        result=result.model_copy(update={'workout_change':True,'action_selection_change':True})
+    if result.workout_volume_change:
+        result=result.model_copy(update={'workout_change':True})
+    if result.nutrient_changes:
+        days=[o.get('revision_context',{}) for o in snapshot.payload['objects'] if o['type']=='day']
+        available={m['slot'] for ctx in days for m in ctx.get('day',{}).get('meals',[])}
+        recorded={m['slot'] for ctx in days for m in ctx.get('facts',{}).get('meal_logs',[])}
+        changes=[r.model_copy(update={'slots':r.slots or sorted(set(result.meal_slots) or (available-recorded))}) for r in result.nutrient_changes]
+        slots=list(dict.fromkeys([*result.meal_slots,*(slot for r in changes for slot in r.slots)]))
+        result=result.model_copy(update={'nutrient_changes':changes,'meal_slots':slots})
     # Typed delta merge, not language interpretation: omitted changes retain
     # independently understood but not yet materialized goals. Explicit new
     # values or model-classified retractions replace them.
@@ -80,6 +102,9 @@ def extract(client,source_text,snapshot,recent,trace):
         for entry in reversed(unresolved):
             if not entry.get('requirements'):continue
             prior=RevisionRequirements.model_validate(entry['requirements'])
+            result=result.model_copy(update={
+                'workout_volume_change':result.workout_volume_change or prior.workout_volume_change,
+                'nutrient_changes':result.nutrient_changes+[r for r in prior.nutrient_changes if (r.nutrient,tuple(r.slots)) not in {(n.nutrient,tuple(n.slots)) for n in result.nutrient_changes}]})
             if duration is None and not result.drop_pending_duration:duration=prior.duration
             if formal_actions is None and not result.action_count_change:formal_actions=prior.formal_actions
             workout=workout or (prior.workout_change and (prior.action_selection_change or prior.action_count_change)) or duration is not None
@@ -106,6 +131,12 @@ def validate(task,snapshot,requirements,recent):
     if focus and (task.capability_id=='day_plan.create_revision' or task.resolution.selected_id!=focus[-1]['id']):
         fail('本轮正在编辑已保存草案，必须更新或扩展同一份草案，不能重建并丢弃已选目标。')
     target,rules,scope,before,selected=candidate(task,snapshot)
+    try:domain.validate_relative_changes(before,target,requirements.workout_volume_change,requirements.nutrient_changes)
+    except domain.RevisionError as error:fail(str(error))
+    if requirements.workout_volume_change and rules.workout_volume_change!=requirements.workout_volume_change:
+        fail('运动量相对目标必须保存在草案约束中。')
+    if any(r not in rules.nutrient_changes for r in requirements.nutrient_changes):
+        fail('相对营养目标必须保存在草案约束中，不能只修改回复。')
     if not requirements.workout_change and target['actions']!=before['actions']:
         fail('用户本轮只改餐食，不能改写原草案的训练动作、组数或时长。')
     if selected['type']=='day_revision':
@@ -148,3 +179,6 @@ def validate(task,snapshot,requirements,recent):
         if not any(saved.slot==rule.slot and saved.requirement==rule.requirement and set(saved.ingredient_options)<=set(rule.ingredient_options)
                    and saved.grams==rule.grams for saved in rules.meal_ingredient_rules):
             fail('明确食材要求必须保存为草案约束，避免下一轮编辑丢失。')
+    for field in ('body_preferences','food_preferences'):
+        if any(rule not in serialized(getattr(rules,field)) for rule in serialized(getattr(requirements,field))):
+            fail('明确的身体/食材要求必须保存并检查，不能只在回复中答应。')

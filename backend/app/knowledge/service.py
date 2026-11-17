@@ -29,13 +29,14 @@ def _knowledge_items() -> list[dict]:
     guidance = Path(__file__).resolve().parents[1] / "domain" / "exercise_guidance.json"
     items.extend(json.loads(guidance.read_text(encoding="utf-8")))
     from app.domain.guided_selection import GUIDANCE_CATALOG
+    translations = json.loads((guidance.parent / 'exercise_guidance_zh.json').read_text(encoding='utf-8'))
     local_refs = {item.get("action_ref") for item in items}
     for ref, entry in GUIDANCE_CATALOG.items():
         if ref in local_refs or not entry.get("instructions"):
             continue
         items.append({"id": f"catalog-guidance:{ref}", "title": f"{entry['name_zh']}的动作要领",
             "body_part": "general", "topic": "technique",
-            "content": "上游英文原文：\n" + "\n".join(entry["instructions"]),
+            "content": "\n".join(translations[ref]),
             "tags": [entry["name_zh"], entry["name_en"], ref],
             "source_title": "free-exercise-db · " + entry["search_term"],
             "source_url": entry["source_url"]})

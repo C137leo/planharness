@@ -167,6 +167,9 @@ def _action(db, user, task, target, objects, expected):
         if _norm_equipment(exercise.get("equipment")) not in allowed_equipment(profile, current["constraints"]):
             raise TaskFailure("constraint", "当前器械约束不允许该动作。")
         injured = current["constraints"].get("injured_regions") or []
+        from app.domain.planning_preferences import blocked,active
+        if blocked(exercise['action_ref'],active(current['constraints'].get('body_preferences',[]),date)):
+            raise TaskFailure('arguments_schema','替换动作仍使用用户明确避开的部位。')
         if any(is_risky_for(exercise["action_ref"], region) for region in injured):
             raise TaskFailure("constraint", "该动作与身体限制冲突。")
         if item is None:

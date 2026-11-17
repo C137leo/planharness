@@ -47,7 +47,7 @@ export function thumbOf(action: {
   // meta 有可能是补丁残留（例如休息补丁只改了 duration/meta，没换 action_ref），
   // 用 meta 优先会让"高脚杯深蹲"显示成拉伸图。
   const rawRef = String(action.action_ref || '')
-  const aliases: Record<string, string> = {pushup:'push-up',push_up:'push-up',bodyweight_squat:'bodyweight-squat',goblet_squat:'goblet-squat',glute_bridge:'glute-bridge',hip_thrust:'hip-thrust',pullup:'pull-up'}
+  const aliases: Record<string, string> = {pushup:'push-up',push_up:'push-up',bodyweight_squat:'bodyweight-squat',goblet_squat:'goblet-squat',glute_bridge:'glute-bridge',hip_thrust:'hip-thrust',pullup:'pull-up', 'dynamic-warmup':'dynamic_warmup', 'full-body-stretch':'full_body_stretch',stretch:'full_body_stretch',easy_walk:'walking',brisk_walk:'walking'}
   const exactImages: Record<string, string> = exerciseImages
   const exact = exactImages[aliases[rawRef] || rawRef] || exactImages[rawRef.replace(/_/g, '-').toLowerCase()]
   if (exact) return exact

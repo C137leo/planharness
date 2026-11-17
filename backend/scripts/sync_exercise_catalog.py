@@ -82,6 +82,8 @@ def main() -> None:
         "}",
         "",
         "KNEE_RISKY_SLUGS = {slug for slug, item in EXERCISE_CATALOG.items() if item['knee_risky']}",
+        "from app.domain.exercise_biomechanics import annotate_catalog as _annotate_catalog",
+        "_annotate_catalog(EXERCISE_CATALOG)",
         "",
         "",
         "def name_of(ref: str) -> str:",

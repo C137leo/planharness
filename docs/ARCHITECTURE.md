@@ -27,6 +27,8 @@
 
 首份计划骨架继续来自PlanningAgent/skill，聊天通过独立的initial_requirements目标契约执行并核对数量、目录选择、时长与食材，部分修改保留其他选择。MealLog是实际进食；聊天登记/纠错与页面共用该实体，先确认再写，不能拿MealPlan冒充已吃记录。请求最终结果与消息提交同事务保存，前端按账号保留请求编号供跨刷新只读核实。
 
+部位与饮食偏好由模型解释为带生效日期的 `planning_preferences` 契约，执行层依据动作的目标/负荷部位和真实食材身份核对效果。约束及基线随长期计划 program 保存；`effective_day` 和当前计划 API 共享日期投影，短期要求过期后恢复基线。模型语义解释与目录工程标注的职责及验证边界见 [AGENT_RUNTIME.md](AGENT_RUNTIME.md)。
+
 商务报价、确认和外部调用有单独 CheckoutDraft / ExternalOperation 等状态；不能把外部提交放进本地事务后声称可一起回滚。运行观测复用 AgentRun、AgentMessage、CoachBusinessSnapshot、CoachTaskExecution；RuntimeConversation 只存空会话元数据，不另存一套消息。
 
 ## 同时存在的执行路径

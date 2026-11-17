@@ -1,5 +1,6 @@
 import guidanceCatalog from '../../../backend/app/domain/exercise_guidance_catalog.json'
 import guidance from '../../../backend/app/domain/exercise_guidance.json'
+import translations from '../../../backend/app/domain/exercise_guidance_zh.json'
 
 /**
  * 动作 → free-exercise-db 搜索词。
@@ -66,7 +67,10 @@ export function exerciseGuidance(text: string) {
   if (local) return local
   const match = catalogMatch(text)
   if (!match || !('instructions' in match)) return undefined
-  return { title: `${match.name_zh}的动作要领（英文原文）`, content: match.instructions.join('\n'), source_title: 'free-exercise-db', search_term: match.search_term }
+  const ref = catalogEntries.find(([,entry]) => entry === match)?.[0] || ''
+  const chinese: Record<string, string[]> = translations
+  if (!chinese[ref]) return undefined
+  return { title: `${match.name_zh}的动作要领`, content: chinese[ref].join('\n'), source_title: 'free-exercise-db · 中文整理', search_term: match.search_term }
 }
 
 export function hasExerciseGuidance(text: string): boolean {
@@ -110,7 +114,7 @@ export function exerciseSearchTerm(text: string): string {
   return best ? best.en : ''
 }
 
-export function copyExerciseTerm(term: string): boolean {
+export function copyExerciseTerm(term: string, completed?: (success: boolean) => void): boolean {
   // 必须在 window.open 之前同步复制：新标签一打开，原页面失去焦点，
   // Clipboard API 和 execCommand 都可能被浏览器拒绝。
   if (typeof document !== 'undefined') {
@@ -126,35 +130,55 @@ export function copyExerciseTerm(term: string): boolean {
       area.setSelectionRange(0, term.length)
       const copied = document.execCommand('copy')
       document.body.removeChild(area)
-      if (copied) return true
+      if (copied) { completed?.(true); return true }
     } catch {
       // 继续走 uni 的兼容实现
     }
   }
+  if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(term).then(() => completed?.(true), () => completed?.(false))
+    return false
+  }
   if (typeof uni !== 'undefined' && typeof uni.setClipboardData === 'function') {
     uni.setClipboardData({
       data: term,
-      success: () => uni.showToast({ title: '已复制动作名称，请粘贴搜索', icon: 'none', duration: 2500 }),
-      fail: () => uni.showToast({ title: `复制失败，请手动搜索：${term}`, icon: 'none', duration: 3000 }),
+      success: () => { if(completed) completed(true); else uni.showToast({ title: '已经复制动作名称，请在新页面搜索框直接粘贴查看', icon: 'none', duration: 2500 }) },
+      fail: () => { if(completed) completed(false); else uni.showToast({ title: `复制失败，请手动搜索：${term}`, icon: 'none', duration: 3000 }) },
     })
     // 异步复制尚未完成，不提前声称成功。
     return false
   }
+  completed?.(false)
   return false
 }
 
+let navigationTimer: ReturnType<typeof setTimeout> | undefined
+let notice: HTMLElement | undefined
+let navigationVersion = 0
 export function openExerciseDbTerm(term: string): void {
   if (!term) return
-  const copied = copyExerciseTerm(term)
+  const version=++navigationVersion
+  if(navigationTimer) clearTimeout(navigationTimer)
+  notice?.remove()
+  copyExerciseTerm(term, success => {
+    if(version!==navigationVersion) return
+    const message = success ? '已经复制动作名称，请在新页面搜索框直接粘贴查看' : `复制失败，请在动作库手动搜索：${term}`
+    if (typeof document !== 'undefined') {
+      notice=document.createElement('div')
+      notice.setAttribute('role','status')
+      notice.style.cssText='position:fixed;z-index:2147483647;top:24px;left:50%;transform:translateX(-50%);max-width:90vw;padding:18px 24px;border-radius:14px;background:#3d3028;color:white;box-shadow:0 8px 32px #0004;font-size:15px;line-height:1.7;pointer-events:none;text-align:center'
+      notice.textContent=message
+      document.body.appendChild(notice)
+    } else uni.showToast({title:message,icon:'none',duration:1000})
+    navigationTimer=setTimeout(()=>{ notice?.remove();notice=undefined;openExerciseDestination() },1000)
+  })
+}
+
+function openExerciseDestination(): void {
   const globalOpen = (globalThis as unknown as { open?: (u: string, t?: string) => unknown }).open
   if (typeof globalOpen === 'function') {
-    globalOpen(EXERCISE_DB_URL, '_blank')
-  } else if (typeof location !== 'undefined') {
-    location.href = EXERCISE_DB_URL
+    const destination=globalOpen(EXERCISE_DB_URL, '_blank')
+    if(destination) return
   }
-  uni.showToast({
-    title: copied ? `已复制动作名称，请粘贴搜索：${term}` : `搜索：${term}`,
-    icon: 'none',
-    duration: 2500,
-  })
+  if (typeof location !== 'undefined') location.href = EXERCISE_DB_URL
 }

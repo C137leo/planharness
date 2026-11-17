@@ -16,6 +16,7 @@ from app.domain.timeutil import as_utc, day_end_utc
 from app.domain.catalog import all_exercise_refs, name_of
 from app.domain.nutrition_catalog import FOOD_MACROS_PER_100G, FOOD_TAGS
 from app.domain.workout_records import lock
+from app.domain.planning_preferences import BodyPreference,FoodPreference,merge_rules,validate_effects,serialized
 
 
 class RevisionError(ValueError):
@@ -67,7 +68,18 @@ class MealIngredientRule(Strict):
     grams: float | None = Field(default=None,gt=0,le=1000)
 
 
+class NutrientChange(Strict):
+    nutrient: Literal['carb_g','protein_g','fat_g','kcal']
+    direction: Literal['decrease','increase']
+    slots: list[Literal['breakfast','lunch','dinner','snack']] = Field(default_factory=list,
+        description='明确指定的餐次；未指定时由当前真实未记录餐次确定，不能把减少碳水视为没有餐食修改。')
+
+
 class Constraints(Strict):
+    workout_volume_change: Literal['decrease','increase'] | None = None
+    nutrient_changes: list[NutrientChange] = Field(default_factory=list,max_length=12)
+    body_preferences: list[BodyPreference] = Field(default_factory=list,max_length=30)
+    food_preferences: list[FoodPreference] = Field(default_factory=list,max_length=30)
     max_workout_minutes: int | None = Field(default=None, ge=1, le=240)
     min_workout_minutes: int | None = Field(default=None,ge=1,le=240)
     target_workout_minutes: int | None = Field(default=None,ge=1,le=240,description='用户要求练到/调整为的整场目标时长，不能只保存为上限。')
@@ -202,8 +214,39 @@ def _target(base, proposal, scope):
     return result
 
 
+def validate_relative_changes(before,target,workout_volume_change,nutrient_changes):
+    """Compare real doses/macros to the original saved baseline, never reply text."""
+    def volume(actions):
+        work=[a for a in actions if a.get('slot')!='warmup']
+        return [sum(int(a.get('sets') or 0) for a in work),
+                sum(int(a.get('sets') or 1)*int(a.get('reps') or 0) for a in work),
+                sum(_estimated_minutes(a) for a in work)]
+    def changed(old,new,direction):
+        return (all(b<=a for a,b in zip(old,new)) and any(b<a for a,b in zip(old,new))) if direction=='decrease' else (all(b>=a for a,b in zip(old,new)) and any(b>a for a,b in zip(old,new)))
+    if workout_volume_change:
+        old,new=volume(before['actions']),volume(target['actions'])
+        if not changed(old,new,workout_volume_change):
+            raise RevisionError('workout_volume','实际运动量未按要求降低。' if workout_volume_change=='decrease' else '实际运动量未按要求增加。',{'before':old,'after':new})
+    def total(meals,rule):
+        key={'carb_g':'carb','protein_g':'protein','fat_g':'fat','kcal':'kcal'}[rule.nutrient]
+        return sum(float(m[rule.nutrient]) if m.get(rule.nutrient) is not None else
+            sum(float(i.get(key) or 0) for i in m.get('items',[])) for m in meals if not rule.slots or m['slot'] in rule.slots)
+    for rule in nutrient_changes:
+        old,new=total(before['meals'],rule),total(target['meals'],rule)
+        if not changed([old],[new],rule.direction):
+            raise RevisionError('nutrient_change','实际餐食营养量没有满足相对调整要求。',{'nutrient':rule.nutrient,'direction':rule.direction,'slots':rule.slots,'before':old,'after':new})
+
+
 def validate(base, target, scope, constraints, *, allow_workout_replacement=False):
     before = base['day']
+    body=merge_rules(before['constraints'].get('body_preferences',[]),constraints.body_preferences)
+    food=merge_rules(before['constraints'].get('food_preferences',[]),constraints.food_preferences)
+    errors=validate_effects(target['actions'],target['meals'],body,food,dt.date.fromisoformat(before['date']))
+    if errors:raise RevisionError('user_preferences','；'.join(errors))
+    target['constraints']={**target['constraints'],'body_preferences':body,'food_preferences':food}
+    validate_relative_changes(before,target,constraints.workout_volume_change,constraints.nutrient_changes)
+    target['constraints'].update(workout_volume_change=constraints.workout_volume_change,
+        nutrient_changes=[r.model_dump() for r in constraints.nutrient_changes])
     if 'workout' not in scope and target['actions']!=before['actions']:raise RevisionError('scope','训练超出授权范围。')
     old_meals = {m['slot']:m for m in before['meals']};new_meals = {m['slot']:m for m in target['meals']}
     protected_meals = {m['slot'] for m in base['facts']['meal_logs']}

@@ -33,6 +33,12 @@
 
 返回 data 包含 reply、run_id、overall_status、task_plan/task_results，按实际任务可附 pending_confirmation、day_revision、checkout、order 等。字段可缺省；只有服务端结果或已验证记录能证明完成，不能从 reply 或HTTP200推断成功。原结构化确认至少包含 action、pending_id、version；候选/保留任务使用 selections、keep_task_ids 等服务端保存范围，完整约束见 binding_contract.py。
 
+模型侧长期目标契约及整日草案 constraints 支持 `body_preferences` 与 `food_preferences`：共同字段为 `scope`（long_term/short_term）、`starts_on`、`ends_on`、`evidence`、显式撤回标记 `remove`；短期必须有结束日期。身体项包含标准部位 `region`、`intent`（avoid/focus）；食材项包含目录键 `ingredient_options`、`intent`（exclude/include/allergy）及餐次 `slots`。这些字段由独立模型理解后经领域校验保存，不是客户端绕过确认的授权。生成预览和确认都核对实际内容，确认继续携带原 pending_id/version。
+
+整日草案 constraints 另支持 `workout_volume_change: decrease|increase` 及 `nutrient_changes: [{nutrient: carb_g|protein_g|fat_g|kcal, direction: decrease|increase, slots: [...]}]`。服务端核对相对变化的实际前后数值，未满足目标不能应用；只要求增减、不提供具体数字也可以先由教练建议并生成待确认预览。
+
+`GET /api/v1/plans/current` 在存在日期约束时返回从用户今天起七天的有效投影；动作 `meta` 包含目标部位 `target_regions`、负荷部位 `loaded_regions` 和 `hand_usage`（none/grip/support）。长期约束及到期恢复基线保存在 program 内，今日、计划页和后续生成使用同一约束来源，历史实际训练/进食记录不重写。
+
 ## 工作台与订单历史
 
 - GET /agent/runtime/conversations：本人会话及空会话，当前最多50项。

@@ -168,6 +168,11 @@ def execute_plan(db, user, snapshot, tasks, confirmed=False):
         try:
             return execute(db, user, snapshot, tasks, confirmed=confirmed)
         except Exception as exc:
+            import logging
+            logging.getLogger('planharness.plan_confirmation').exception('Plan lifecycle execution failed')
+            from app.agent.runtime_observation import append
+            append(db, {'event_type':'plan.lifecycle.failed','stage':'plan_lifecycle_failure',
+                        'status':'failed','error_type':type(exc).__name__})
             from app.domain.patches import PatchValidationError
             if isinstance(exc, PatchValidationError):
                 state, message = 'clarification_required', '；'.join(map(str, exc.errors))
@@ -175,7 +180,8 @@ def execute_plan(db, user, snapshot, tasks, confirmed=False):
                 state, message = ('stale' if exc.stage == 'stale' else 'failed'), str(exc)
             else:
                 state, message = 'failed', '生成或校验发生异常，原安排未改变，请稍后重试。'
-            return {'overall_status': state, 'reply': '首份计划未应用：' + message[:200],
+            label='长期计划未应用：' if any('_replacement_draft' in t.capability_id for t in tasks) else '首份计划未应用：'
+            return {'overall_status': state, 'reply': label + message[:200],
                     'task_results': [{'task_id': t.task_id, 'capability_id': t.capability_id,
                                       'status': state, 'message': message[:200]} for t in tasks], 'actions': []}
     if any(capability(t.capability_id).execution_boundary=='day_revision' for t in tasks):
@@ -463,10 +469,17 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
                 if command.action != "new_request":
                     result.update(controlled)
                     return finish(db, user, text, page, day, thread, result, trace, started, snapshot)
-            snapshot = build_snapshot(db, user, thread, [day.isoformat()],day_revision=workflow_day_context)
+            snapshot = build_snapshot(db, user, thread, [day.isoformat()],exercise_catalog=True,day_revision=workflow_day_context)
             db.commit()  # Never hold a writer lock during a model network request.
             # Old unexecuted requests cannot become implicit instructions in the new plan.
-            recent = editing_context if handoff else recent_messages(db, user, thread, limit=8)
+            if handoff:
+                # Only the explicitly edited workflow receives the previous
+                # suggestion text; unrelated discarded tasks stay discarded.
+                suggestions = [{'role':m['role'],'text':m['text'],'offered_options':m.get('offered_options',[]),
+                                'reference_only':True} for m in recent_messages(db,user,thread,limit=8)] if editing_context else []
+                recent = suggestions + editing_context
+            else:
+                recent = recent_messages(db, user, thread, limit=8)
             if not handoff:
                 planning_text = text
             #     为啥这里会range(3)
@@ -547,6 +560,7 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
                 objects=validate_tasks(tasks,snapshot)
                 deferred_handoff=None
             result["task_plan"] = [t.model_dump() for t in tasks]
+            result['offered_options'] = [option.model_dump() for option in parsed.offered_options]
             if carried_tasks and parsed.mode in {"propose", "noop"}:
                 result.update(pending_result(make_pending(db, user, thread, snapshot, carried_tasks, parsed.answer or parsed.question)))
             elif local_preview:

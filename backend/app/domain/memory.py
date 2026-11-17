@@ -932,7 +932,12 @@ def consecutive_incomplete(sessions: list[WorkoutSession]) -> int:
     return count
 
 
-def recent_training_state(db: Session, user: User, *, limit: int = 5) -> dict:
+def recent_training_state(db: Session, user: User, *, limit: int = 5, persist: bool = False) -> dict:
+    """Read the derived training state; only workout completion persists it.
+
+    Plan previews and context/feedback reads must not refresh memory TTLs or
+    create revisions merely because existing training history was inspected.
+    """
     sessions = list(db.scalars(
         select(WorkoutSession)
         .where(WorkoutSession.user_id == user.id, WorkoutSession.status == "finished")
@@ -954,7 +959,7 @@ def recent_training_state(db: Session, user: User, *, limit: int = 5) -> dict:
             if incomplete >= 2 else ""
         ),
     }
-    if state["sessions"]:
+    if persist and state["sessions"]:
         upsert_memory(
             db, user,
             kind=SHORT_TERM,

@@ -82,9 +82,10 @@ def build_snapshot(db, user, thread, dates, *, exercise_catalog=False, history_l
                         "plan_basis":"current_effective_day"})
         training_index = 0
         for position, action in enumerate(value["actions"], 1):
+            from app.domain.exercise_biomechanics import involvement
             if action.get("slot") != "warmup":
                 training_index += 1
-            objects.append({**copy.deepcopy(action), "type": "workout_action", "date": date,
+            objects.append({**copy.deepcopy(action), **(involvement(action['action_ref']) or {}), "type": "workout_action", "date": date,
                             "parent_id": aggregate.id, "display_position": position,
                             "training_index": training_index if action.get("slot") != "warmup" else None})
         for meal in value["meals"]:
@@ -93,7 +94,10 @@ def build_snapshot(db, user, thread, dates, *, exercise_catalog=False, history_l
             for item in meal["items"]:
                 objects.append({**copy.deepcopy(item), "type": "food_item", "date": date, "parent_id": meal["id"]})
     if db.get(Profile, user.id):
-        objects.append({"id": user.id, "type": "profile", "name": "个人档案", **profile_data(db, user)})
+        plan=db.scalar(select(Plan).where(Plan.user_id==user.id,Plan.status=='active'))
+        preferences={**copy.deepcopy((plan.program or {}).get('planning_goal_contract',{})),
+            **{k:copy.deepcopy((plan.program or {}).get(k,[])) for k in ('body_preferences','food_preferences')}} if plan else {}
+        objects.append({"id": user.id, "type": "profile", "name": "个人档案", **profile_data(db, user),'planning_preferences':preferences})
     from app.domain.nutrition_catalog import FOOD_MACROS_PER_100G
     for name, macros in FOOD_MACROS_PER_100G.items():
         row = identity(db, user, "ingredient", name, {"name": name, "macros_per_100g": macros})
@@ -101,7 +105,7 @@ def build_snapshot(db, user, thread, dates, *, exercise_catalog=False, history_l
     if exercise_catalog:
         from app.domain.exercise_catalog import EXERCISE_CATALOG
         for ref, attrs in EXERCISE_CATALOG.items():
-            data = {"action_ref": ref, **{k: attrs[k] for k in ("name_zh", "name_en", "equipment", "primary_muscle", "knee_risky") if k in attrs}}
+            data = {"action_ref": ref, **{k: attrs[k] for k in ("name_zh", "name_en", "equipment", "primary_muscle", "knee_risky",'target_regions','loaded_regions','hand_usage') if k in attrs}}
             from app.domain.catalog import display_action_name
             data["name_zh"] = display_action_name({**data, "name": data.get("name_zh") or data.get("name_en")})
             row = identity(db, user, "exercise", ref, data)

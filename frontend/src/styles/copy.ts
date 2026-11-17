@@ -1,4 +1,9 @@
 import exerciseLabels from '../../../backend/app/domain/exercise_labels.json'
+export const BODY_REGION_LABELS: Record<string,string> = {hand:'手部',wrist:'手腕',elbow:'肘部',arm:'手臂',shoulder:'肩部',chest:'胸部',back:'背部',lower_back:'下背部',core:'核心',hip:'臀髋',legs:'腿部',knee:'膝部',ankle:'脚踝',calf:'小腿',neck:'颈部',foot:'足部',forearm:'前臂',biceps:'肱二头肌',triceps:'肱三头肌',quads:'股四头肌',hamstrings:'大腿后侧',glutes:'臀部',lats:'背阔肌',mobility:'活动度'}
+export function actionBodyLabel(action:{meta?:Record<string,unknown>}):string {
+  const regions=action.meta?.target_regions
+  return Array.isArray(regions) ? regions.map(r=>BODY_REGION_LABELS[String(r)] || String(r)).join(' / ') : ''
+}
 /** 文案与人话映射：页面和组件共用，避免同一个动作名三处不一致。 */
 
 /** 餐次展示顺序：早 → 午 → 晚 → 加餐（后端已排好，前端再兜一层）。 */

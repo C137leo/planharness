@@ -12,7 +12,7 @@ _STORED_RESULT_KEYS = (
     "changes", "actions", "day", "session", "plan_draft", "patch_request",
     "today_brief", "today_brief_run_id", "mcd_order", "memories", "memory_saved",
     "guidance", "feedback", "progress_insights", "warnings", "blocked",
-    "task_plan", "task_results", "execution_history", "overall_status",
+    "task_plan", "task_results", "execution_history", "overall_status", "offered_options",
     "pending_confirmation", "context_used", "unfulfilled_goals", "checkout", "order", "commerce_catalog", "commerce_nutrition", "commerce_connection", "workout_records", "day_revision", "workout_replan",
 )
 
@@ -65,6 +65,7 @@ def recent_messages(db: Session, user: User, thread: str, limit: int = 8) -> lis
             ],
             "result_kind": str((row.result or {}).get("kind") or ""),
             "task_plan": (row.result or {}).get("task_plan") or [],
+            "offered_options": (row.result or {}).get("offered_options") or [],
             "task_results": (row.result or {}).get("task_results") or [],
             "historical_context": True,
             "plan_version_at_message": ((row.result or {}).get('day') or {}).get('plan_version'),

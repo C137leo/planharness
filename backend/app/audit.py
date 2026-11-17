@@ -57,6 +57,7 @@ ACTIONS = (
     "workout_started",
     "workout_adjusted",
     "workout_finished",
+    "workout_session_abandoned",
     "memory_updated",
     "memory_deleted",
     # 每日记忆生命周期维护：归档/提炼/临时上下文过期的汇总

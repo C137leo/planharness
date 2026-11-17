@@ -233,6 +233,24 @@ def _current_plan_payload(db: Session, user: User) -> CurrentPlanOut:
             "蛋白质/热量建议按当前体重重算"
         )
 
+    action_views=[ActionOut.model_validate(item) for item in actions]
+    meal_views=[MealPlanOut.model_validate(item) for item in meals]
+    if (plan.program or {}).get('body_preferences') or (plan.program or {}).get('food_preferences'):
+        from app.domain.day_plan import effective_day
+        from app.domain.timeutil import user_today
+        reference=user_today(profile);action_views=[];meal_views=[]
+        for offset in range(7):
+            day=reference+timedelta(days=offset);value=effective_day(db,user,day)
+            daily=[]
+            for index,item in enumerate(value['actions'],1):
+                daily.append(ActionOut.model_validate({**item,'day_index':day.isoweekday(),'seq':index,
+                    'slot_key':item.get('slot_key') or f'{day.isoweekday()}:{item["slot"]}:{index}',
+                    'action_type':item.get('action_type') or 'exercise'}))
+            daily_meals=[MealPlanOut.model_validate({**m,'day_index':day.isoweekday(),'kcal':round(float(m.get('kcal') or 0))}) for m in value['meals']]
+            action_views+=daily;meal_views+=daily_meals
+            if offset==0:today={'date':day.isoformat(),'weekday':day.isoweekday(),'actions':daily,'meals':daily_meals}
+    from app.domain.exercise_biomechanics import involvement
+    action_views=[a.model_copy(update={'meta':{**a.meta,**(involvement(a.action_ref) or {})}}) for a in action_views]
     return CurrentPlanOut(
         plan_id=plan.id,
         status=plan.status,
@@ -244,8 +262,8 @@ def _current_plan_payload(db: Session, user: User) -> CurrentPlanOut:
         source=plan.source or "template",
         nutrition=nutrition,
         program=plan.program or {},
-        actions=[ActionOut.model_validate(item) for item in actions],
-        meals=[MealPlanOut.model_validate(item) for item in meals],
+        actions=action_views,
+        meals=meal_views,
         today=TodayOut(**today),
     )
 

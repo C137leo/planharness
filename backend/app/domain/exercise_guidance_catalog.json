@@ -12,7 +12,11 @@
       "Repeat the movement for the prescribed amount of repetitions.",
       "When you are done, place the bar back in the rack."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Barbell_Bench_Press_-_Medium_Grip.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Barbell_Bench_Press_-_Medium_Grip.json",
+    "instructions_zh": [
+      "仰卧卧推凳，双脚踩稳，肩胛向后下收紧，握杠略宽于肩。",
+      "吸气缓慢下放杠铃至胸部附近，手腕保持中立；呼气推起，避免弹胸或耸肩。使用保护架或同伴保护。"
+    ]
   },
   "incline-bench-press": {
     "name_zh": "上斜杠铃卧推",
@@ -34,7 +38,11 @@
       "Repeat the movement for the prescribed amount of repetitions.",
       "When you are done, place the dumbbells back on your thighs and then on the floor. This is the safest manner to release the dumbbells."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Incline_Dumbbell_Press.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Incline_Dumbbell_Press.json",
+    "instructions_zh": [
+      "上斜凳调整到舒适角度，双脚踩稳，哑铃置于胸部两侧。",
+      "肩胛稳定，向上推起哑铃，缓慢下放至可控制范围，不用腰部过度反弓。"
+    ]
   },
   "dumbbell-bench-press": {
     "name_zh": "哑铃卧推",
@@ -49,7 +57,11 @@
       "Then, as you breathe out, use your chest to push the dumbbells up. Lock your arms at the top of the lift and squeeze your chest, hold for a second and then begin coming down slowly. Tip: Ideally, lowering the weight should take about twice as long as raising it.",
       "Repeat the movement for the prescribed amount of repetitions of your training program."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Dumbbell_Bench_Press.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Dumbbell_Bench_Press.json",
+    "instructions_zh": [
+      "仰卧凳面，双脚踩稳，双手握哑铃放在胸部两侧。",
+      "肩胛后收，呼气向上推起，吸气缓慢下放，前臂保持稳定，不让哑铃相撞。"
+    ]
   },
   "decline-bench-press": {
     "name_zh": "下斜杠铃卧推",
@@ -83,7 +95,11 @@
       "Now breathe out and press your upper body back up to the starting position while squeezing your chest.",
       "After a brief pause at the top contracted position, you can begin to lower yourself downward again for as many repetitions as needed."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Pushups.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Pushups.json",
+    "instructions_zh": [
+      "双手撑地略宽于肩，收紧腹部，头、背、髋保持一条直线。",
+      "屈肘缓慢下降，肘部斜向身体后方；呼气推回。不要塌腰或抬头，必要时采用上斜或跪姿降低难度。"
+    ]
   },
   "weighted-push-up": {
     "name_zh": "负重俯卧撑",
@@ -139,7 +155,11 @@
     "instructions": [
       "Facing a high pulley with a rope or dual handles attached, pull the weight directly towards your face, separating your hands as you do so. Keep your upper arms parallel to the ground."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Face_Pull.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Face_Pull.json",
+    "instructions_zh": [
+      "将绳索设在面部附近高度，双手握绳，身体稳定。",
+      "向面部两侧拉开绳端，肘部向外，肩胛后收；缓慢还原，不用腰部后仰借力。"
+    ]
   },
   "upright-row": {
     "name_zh": "直立划船",
@@ -164,7 +184,11 @@
       "Once you are standing completely straight up, lower the bar by pushing the hips back, only slightly bending the knees, unlike when squatting. Tip: Take a deep breath at the start of the movement and keep your chest up. Hold your breath as you lower and exhale as you complete the movement.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Romanian_Deadlift.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Romanian_Deadlift.json",
+    "instructions_zh": [
+      "双脚约髋宽，握住重量，膝盖微屈，背部中立。",
+      "臀部向后推，重量贴近腿部下放；在腘绳肌有拉伸且背部仍稳定的位置停止，伸髋站起，不过度后仰。"
+    ]
   },
   "barbell-row": {
     "name_zh": "杠铃划船",
@@ -196,7 +220,11 @@
       "Repeat the movement for the specified amount of repetitions.",
       "Switch sides and repeat again with the other arm."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/One-Arm_Dumbbell_Row.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/One-Arm_Dumbbell_Row.json",
+    "instructions_zh": [
+      "一手扶稳凳面，双脚或一膝支撑，躯干与地面接近平行，背部中立。",
+      "另一手将哑铃拉向髋部附近，肩胛后收，缓慢放下；不要扭转躯干或耸肩。"
+    ]
   },
   "chest-supported-row": {
     "name_zh": "胸支撑划船",
@@ -216,7 +244,11 @@
       "Keeping the torso stationary, pull the handles back towards your torso while keeping the arms close to it until you touch the abdominals. Breathe out as you perform that movement. At that point you should be squeezing your back muscles hard. Hold that contraction for a second and slowly go back to the original position while breathing in.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Seated_Cable_Rows.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Seated_Cable_Rows.json",
+    "instructions_zh": [
+      "坐稳，双脚支撑，屈膝少许，背部中立握住绳索把手。",
+      "将把手拉向腹部，肘部向后，肩胛收紧；缓慢还原，不大幅前后摆动。"
+    ]
   },
   "machine-row": {
     "name_zh": "器械划船",
@@ -246,7 +278,11 @@
       "While keeping the arms straight, go back to the starting position while breathing in.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Straight-Arm_Pulldown.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Straight-Arm_Pulldown.json",
+    "instructions_zh": [
+      "面向高位绳索站立，膝微屈，手臂近伸直握杆，腹部收紧。",
+      "保持肘角基本不变，将杆拉向大腿前侧；控制返回，不耸肩或用腰甩动。"
+    ]
   },
   "pull-up": {
     "name_zh": "引体向上",
@@ -276,7 +312,11 @@
       "After a second of squeezing the biceps in the contracted position, slowly lower your torso back to the starting position; when your arms are fully extended. Breathe in as you perform this portion of the movement.",
       "Repeat this motion for the prescribed amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Chin-Up.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Chin-Up.json",
+    "instructions_zh": [
+      "反握单杠，双手约肩宽，肩胛稳定，身体自然下垂。",
+      "屈肘拉起至下巴接近杠上方，缓慢下降；不要摆腿借力或强行伸颈。"
+    ]
   },
   "shrug": {
     "name_zh": "杠铃耸肩",
@@ -290,7 +330,11 @@
       "Slowly return to the starting position as you breathe in.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Barbell_Shrug.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Barbell_Shrug.json",
+    "instructions_zh": [
+      "站稳握杠铃，手臂自然垂直，头颈保持中立。",
+      "双肩向上耸起，短暂停顿，再缓慢放下；不要绕肩或用屈肘提拉代替。"
+    ]
   },
   "squat": {
     "name_zh": "杠铃深蹲",
@@ -306,7 +350,11 @@
       "Begin to raise the bar as you exhale by pushing the floor with the heel or middle of your foot as you straighten the legs and extend the hips to go back to the starting position.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Barbell_Full_Squat.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Barbell_Full_Squat.json",
+    "instructions_zh": [
+      "杠铃置于上背合适位置，双脚约肩宽，脚尖自然外展，收紧核心。",
+      "屈髋屈膝下蹲至可控制范围，膝盖朝向脚尖；全脚掌发力站起，背部稳定。使用保护架。"
+    ]
   },
   "front-squat": {
     "name_zh": "颈前深蹲",
@@ -328,7 +376,11 @@
       "Begin to raise the unit as you exhale by pushing the floor with mainly with the heel of your foot as you straighten the legs again and go back to the starting position.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Hack_Squat.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Hack_Squat.json",
+    "instructions_zh": [
+      "背部贴紧哈克深蹲机靠垫，肩部固定，双脚站稳踏板。",
+      "解锁后缓慢屈膝下降，膝盖朝向脚尖；推回时不过度锁死膝盖，结束后确认安全卡扣锁定。"
+    ]
   },
   "leg-press": {
     "name_zh": "腿举",
@@ -343,7 +395,11 @@
       "Pushing mainly with the heels of your feet and using the quadriceps go back to the starting position as you exhale.",
       "Repeat for the recommended amount of repetitions and ensure to lock the safety pins properly once you are done. You do not want that platform falling on you fully loaded."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Leg_Press.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Leg_Press.json",
+    "instructions_zh": [
+      "坐稳腿举机，背部及骨盆贴住靠垫，双脚约肩宽放在踏板。",
+      "屈膝控制下放，保持臀部不离垫；脚掌发力推起，不锁死膝盖或用手推膝。"
+    ]
   },
   "bulgarian-split-squat": {
     "name_zh": "保加利亚分腿蹲",
@@ -383,7 +439,11 @@
       "Slowly return to the starting position as you breathe in.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Seated_Leg_Curl.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Seated_Leg_Curl.json",
+    "instructions_zh": [
+      "调整座椅使膝关节对准器械转轴，大腿固定，滚垫位于脚踝上方。",
+      "屈膝将小腿向后下方收回，短暂停顿后缓慢还原；臀部保持贴座，不借力弹动。"
+    ]
   },
   "hip-thrust": {
     "name_zh": "杠铃臀推",
@@ -401,7 +461,11 @@
       "Pushing mainly with your heels, lift your hips off the floor while keeping your back straight. Breathe out as you perform this part of the motion and hold at the top for a second.",
       "Slowly go back to the starting position as you breathe in."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Butt_Lift_Bridge.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Butt_Lift_Bridge.json",
+    "instructions_zh": [
+      "仰卧屈膝，双脚与髋同宽踩地，双臂放在身体两侧。",
+      "收紧腹部与臀部，脚跟发力抬髋至肩、髋、膝成线，停顿后缓慢落下；不要用腰部过度后弯。"
+    ]
   },
   "good-morning": {
     "name_zh": "早安式体前屈",
@@ -414,7 +478,11 @@
       "Begin by bending at the hips, moving them back as you bend over to near parallel. Keep your back arched and your cervical spine in proper alignment.",
       "Reverse the motion by extending through the hips with your glutes and hamstrings. Continue until you have returned to the starting position."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Good_Morning.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Good_Morning.json",
+    "instructions_zh": [
+      "轻重量杠铃置于上背，双脚髋宽，膝盖微屈，核心收紧。",
+      "保持背部中立向后折髋，躯干前倾至可控制范围，再伸髋站起；不弓背，初学者应先练习徒手髋铰链。"
+    ]
   },
   "standing-calf-raise": {
     "name_zh": "站姿提踵",
@@ -435,7 +503,11 @@
       "Raise the heels by extending the ankles as high as possible as you contract the calves and breathe out. Hold the top contraction for a second.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Seated_Calf_Raise.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Seated_Calf_Raise.json",
+    "instructions_zh": [
+      "坐稳器械，前脚掌踩踏板，大腿放在软垫下，膝约直角。",
+      "脚跟尽量抬高并短暂停顿，缓慢下降至舒适拉伸位置；不弹震，保持脚踝稳定。"
+    ]
   },
   "bicep-curl": {
     "name_zh": "哑铃弯举",
@@ -449,7 +521,11 @@
       "Then, inhale and slowly begin to lower the dumbbells back to the starting position.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Dumbbell_Bicep_Curl.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Dumbbell_Bicep_Curl.json",
+    "instructions_zh": [
+      "站稳，双手持哑铃垂于体侧，掌心向前，肘部靠近躯干。",
+      "屈肘举起哑铃，缓慢放下；上臂位置稳定，不后仰甩动或耸肩。"
+    ]
   },
   "hammer-curl": {
     "name_zh": "锤式弯举",
@@ -469,7 +545,11 @@
       "As you exhale, use the biceps to curl the weight up until your biceps is fully contracted and the bar is at shoulder height. Squeeze the biceps hard and hold this position for a second.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Preacher_Curl.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Preacher_Curl.json",
+    "instructions_zh": [
+      "坐在牧师凳前，上臂贴垫，握住重量，肩部放松。",
+      "稳定屈肘举起，再缓慢下降，底部不猛然伸直肘关节，避免身体离凳借力。"
+    ]
   },
   "cable-curl": {
     "name_zh": "绳索弯举",
@@ -526,7 +606,11 @@
       "Get into a prone position on the floor, supporting your weight on your toes and your forearms. Your arms are bent and directly below the shoulder.",
       "Keep your body straight at all times, and hold this position as long as possible. To increase difficulty, an arm or leg can be raised."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Plank.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Plank.json",
+    "instructions_zh": [
+      "前臂撑地，肘在肩下，双脚后伸，以脚尖支撑。",
+      "收紧腹部与臀部，头背髋保持一线，持续自然呼吸；不要塌腰、耸肩或屏气。"
+    ]
   },
   "side-plank": {
     "name_zh": "侧平板支撑",
@@ -545,7 +629,11 @@
       "Go back slowly to the starting position as you breathe in.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Hanging_Leg_Raise.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Hanging_Leg_Raise.json",
+    "instructions_zh": [
+      "双手握杠，肩胛主动稳定，躯干避免摆动。",
+      "腹部收紧抬起双腿或屈膝抬腿至可控高度，缓慢下降；不靠摆荡完成。"
+    ]
   },
   "cable-crunch": {
     "name_zh": "绳索卷腹",
@@ -561,7 +649,11 @@
       "Slowly return to the starting position as you inhale. Tip: Make sure that you keep constant tension on the abs throughout the movement. Also, do not choose a weight so heavy that the lower back handles the brunt of the work.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Cable_Crunch.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Cable_Crunch.json",
+    "instructions_zh": [
+      "跪在高位绳索前，握住绳端放于头部两侧，髋部稳定。",
+      "呼气卷腹，让胸廓靠近骨盆，再控制还原；手臂不下拉借力，避免只做髋屈伸。"
+    ]
   },
   "ab-wheel": {
     "name_zh": "健腹轮卷腹",
@@ -621,7 +713,11 @@
       "Repeat the movement for the prescribed amount of repetitions.",
       "When you are done, lock the bar back in the rack."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Smith_Machine_Bench_Press.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Smith_Machine_Bench_Press.json",
+    "instructions_zh": [
+      "凳子对准史密斯机轨道，仰卧踩稳，杠铃下降位置对准胸部。",
+      "解锁后控制下放，再稳定推起；不要弹胸，设置安全限位并在结束时锁好挂钩。"
+    ]
   },
   "landmine-press": {
     "name_zh": "地雷杆推举",
@@ -654,7 +750,11 @@
       "Maintaining strict technique with no leg drive or leaning back, extend through the elbow to raise the weights together directly above your head.",
       "Pause, and slowly return the weight to the starting position."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Standing_Dumbbell_Press.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Standing_Dumbbell_Press.json",
+    "instructions_zh": [
+      "双脚站稳，哑铃置于肩旁，手腕在肘上，腹部收紧。",
+      "将哑铃向上推至舒适伸展范围，缓慢下放；避免腰部过度反弓和耸肩。"
+    ]
   },
   "push-press": {
     "name_zh": "借力推举",
@@ -693,7 +793,11 @@
       "Initiate the movement by moving your arms back and outward, keeping your arms straight as you execute the movement.",
       "Pause at the end of the motion before returning the handles to the start position."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Cable_Rear_Delt_Fly.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Cable_Rear_Delt_Fly.json",
+    "instructions_zh": [
+      "站在交叉绳索中间，握住对侧把手，肘部微屈，躯干稳定。",
+      "双臂向两侧展开，感受肩后侧发力，再缓慢合拢；不借助甩动或耸肩。"
+    ]
   },
   "pendlay-row": {
     "name_zh": "潘德雷划船",
@@ -713,7 +817,11 @@
       "Pause at the top of the motion, and return yourself to the start position.",
       "Repeat for the desired number of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Inverted_Row.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Inverted_Row.json",
+    "instructions_zh": [
+      "固定低位横杠，双手握杠，脚跟着地，身体向后倾并保持成线。",
+      "将胸部拉向横杠，肩胛后收，再缓慢下放；可屈膝降低难度，不塌髋。"
+    ]
   },
   "meadows-row": {
     "name_zh": "梅多斯单臂划船",
@@ -739,7 +847,11 @@
       "After a second at the contracted position squeezing your shoulder blades together, slowly raise the bar back to the starting position when your arms are fully extended and the lats are fully stretched. Inhale during this portion of the movement.",
       "Repeat this motion for the prescribed amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Wide-Grip_Lat_Pulldown.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Wide-Grip_Lat_Pulldown.json",
+    "instructions_zh": [
+      "坐稳高位下拉机，双腿固定，正握略宽于肩的横杆。",
+      "将杆拉向上胸，肘部向下，缓慢上送；不做颈后下拉，也不大幅后仰。"
+    ]
   },
   "neutral-grip-pull-up": {
     "name_zh": "对握引体向上",
@@ -775,7 +887,11 @@
       "Slowly raise your torso back to the initial position as you inhale. Tip: Avoid the temptation to arch your back past a straight line. Also, do not swing the torso at any time in order to protect the back from injury.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Hyperextensions_Back_Extensions.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Hyperextensions_Back_Extensions.json",
+    "instructions_zh": [
+      "在罗马椅上固定脚踝，垫子承托大腿上端，髋部可自由屈伸。",
+      "保持脊柱中立折髋下放，再用臀部和腿后侧伸髋至头、背、腿成线；不要超过直线过度挺腰。"
+    ]
   },
   "dumbbell-shrug": {
     "name_zh": "哑铃耸肩",
@@ -789,7 +905,11 @@
       "Lower the dumbbells back to the original position.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Dumbbell_Shrug.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Dumbbell_Shrug.json",
+    "instructions_zh": [
+      "双脚站稳，双手持哑铃于身体两侧，颈部中立。",
+      "双肩垂直向上抬起，停顿后慢慢放下；不绕肩，不屈肘或后仰借力。"
+    ]
   },
   "goblet-squat": {
     "name_zh": "高脚杯深蹲",
@@ -802,7 +922,11 @@
       "Squat down between your legs until your hamstrings are on your calves. Keep your chest and head up and your back straight.",
       "At the bottom position, pause and use your elbows to push your knees out. Return to the starting position, and repeat for 10-20 repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Goblet_Squat.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Goblet_Squat.json",
+    "instructions_zh": [
+      "双手在胸前托住一只哑铃，双脚站稳，脚尖自然外展。",
+      "屈髋屈膝下蹲，膝盖沿脚尖方向，保持胸部稳定；全脚掌发力站起，不弓背。"
+    ]
   },
   "smith-machine-squat": {
     "name_zh": "史密斯深蹲",
@@ -818,7 +942,11 @@
       "Begin to raise the bar as you exhale by pushing the floor with the heel of your foot as you straighten the legs again and go back to the starting position.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Smith_Machine_Squat.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Smith_Machine_Squat.json",
+    "instructions_zh": [
+      "调整站位与器械轨道相适应，杠铃置于上背，设好安全限位。",
+      "控制屈髋屈膝下降，膝盖朝向脚尖，再稳定站起；保持全脚掌支撑，结束后锁好挂钩。"
+    ]
   },
   "belt-squat": {
     "name_zh": "腰带深蹲",
@@ -837,7 +965,11 @@
       "As the bar passes through the knees, lean back and drive the hips into the bar, pulling your shoulder blades together.",
       "Return the weight to the ground by bending at the hips and controlling the weight on the way down."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Sumo_Deadlift.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Sumo_Deadlift.json",
+    "instructions_zh": [
+      "双脚宽站，脚尖外展，双手在双腿内侧握杠，背部中立。",
+      "蹬地同时伸髋伸膝站起，杠贴近身体；缓慢折髋下放，不猛拉或后仰。"
+    ]
   },
   "trap-bar-deadlift": {
     "name_zh": "六角杠硬拉",
@@ -851,7 +983,11 @@
       "Begin the movement by driving through the heels and extend your hips and knees. Avoid rounding your back at all times.",
       "At the completion of the movement, lower the weight back to the ground under control."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Trap_Bar_Deadlift.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Trap_Bar_Deadlift.json",
+    "instructions_zh": [
+      "站在六角杠中央，屈髋屈膝握稳两侧把手，背部中立。",
+      "双脚向地面发力站起，再控制回落；膝盖朝向脚尖，不弓背或猛拉。"
+    ]
   },
   "lying-leg-curl": {
     "name_zh": "俯卧腿弯举",
@@ -900,7 +1036,11 @@
       "Execute the movement by driving through the heel, extending your hip upward and raising your glutes off of the ground.",
       "Extend as far as possible, pause and then return to the starting position."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Single_Leg_Glute_Bridge.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Single_Leg_Glute_Bridge.json",
+    "instructions_zh": [
+      "仰卧屈膝，一脚踩地，另一腿抬起，骨盆保持水平。",
+      "支撑脚发力抬髋，臀部收紧，控制落下；不旋转骨盆或用腰顶起，左右分别完成。"
+    ]
   },
   "barbell-glute-bridge": {
     "name_zh": "杠铃臀桥",
@@ -913,7 +1053,11 @@
       "Begin the movement by driving through with your heels, extending your hips vertically through the bar. Your weight should be supported by your upper back and the heels of your feet.",
       "Extend as far as possible, then reverse the motion to return to the starting position."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Barbell_Glute_Bridge.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Barbell_Glute_Bridge.json",
+    "instructions_zh": [
+      "仰卧屈膝，双脚踩稳，带软垫的杠铃横置髋部并用双手固定。",
+      "收紧腹臀抬髋，至肩髋膝成线后缓慢下放；不压腹部，不用腰过度后弯。"
+    ]
   },
   "dumbbell-glute-bridge": {
     "name_zh": "哑铃臀桥",
@@ -1053,7 +1197,11 @@
       "Return by again flexing the hip, pulling the carriage forward as far as you can.",
       "Repeat for the desired number of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Reverse_Hyperextension.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Reverse_Hyperextension.json",
+    "instructions_zh": [
+      "上身伏在反向挺身器械或稳固高凳，双手握稳，髋部靠近边缘。",
+      "保持躯干稳定，用臀部和腿后侧抬起双腿至与身体接近成线，控制落下；不甩腿或过度挺腰。"
+    ]
   },
   "donkey-calf-raise": {
     "name_zh": "俯身提踵",
@@ -1087,7 +1235,11 @@
       "Slowly begin to bring the dumbbells back to starting position as your breathe in.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Incline_Dumbbell_Curl.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Incline_Dumbbell_Curl.json",
+    "instructions_zh": [
+      "仰靠上斜凳，双手持哑铃自然下垂，肩部稳定。",
+      "上臂不前移，屈肘举起再缓慢下降；不过度伸肩，不用身体弹动。"
+    ]
   },
   "concentration-curl": {
     "name_zh": "集中弯举",
@@ -1107,7 +1259,11 @@
       "Then inhale and slowly lower the bar back to the starting position.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/EZ-Bar_Curl.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/EZ-Bar_Curl.json",
+    "instructions_zh": [
+      "站稳，握住曲杠合适握位，肘部贴近身体，手腕自然。",
+      "屈肘举起重量，缓慢放下；不甩动或后仰，保持肩部放松。"
+    ]
   },
   "spider-curl": {
     "name_zh": "蜘蛛弯举",
@@ -1124,7 +1280,11 @@
       "Slowly begin to bring the barbell back to the starting position as your breathe in. .",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Spider_Curl.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Spider_Curl.json",
+    "instructions_zh": [
+      "胸部伏在上斜凳上，双臂垂于凳前，握稳重量。",
+      "上臂位置稳定，屈肘举起并控制放下；不抬胸离凳或甩肩借力。"
+    ]
   },
   "rope-hammer-curl": {
     "name_zh": "绳索锤式弯举",
@@ -1143,7 +1303,11 @@
       "Slowly go back to the starting position as you keep the bar in contact with the torso at all times.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Drag_Curl.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Drag_Curl.json",
+    "instructions_zh": [
+      "站稳握杠，上臂贴近体侧，背部中立。",
+      "屈肘同时让肘部略向后，杠沿身体前侧上移；缓慢还原，不耸肩或后仰。"
+    ]
   },
   "rope-tricep-pushdown": {
     "name_zh": "绳索下压",
@@ -1208,7 +1372,11 @@
       "Hold the contraction for a second and move your legs back to the starting position while exhaling.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Reverse_Crunch.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Reverse_Crunch.json",
+    "instructions_zh": [
+      "仰卧，屈髋屈膝，双臂放在体侧。",
+      "收紧下腹将骨盆轻轻卷离地面，缓慢放回；不用甩腿产生惯性，颈肩放松。"
+    ]
   },
   "russian-twist": {
     "name_zh": "俄罗斯转体",
@@ -1223,7 +1391,11 @@
       "Hold the contraction for a second and move back to the starting position while breathing out. Now move to the opposite side performing the same techniques you applied to the right side.",
       "Repeat for the recommended amount of repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Russian_Twist.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Russian_Twist.json",
+    "instructions_zh": [
+      "坐姿屈膝，双脚可踩地，躯干轻微后倾并保持背部稳定。",
+      "双手随胸廓缓慢向两侧转动，骨盆稳定；不追求大幅扭腰，必要时不持重。"
+    ]
   },
   "bicycle-crunch": {
     "name_zh": "自行车卷腹",
@@ -1250,7 +1422,11 @@
       "Stay tight and return the working leg to the starting position.",
       "Repeat on the opposite side, alternating until the set is complete."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Dead_Bug.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Dead_Bug.json",
+    "instructions_zh": [
+      "仰卧，双臂指向上方，髋膝约直角，腰背轻贴垫面。",
+      "缓慢伸出一侧手臂和对侧腿，再回到起点换边；持续呼吸，保持腰背不拱起。"
+    ]
   },
   "bird-dog": {
     "name_zh": "鸟狗式",
@@ -1271,7 +1447,11 @@
       "Hold the repetition for several seconds before returning to the starting position.",
       "At the conclusion of the set, repeat facing the other direction."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Pallof_Press.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Pallof_Press.json",
+    "instructions_zh": [
+      "身体侧对绳索或弹力带固定点，站稳，双手将把手置于胸前。",
+      "收紧腹部将双手向前推，抵抗躯干旋转，再缓慢收回；左右侧分别完成。"
+    ]
   },
   "cable-woodchop": {
     "name_zh": "绳索伐木式转体",
@@ -1325,7 +1505,11 @@
       "Now repeat the movement but bending to the left instead. Hold for a second and come back to the starting position.",
       "Repeat for the recommended amount of repetitions and then change hands."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Dumbbell_Side_Bend.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Dumbbell_Side_Bend.json",
+    "instructions_zh": [
+      "站稳，一手持哑铃于体侧，肩髋保持正对前方。",
+      "躯干向持重侧缓慢侧屈，再恢复直立；不前后弯腰或借惯性，幅度保持可控。"
+    ]
   },
   "elliptical": {
     "name_zh": "椭圆机",
@@ -1378,7 +1562,11 @@
       "Position forefoot back from bench or platform with arms and body straight. Arms should be perpendicular to body. Keeping body straight, lower chest to edge of box or platform by bending arms.",
       "Push body up until arms are extended. Repeat."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Incline_Push-Up.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Incline_Push-Up.json",
+    "instructions_zh": [
+      "双手撑稳固高台，脚向后，身体从头到脚保持成线。",
+      "控制屈肘让胸部靠近台边，再推回；不塌腰，台面越高通常越容易。"
+    ]
   },
   "knee-push-up": {
     "name_zh": "跪姿俯卧撑",
@@ -1407,7 +1595,11 @@
       "Now breathe out and press your upper body back up to the starting position while squeezing your chest.",
       "After a brief pause at the top contracted position, you can begin to lower yourself downward again for as many repetitions as needed."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Decline_Push-Up.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Decline_Push-Up.json",
+    "instructions_zh": [
+      "双脚放稳固低台，双手撑地，腹臀收紧保持成线。",
+      "屈肘下放再推起，避免塌腰或耸肩；肩部不适时停止并降低难度。"
+    ]
   },
   "pike-push-up": {
     "name_zh": "折刀俯卧撑",
@@ -1506,7 +1698,11 @@
       "Slowly begin to lower your arms, legs and chest back down to the starting position while inhaling.",
       "Repeat for the recommended amount of repetitions prescribed in your program."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Superman.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Superman.json",
+    "instructions_zh": [
+      "俯卧垫面，双臂向前伸，头颈与背部自然对齐。",
+      "轻轻抬起手臂与双腿至舒适范围，短暂停顿后放下；不抬头或追求过度挺腰。"
+    ]
   },
   "superman-hold": {
     "name_zh": "超人式静止支撑",
@@ -1539,7 +1735,11 @@
       "From a hanging position, raise yourself a few inches without using your arms. Do this by depressing your shoulder girdle in a reverse shrugging motion.",
       "Pause at the completion of the movement, and then slowly return to the starting position before performing more repetitions."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Scapular_Pull-Up.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Scapular_Pull-Up.json",
+    "instructions_zh": [
+      "双手握杠悬垂，肘部保持伸直。",
+      "肩胛向下收紧，使身体轻微上移，再缓慢放松回位；不屈肘，不甩腿。"
+    ]
   },
   "negative-pull-up": {
     "name_zh": "离心引体向上",
@@ -1572,7 +1772,11 @@
       "Begin the movement by flexing your knees and hips, sitting back with your hips.",
       "Continue down to full depth if you are able,and quickly reverse the motion until you return to the starting position. As you squat, keep your head and chest up and push your knees out."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Bodyweight_Squat.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Bodyweight_Squat.json",
+    "instructions_zh": [
+      "双脚约肩宽，脚尖自然外展，双臂向前帮助平衡。",
+      "屈髋屈膝下蹲至舒适范围，膝盖朝向脚尖，全脚掌发力站起；保持背部稳定。"
+    ]
   },
   "pistol-squat": {
     "name_zh": "手枪深蹲",
@@ -1766,7 +1970,11 @@
       "Keep your elbows extended as you perform the movement, bringing the band to your chest. Ensure that you keep your shoulders back during the exercise.",
       "Pause as you complete the movement, returning to the starting position under control."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Band_Pull_Apart.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Band_Pull_Apart.json",
+    "instructions_zh": [
+      "站稳，双手在胸前握弹力带，双臂近伸直。",
+      "向两侧拉开弹力带，肩胛后收，再控制回位；肩部下沉，不用腰后仰。"
+    ]
   },
   "banded-face-pull": {
     "name_zh": "弹力带面拉",
@@ -1871,7 +2079,11 @@
       "Now, keep your hands in place and slowly take short steps with your feet, moving only a few inches at a time.",
       "Continue walking until your feet are by hour hands, keeping your legs straight as you do so."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Inchworm.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Inchworm.json",
+    "instructions_zh": [
+      "站立后屈髋向下，双手触地，膝可微屈。",
+      "双手逐步向前走到可控制的平板位置，再收回站起；避免塌腰，不勉强拉伸。"
+    ]
   },
   "l-sit-hold": {
     "name_zh": "直角坐姿支撑",
@@ -1964,7 +2176,11 @@
       "Slowly start to make circles of about 1 foot in diameter with each outstretched arm. Breathe normally as you perform the movement.",
       "Continue the circular motion of the outstretched arms for about ten seconds. Then reverse the movement, going the opposite direction."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Arm_Circles.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Arm_Circles.json",
+    "instructions_zh": [
+      "站稳，双臂向两侧抬到舒适高度，肩部放松。",
+      "以小幅度缓慢画圈，再换方向；逐渐增加幅度，不甩臂或耸肩。"
+    ]
   },
   "worlds-greatest-stretch": {
     "name_zh": "弓步转体综合拉伸",
@@ -1977,7 +2193,11 @@
       "Now, place the arm on the same side as your front leg on the ground, with the elbow next to the foot. Your other hand should be placed on the ground, parallel to your lead leg, to help support you during this portion of the stretch.",
       "After 10-20 seconds, place your hands on either side of your front foot. Raise the toes of the front foot off of the ground, and straighten your leg. You may need to reposition your rear leg to do so. Hold for 10-20 seconds, and then repeat the entire sequence for the other side."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Worlds_Greatest_Stretch.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Worlds_Greatest_Stretch.json",
+    "instructions_zh": [
+      "前跨成弓步，后腿伸展，双手支撑在前脚附近。",
+      "在稳定无痛范围内转动胸廓，将一臂向上打开，再收回换侧；不过度扭腰或强压膝盖。"
+    ]
   },
   "leg-swings-stretch": {
     "name_zh": "摆腿拉伸",
@@ -2005,7 +2225,11 @@
       "Lower your buttocks down to sit on your heels. Let your arms drag along the floor as you sit back to stretch your entire spine.",
       "Once you settle onto your heels, bring your hands next to your feet and relax. \"breathe\" into your back. Rest your forehead on the floor. Avoid this position if you have knee problems."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Childs_Pose.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Childs_Pose.json",
+    "instructions_zh": [
+      "跪坐垫面，臀部向脚跟靠近，双臂向前伸。",
+      "身体轻轻向前俯，保持自然呼吸，放松背部；膝部不适时用垫子支撑或停止。"
+    ]
   },
   "kneeling-hip-flexor-stretch": {
     "name_zh": "跪姿髋屈肌拉伸",
@@ -2023,7 +2247,11 @@
       "Loop a belt, band, or rope over the ball of your foot. This will be your starting position.",
       "Pull on the belt to create tension in the calves and hamstrings. Hold this stretch for 10-30 seconds, and repeat with the other leg."
     ],
-    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Hamstring_Stretch.json"
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Hamstring_Stretch.json",
+    "instructions_zh": [
+      "选择稳定坐姿或仰卧姿势，伸出一条腿，膝可微屈。",
+      "保持背部自然，以髋部缓慢前倾或抬腿至腿后侧轻度拉伸；不弹震，不追求疼痛。"
+    ]
   },
   "standing-quad-stretch": {
     "name_zh": "站姿股四头肌拉伸",

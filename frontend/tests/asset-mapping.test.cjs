@@ -3,6 +3,12 @@ const source=fs.readFileSync('src/styles/thumbs.ts','utf8');
 const context={exports:{},require:name=>({default:JSON.parse(fs.readFileSync(path.resolve('src/styles',name),'utf8'))})};
 vm.runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,context);
 const {thumbOf,mealThumb}=context.exports;
+test('legacy warmup and cooldown have their own illustrations',()=>{
+ for(const ref of ['dynamic_warmup','full_body_stretch']){
+  assert.equal(thumbOf({action_ref:ref}),'/static/ex/generated-v2/'+ref+'.jpg');
+  assert(fs.existsSync('src'+thumbOf({action_ref:ref})));
+ }
+});
 test('unknown actions never inherit an unrelated squat or body-part image',()=>{
  assert.equal(thumbOf({action_ref:'unknown-custom-action',meta:{primary_muscle:'quads'}}),'');
 });

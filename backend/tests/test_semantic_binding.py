@@ -27,6 +27,10 @@ class Scripted:
             return {'message': {'content': json.dumps({'unsupported_safety_claim': False})}}
         if 'initial_goal_input' in data:
             return {'message': {'content': '{}'}}
+        if 'preference_coverage_input' in data:
+            return {'message': {'content': '{}'}}
+        if 'long_term_edit_scope_input' in data:
+            return {'message': {'content': json.dumps({'kind':'full_rebuild'})}}
         if 'revision_goal_input' in data:
             # Legacy protocol fixtures make no independent semantic claim.
             # Goal-agreement regressions supply a dedicated independent model;

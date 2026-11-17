@@ -811,7 +811,7 @@ def finish_session(
     # 用户主动结束当天训练：当天环境上下文标 completed（保留原始记录，不删除）
     complete_temporary_for_day(db, user, session.date)
     # 重新汇总连续未完成状态（刚 finish 的这条也算进去）
-    recent_training_state(db, user)
+    recent_training_state(db, user, persist=True)
     db.commit()
     db.refresh(session)
     return finish_payload(db, user, session, logs=logs)

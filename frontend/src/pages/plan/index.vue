@@ -11,12 +11,13 @@ import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { api, ApiError, type AgentAdjustment, type AgentDay, type CurrentPlan, type PlanAction, type PlanPatchSummary, type PlanVersionHistory } from '../../api'
 import GlobalCoachWorkspace from '../../components/GlobalCoachWorkspace.vue'
+import KnowledgeSheet from '../../components/KnowledgeSheet.vue'
 import DesktopSidebar from '../../components/DesktopSidebar.vue'
 import { syncDesktopChrome } from '../../composables/desktopChrome'
-import { actionLabel, describeOperation, slotLabel, sortMeals } from '../../styles/copy'
+import { actionLabel, describeOperation, slotLabel, sortMeals,actionBodyLabel } from '../../styles/copy'
 import { trainingActions, weeklyMeals, datedView, legacyMealTitle } from '../../styles/planView'
 import { thumbOf, mealThumb } from '../../styles/thumbs'
-import { hasExerciseGuidance, openExerciseGuidance } from '../../styles/exerciseDb'
+import { hasExerciseGuidance } from '../../styles/exerciseDb'
 import { upcomingWeek, todayStr } from '../../styles/dates'
 
 const plan = ref<CurrentPlan | null>(null)
@@ -272,8 +273,11 @@ function exerciseDbTermForAction(action: PlanAction): boolean {
   return hasExerciseGuidance(actionLabel(action))
 }
 
+const knowledgeOpen = ref(false)
+const knowledgeQuestion = ref('')
 function openActionExerciseDb(action: PlanAction) {
-  openExerciseGuidance(actionLabel(action))
+  knowledgeQuestion.value = `${actionLabel(action)}的动作要领`
+  knowledgeOpen.value = true
 }
 
 /** 待确认补丁的改动数：旧后端没有 operations 字段，不能直接取 .length。 */
@@ -329,6 +333,7 @@ onShow(() => {
 </script>
 
 <template>
+  <KnowledgeSheet :visible="knowledgeOpen" :question="knowledgeQuestion" @close="knowledgeOpen = false"/>
   <view class="page plan-page with-sidebar">
     <DesktopSidebar active="plan" />
     <view class="plan-top">
@@ -515,6 +520,7 @@ onShow(() => {
             <view v-for="action in selectedEffectiveActions" :key="action.id || action.slot_key" class="list-row">
               <view class="list-main">
                 <text class="list-title">{{ actionLabel(action) }}</text>
+                <text v-if="actionBodyLabel(action)" class="list-sub">主要训练：{{ actionBodyLabel(action) }}</text>
                 <text class="list-meta">
                   {{ slotLabel(action.slot) }}
                   <template v-if="action.sets && action.reps"> · {{ action.sets }}×{{ action.reps }}</template>
@@ -579,6 +585,7 @@ onShow(() => {
             </view>
             <view class="list-main">
               <text class="list-title">{{ actionLabel(action) }}</text>
+              <text v-if="actionBodyLabel(action)" class="list-sub">主要训练：{{ actionBodyLabel(action) }}</text>
               <text class="list-meta">
                 {{ slotLabel(action.slot) }}
                 <template v-if="action.sets && action.reps"> · {{ action.sets }}×{{ action.reps }}</template>

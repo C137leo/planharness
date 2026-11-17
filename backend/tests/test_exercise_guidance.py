@@ -1,6 +1,20 @@
 from app.knowledge.service import _knowledge_items
 from app.knowledge.provenance import check_offline
 
+def test_every_upstream_guidance_has_saved_chinese_copy():
+    import json
+    from pathlib import Path
+    directory=Path(__file__).resolve().parents[1]/'app/domain'
+    catalog=json.loads((directory/'exercise_guidance_catalog.json').read_text())
+    translated=json.loads((directory/'exercise_guidance_zh.json').read_text())
+    for ref,entry in catalog.items():
+        if entry.get('instructions'):
+            assert translated[ref] and entry['instructions_zh']==translated[ref]
+            assert all(any('\u4e00'<=c<='\u9fff' for c in line) for line in translated[ref])
+    for item in _knowledge_items():
+        if item['id'].startswith('catalog-guidance:'):
+            assert '上游英文原文' not in item['content']
+
 
 def test_guidance_sources_and_unique_ids():
     items = _knowledge_items()

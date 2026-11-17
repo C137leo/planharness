@@ -31,6 +31,7 @@ def main():
     for x in raw: names.setdefault(key(x['name']), []).append(x)
     labels = json.loads((ROOT/'app/domain/exercise_labels.json').read_text())
     local = {x['action_ref'] for x in json.loads((ROOT/'app/domain/exercise_guidance.json').read_text())}
+    translations = json.loads((ROOT/'app/domain/exercise_guidance_zh.json').read_text())
     result = {}
     for x in catalog:
         ref = x['slug']
@@ -41,6 +42,8 @@ def main():
             item.update(available=True, upstream_id=match['id'], search_term=match['name'],
                         instructions=match['instructions'], source_url='https://github.com/yuhonas/free-exercise-db/blob/main/exercises/'+match['id']+'.json')
         result[ref] = item
+        if match and match.get('instructions'):
+            item['instructions_zh'] = translations[ref]
     (ROOT/'app/domain/exercise_guidance_catalog.json').write_text(json.dumps(result, ensure_ascii=False, indent=2)+'\n')
     print(f'{len(result)} audited; {sum(x["available"] for x in result.values())} available')
 

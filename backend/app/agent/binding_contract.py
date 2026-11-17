@@ -35,7 +35,14 @@ class ContextRequest(StrictModel):
     history_limit: int = Field(default=12, ge=1, le=50)
 
 
+class ExecutableOption(StrictModel):
+    label: str = Field(min_length=1, max_length=160)
+    tasks: list[BoundTask] = Field(min_length=1, max_length=8)
+
+
 class BoundPlan(StrictModel):
+    offered_options: list[ExecutableOption] = Field(default_factory=list, max_length=6,
+        description='教练给出的可选修改方案，必须包含完整真实绑定与参数，只预检不执行。用户选择后根据当前快照重新绑定，仍遵守确认策略。')
     continue_after_tools: bool = False
     snapshot_id: str
     mode: Literal["execute", "propose", "noop", "load_context"] = "execute"

@@ -36,8 +36,9 @@ import {
   type TodayAgentResult,
   type WorkoutSession,
 } from '../api'
-import { actionLabel, describeOperation, slotLabel } from '../styles/copy'
+import { actionLabel, describeOperation, slotLabel,actionBodyLabel } from '../styles/copy'
 import { exerciseSearchTerm, openExerciseDbTerm } from '../styles/exerciseDb'
+import { thumbOf } from '../styles/thumbs'
 import { todayStr } from '../styles/dates'
 import { isCommerceResult, dayAttachment } from '../styles/commerceUi'
 import KnowledgeSheet from './KnowledgeSheet.vue'
@@ -1502,22 +1503,33 @@ defineExpose({
             </view>
 
             <!-- 今日调整 -->
-            <view v-if="showFitnessDay" class="result-card">
+            <view v-if="showFitnessDay" class="result-card effective-day-card">
               <view class="result-head">
                 <view>
                   <text class="result-kicker">今日有效安排</text>
-                  <text class="result-title">{{ result?.pending_confirmation ? '当前已生效安排（确认前保持不变）' : day.summary || '按当前计划执行' }}</text>
+                  <text class="result-title">今天的训练安排</text>
+                  <text class="effective-day-overview">{{ day.date }} · {{ day.actions.length }} 个动作</text>
                 </view>
                 <text class="result-pill">{{ day.source === 'agent' ? '临时调整' : '原计划' }}</text>
               </view>
-              <view v-for="item in day.actions" :key="item.slot_key" class="result-action-row">
-                <text class="result-action-name">{{ actionLabel(item) }}</text>
-                <text class="result-action-meta">
-                  {{ item.sets ? `${item.sets} 组` : '' }}
-                  {{ item.duration_min ? ` · ${item.duration_min} 分钟` : '' }}
-                </text>
+              <view class="effective-action-grid">
+                <view v-for="(item, index) in day.actions" :key="item.slot_key" class="effective-action">
+                  <image v-if="thumbOf(item)" :src="thumbOf(item)" mode="aspectFill" class="effective-action-image" />
+                  <view v-else class="effective-action-image effective-action-placeholder"><text>{{ slotLabel(item.slot) }}</text></view>
+                  <view class="effective-action-info">
+                    <text class="effective-action-order">{{ String(index + 1).padStart(2, '0') }} · {{ slotLabel(item.slot) }}</text>
+                    <text class="effective-action-name">{{ actionLabel(item) }}</text>
+                    <text v-if="actionBodyLabel(item)" class="effective-action-order">主要训练：{{ actionBodyLabel(item) }}</text>
+                    <view class="effective-action-dose">
+                      <text v-if="item.sets">{{ item.sets }} 组<template v-if="item.reps"> × {{ item.reps }} 次</template></text>
+                      <text v-else-if="item.reps">{{ item.reps }} 次</text>
+                      <text v-if="item.duration_min">约 {{ item.duration_min }} 分钟</text>
+                    </view>
+                  </view>
+                </view>
               </view>
-              <text class="result-sub">此卡展示当前生效安排；待确认的变更请查看上方预览。</text>
+              <text v-if="!day.actions.length" class="result-sub">今天是恢复日，暂无训练动作。</text>
+              <view class="effective-day-note"><text class="effective-day-dot" /><text>{{ result?.pending_confirmation ? '当前生效安排 · 待确认的变更见上方预览' : '当前生效安排 · 按顺序完成即可' }}</text></view>
             </view>
 
             <!-- 今日安排与餐食：直接作为教练回复的一部分显示，不再弹独立面板 -->
@@ -2957,6 +2969,51 @@ defineExpose({
 .result-action-meta {
   color: var(--muted, #8a7466);
   font-size: 11px;
+}
+
+.effective-day-card {
+  background: linear-gradient(135deg, #fffaf5, #fffdfb);
+  padding: 18px;
+}
+.effective-day-overview {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted, #8a7466);
+  font-size: 12px;
+}
+.effective-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+.effective-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #f3e6dc;
+  border-radius: 14px;
+  min-width: 0;
+}
+.effective-action-image {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  flex: 0 0 64px;
+  background: #fcece2;
+}
+.effective-action-placeholder { display: flex; align-items: center; justify-content: center; color: #a5775c; font-size: 12px; }
+.effective-action-info { flex: 1; min-width: 0; }
+.effective-action-order { display: block; color: #a18a79; font-size: 10px; }
+.effective-action-name { display: block; color: var(--ink, #2b1a12); font-size: 14px; font-weight: 700; line-height: 1.5; margin: 3px 0 6px; overflow-wrap: anywhere; }
+.effective-action-dose { display: flex; flex-wrap: wrap; gap: 4px 8px; color: #806959; font-size: 11px; line-height: 1.5; }
+.effective-day-note { display: flex; align-items: flex-start; gap: 7px; margin-top: 14px; color: #8c7869; font-size: 11px; line-height: 1.7; }
+.effective-day-dot { width: 6px; height: 6px; flex: 0 0 6px; background: #66a68a; border-radius: 50%; margin-top: 6px; }
+@media (max-width: 640px) {
+  .effective-day-card { padding: 14px; }
+  .effective-action-grid { grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 12px; }
 }
 
 .result-progress {

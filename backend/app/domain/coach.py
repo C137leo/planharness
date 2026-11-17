@@ -162,6 +162,9 @@ def create_draft(
 ) -> PlanDraft:
     """生成一份草案。不写版本，只写 plan_drafts。"""
     saved_instruction = instruction or ''
+    if goal_contract is not None and (goal_contract.action_replacements or goal_contract.edit_scope_authorization=='constraint_edit'):
+        from app.domain.plan_local_edit import draft
+        return draft(db,user,goal_contract,saved_instruction,parent_draft_id,commit)
     profile = db.get(Profile, user.id)
     if profile is None:
         raise PatchValidationError(["profile not found: 先填基础信息再生成计划"])
@@ -264,13 +267,13 @@ def create_draft(
     # 评审 P-003 的根因是 skill 只给 equipment_filter 边界、没有事后校验。
     if not parent_draft_id and not (goal_contract and goal_contract.selected_action_refs):
         from app.domain.guided_selection import prefer_guided_actions
-        prefer_guided_actions(proposal.payload, profile, memory, instruction=instruction)
+        prefer_guided_actions(proposal.payload, profile, memory, instruction='' if goal_contract is not None else instruction)
     if goal_contract is not None:
         from app.agent.initial_requirements import prepare
         prepare(proposal.payload, goal_contract, profile)
         proposal.payload.setdefault('meta',{})['goal_contract']=goal_contract.model_dump()
     guard_changes = enforce_plan_constraints(
-        proposal.payload, profile, memory, instruction=instruction,
+        proposal.payload, profile, memory, instruction='' if goal_contract is not None else instruction,
         formal_action_count=goal_contract.formal_actions if goal_contract is not None else None)
     if guard_changes:
         proposal.trace = list(proposal.trace) + [{
@@ -279,9 +282,28 @@ def create_draft(
             "detail": {"changes": guard_changes[:12]},
         }]
 
+    if goal_contract is not None and goal_contract.preserve_actions and parent_draft_id:
+        parent=load_draft(db,user,parent_draft_id)
+        old_meta=parent.payload.get('meta',{})
+        old_basis=old_meta.get('replacement_profile_revision') or old_meta.get('initial_profile_revision')
+        if old_basis==basis:
+            # A validated preview is the baseline. Re-running the variety
+            # selector while changing dinner must not change its exercises.
+            proposal.payload['days']=copy.deepcopy(parent.payload.get('days',[]))
     if goal_contract is not None:
         from app.agent.initial_requirements import apply_and_validate
         apply_and_validate(proposal.payload, goal_contract, profile)
+        from app.domain.planning_preferences import prepare_payload
+        from app.domain.timeutil import user_today
+        prepare_payload(proposal.payload,goal_contract,profile,user_today(profile))
+    else:
+        current=db.scalar(select(Plan).where(Plan.user_id==user.id,Plan.status=='active'))
+        if current and ((current.program or {}).get('body_preferences') or (current.program or {}).get('food_preferences')):
+            from app.agent.initial_requirements import InitialRequirements
+            from app.domain.planning_preferences import prepare_payload
+            from app.domain.timeutil import user_today
+            saved=InitialRequirements.model_validate({key:current.program.get(key,[]) for key in ('body_preferences','food_preferences')})
+            prepare_payload(proposal.payload,saved,profile,user_today(profile))
 
     if proposal.payload.get("status") == "ready":
         proposal.payload.setdefault("meta", {})["memory"] = {
@@ -491,6 +513,17 @@ def confirm_draft(
     if draft.status != "ready":
         raise PatchValidationError([f"draft status is {draft.status}, cannot confirm"])
     payload = draft.payload or {}
+    if payload.get('meta',{}).get('preference_reference_day'):
+        from app.domain.planning_preferences import verify_payload
+        from app.domain.timeutil import user_today
+        today=user_today(db.get(Profile,user.id))
+        if payload['meta']['preference_reference_day']!=today.isoformat():
+            raise PatchValidationError(['生效日期已变化，请重新核对带日期的计划预览。'])
+        errors=verify_payload(payload,today)
+        if errors:raise PatchValidationError(errors)
+    contract=(payload.get('meta') or {}).get('goal_contract') or {}
+    if draft.plan_id and contract.get('selected_action_refs') and not payload.get('meta',{}).get('local_edit') and contract.get('edit_scope_authorization')!='full_rebuild':
+        raise PatchValidationError(['旧草案未核实整周替换范围，不能直接启用；请按原计划重新生成局部修改预览。'])
     replacement_basis = payload.get('meta', {}).get('replacement_profile_revision')
     if replacement_basis and replacement_basis != initial_profile_revision(db,user):
         raise PatchValidationError(['档案已变化，请重新生成长期计划预览'])
