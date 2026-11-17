@@ -26,7 +26,11 @@ skill/bridge.py 通过 runner.js 启动 Node 子进程。SKILL_DIR 必须指向�
 
 Skill 缺失时桥接返回 unavailable，上层部分独立计划接口有保守降级；不能据此声称模型聊天有规则 fallback。健康检查会报告 skill 状态，发布前核对实际生成路径。
 
+计划页日历、周模板与教练草案预览使用用户本地日期，从今天起连续 7 天；`day_index` 仍按周一=1、周日=7 匹配模板。饮食按日展示响应式卡片。教练面板可拖动高度（键盘方向键/Home/End 亦可调整），内嵌与弹窗分别缓存高度，窗口变化时重新限制到可用视口内。相关回归：`cd frontend && node --test tests/plan-window-resize.test.cjs`。
+
 ## 增量检查
+
+训练页操作分为当前组记录、四项训练辅助、本场会话操作三层；桌面端辅助按钮四列，窄屏两列。只有记录当前组使用实心主按钮，结束反馈使用独立弱强调按钮；请求处理中按钮禁用，原有记录、跳过、暂停、替换与反馈接口保持不变。
 
 Console 顶部的大模型总开关仅向 `/auth/me` 返回 `is_llm_admin=true` 的账号展示；默认运营手机号为 `13772692821`（配置项 `LLM_ADMIN_PHONE`）。读取与修改仍由 `/admin/llm-switch` 在后端校验权限。暂停影响全站模型调用，不影响登录与已保存内容读取；进入 Console 时读取实际状态，支持暂停、恢复和失败后刷新。
 
@@ -69,3 +73,11 @@ PLANHARNESS_TEST_POSTGRES_URL=postgresql+psycopg://... pytest tests/test_postgre
 ```
 
 该测试只使用显式提供的测试URL，在随机临时schema中建表并清理，不应填写生产地址。截图对应的旧task_id(32)、goal(32)及快照revision(32)已在隔离PostgreSQL16复现并验证扩容、旧数据保留及幂等。本次未修改生产数据库。
+
+动作指导的少量已核验补充维护在 `backend/app/domain/exercise_guidance.json`，由知识库种子和前端 helper 共用。计划页优先展示这些本地指导；山羊挺身可继续复制准确英文名称到 free-exercise-db 搜索。靠墙静蹲不在当前本地上游 raw 中，使用独立机构来源，不映射为普通深蹲。被忽略的 raw 数据不是运行依赖；更改来源时同步检查知识来源白名单。
+
+动作插图由 `frontend/src/styles/exerciseImages.json` 按动作 ID 精确映射；新增生成图放在 `frontend/src/static/ex/generated-v2/`，执行 `python3 backend/scripts/build_exercise_image_manifest.py --check-complete` 重建清单并检查目录覆盖，只引用实际存在的图片。靠墙静蹲与山羊挺身使用独立的 `*-v2.jpg`，目录外未知动作显示文字占位，不按身体部位冒用其他动作图。轻食图放在 `frontend/src/static/meals/`，`mealThumb` 按早餐、午餐、晚餐（兼容 `meal_` 前缀）选择分类示意图，不表示具体材料或份量。插图使用内置 imagegen，基础提示词为桃色奶油色淡彩、细棕线、淡城市背景、方形无字缩略图；动作逐项指定姿势与器械，三餐分别为燕麦鸡蛋水果、蛋白蔬菜谷物碗、豆腐白鱼蔬菜盘。
+
+在 macOS 上可用 `bash backend/scripts/export_generated_thumbnails.sh`（需要系统 `sips`）导出 384px 网页 JPEG，并将原始 PNG 归档到被 Git 忽略的 `docs/assets/exercise-sources/`；原图不随源码上传，发布使用压缩后的前端静态资源。此步骤保留原图，不覆盖已有归档。
+
+302项指导覆盖审计由 `backend/scripts/build_exercise_guidance.py` 从本地忽略 raw 生成 `exercise_guidance_catalog.json`，仅唯一英文名精确匹配与显式审核同义词；当前58项可用（含两项中文补充），未匹配项不冒用子串搜索。上游匹配项保留完整英文 instructions 与具体出处，运行不读取 raw。首份草案在人工模式候选中优先选择有指导、器械可用、安全且非排除的动作；用户明确选定动作和已有草案修订不受此优先策略影响。

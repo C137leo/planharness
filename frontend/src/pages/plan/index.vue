@@ -15,9 +15,9 @@ import DesktopSidebar from '../../components/DesktopSidebar.vue'
 import { syncDesktopChrome } from '../../composables/desktopChrome'
 import { actionLabel, describeOperation, slotLabel, sortMeals } from '../../styles/copy'
 import { trainingActions, weeklyMeals, datedView, legacyMealTitle } from '../../styles/planView'
-import { thumbOf } from '../../styles/thumbs'
-import { exerciseSearchTerm, openExerciseDbTerm } from '../../styles/exerciseDb'
-import { WEEKDAY_LABELS, isoWeekday, todayStr } from '../../styles/dates'
+import { thumbOf, mealThumb } from '../../styles/thumbs'
+import { hasExerciseGuidance, openExerciseGuidance } from '../../styles/exerciseDb'
+import { upcomingWeek, todayStr } from '../../styles/dates'
 
 const plan = ref<CurrentPlan | null>(null)
 const pending = ref<PlanPatchSummary[]>([])
@@ -35,8 +35,17 @@ const datedDays = ref<Record<string, AgentDay>>({})
 const calendarBusy = ref(false)
 let calendarGeneration = 0
 const selectedAgentDay = computed(() => datedDays.value[selectedDate.value] || null)
-const mealGroups = computed(() => plan.value ? weeklyMeals(plan.value) : [])
-const allMealDays = ref(false)
+const calendarStart = ref(todayStr())
+const weekDates = computed(() => upcomingWeek(calendarStart.value))
+const mealGroups = computed(() => {
+  if (!plan.value) return []
+  const groups = weeklyMeals(plan.value)
+  return weekDates.value.map(date => ({ ...date, day: date.weekday,
+    meals: groups.find(group => group.day === date.weekday)?.meals || [],
+    legacy: groups.find(group => group.day === date.weekday)?.legacy || [],
+  }))
+})
+const allMealDays = ref(true)
 const visibleMealGroups = computed(() => allMealDays.value ? mealGroups.value : mealGroups.value.slice(0,3))
 const reasonOpen = ref(false)
 const adjustHistoryOpen = ref(false)
@@ -46,9 +55,7 @@ const grouped = computed(() => {
   for (const action of trainingActions(plan.value?.actions || [])) {
     ;(groups[action.day_index] ||= []).push(action)
   }
-  return Object.entries(groups)
-    .map(([day, actions]) => ({ day: Number(day), actions }))
-    .sort((a, b) => a.day - b.day)
+  return weekDates.value.map(date => ({ ...date, day: date.weekday, actions: groups[date.weekday] || [] }))
 })
 
 async function load() {
@@ -232,25 +239,12 @@ function onOpenProgress() {
 // 日历按指定日期读取有效安排；周模板只用于独立的长期模板展示。
 const selectedDate = ref(todayStr())
 const calendarDays = computed(() => {
-  const today = new Date()
-  const rows = []
-  for (let offset = 0; offset < 14; offset += 1) {
-    const date = new Date(today.getFullYear(), today.getMonth(), today.getDate() + offset)
-    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-    const weekday = isoWeekday(date)
-    rows.push({
-      date: iso,
-      weekday,
-      label: `${date.getMonth() + 1}/${date.getDate()}`,
-      week: WEEKDAY_LABELS[weekday - 1],
-      isToday: iso === todayStr(),
-      ready: !!datedDays.value[iso],
-      ... (datedDays.value[iso] ? datedView(datedDays.value[iso]) : {
-        actions: [], meals: [], adjustment: null, totalMinutes: 0, countLabel: '未读取',
-      }),
-    })
-  }
-  return rows
+  return weekDates.value.map(date => ({
+    ...date, ready: !!datedDays.value[date.date],
+    ...(datedDays.value[date.date] ? datedView(datedDays.value[date.date]) : {
+      actions: [], meals: [], adjustment: null, totalMinutes: 0, countLabel: '未读取',
+    }),
+  }))
 })
 
 const selectedDay = computed(
@@ -274,12 +268,12 @@ function mealGapForDay(day: { meals: Array<{ kcal: number }> }): number {
   return target ? Math.max(0, target - dayMealKcal(day)) : 0
 }
 
-function exerciseDbTermForAction(action: PlanAction): string {
-  return exerciseSearchTerm(actionLabel(action))
+function exerciseDbTermForAction(action: PlanAction): boolean {
+  return hasExerciseGuidance(actionLabel(action))
 }
 
 function openActionExerciseDb(action: PlanAction) {
-  openExerciseDbTerm(exerciseDbTermForAction(action))
+  openExerciseGuidance(actionLabel(action))
 }
 
 /** 待确认补丁的改动数：旧后端没有 operations 字段，不能直接取 .length。 */
@@ -327,6 +321,8 @@ function openConsole() {
 }
 
 onShow(() => {
+  calendarStart.value = todayStr()
+  if (!weekDates.value.some(day => day.date === selectedDate.value)) selectedDate.value = calendarStart.value
   syncDesktopChrome()
   load()
 })
@@ -424,7 +420,7 @@ onShow(() => {
 
       <view class="card">
         <view class="row">
-          <view class="section-title">日历 · 未来 14 天</view>
+          <view class="section-title">日历 · 未来 7 天</view>
           <text class="link" @click="openToday">今天页 →</text>
         </view>
         <view class="cal-row">
@@ -542,6 +538,7 @@ onShow(() => {
             <view v-for="meal in selectedDay.meals" :key="meal.slot" class="meal-block">
               <view class="row">
                 <text class="line-name">{{ meal.title }}</text>
+                <image class="meal-category-image" :src="mealThumb(meal.slot)" mode="aspectFill" aria-label="餐次分类示意图"/>
                 <text class="list-value">{{ formatKcal(meal.kcal) }} kcal</text>
               </view>
               <text class="list-meta">
@@ -568,16 +565,17 @@ onShow(() => {
       <view class="muted" style="margin: 0 8px 12px">按星期循环；当天临时调整和热身以日历中的有效安排为准。</view>
       <text v-if="grouped.length" class="list-meta plan-scroll-hint">上下滑动查看整周训练</text>
       <StableScroll v-if="grouped.length" scroll-y chain-to-parent class="plan-list-scroll training-scroll" aria-label="长期训练列表">
-      <view class="plan-scroll-content">
+      <view class="plan-scroll-content training-card-grid">
       <view v-for="group in grouped" :key="group.day" class="card weekly-training">
         <view class="row">
-          <view class="day-title">{{ WEEKDAY_LABELS[group.day - 1] || `Day ${group.day}` }}</view>
+          <view class="day-title">{{ group.label }} · {{ group.week }}</view>
           <view class="chip">{{ group.actions.length }}</view>
         </view>
+        <text v-if="!group.actions.length" class="list-meta">恢复日 · 无训练安排</text>
         <view v-for="action in group.actions" :key="action.id" class="list-row">
           <view class="list-body">
             <view class="thumb">
-              <image class="thumb-img" :src="thumbOf(action)" mode="aspectFill" />
+              <image v-if="thumbOf(action)" class="thumb-img" :src="thumbOf(action)" mode="aspectFill" /><text v-else class="list-meta">训练</text>
             </view>
             <view class="list-main">
               <text class="list-title">{{ actionLabel(action) }}</text>
@@ -603,13 +601,14 @@ onShow(() => {
       </StableScroll>
 
       <view v-if="mealGroups.length" class="section-title" style="margin: 20px 8px 8px">长期饮食模板 · v{{ plan.version }}</view>
-      <text v-if="mealGroups.length" class="list-meta plan-scroll-hint">先展示3天饮食，可展开查看整周</text>
+      <text v-if="mealGroups.length" class="list-meta plan-scroll-hint">{{ allMealDays ? '从今天起连续7天饮食' : '先展示3天饮食，可展开查看整周' }} · 图片仅作餐次示意，食材与份量以文字为准</text>
       <StableScroll v-if="mealGroups.length" scroll-y chain-to-parent class="plan-list-scroll meals-scroll" aria-label="长期饮食列表">
-      <view class="plan-scroll-content">
+      <view class="plan-scroll-content meal-card-grid">
       <view v-for="group in visibleMealGroups" :key="`meals-${group.day}`" class="card weekly-meals">
-        <view class="day-title">{{ WEEKDAY_LABELS[group.day - 1] }} · 饮食</view>
+        <view class="day-title">{{ group.label }} · {{ group.week }}</view>
+        <text v-if="!group.meals.length && !group.legacy.length" class="list-meta">暂无饮食安排</text>
         <view v-for="meal in sortMeals(group.meals)" :key="meal.slot" class="meal-block">
-          <view class="row"><text class="list-title">🍽 {{ meal.title }}</text><text class="list-meta">{{ formatKcal(meal.kcal) }} kcal</text></view>
+          <view class="row"><image class="meal-category-image" :src="mealThumb(meal.slot)" mode="aspectFill" aria-label="餐次分类示意图"/><text class="list-title">{{ meal.title }}</text><text class="list-meta">{{ formatKcal(meal.kcal) }} kcal</text></view>
           <text class="list-meta">{{ meal.items.map(item => `${item.name} ${item.grams}g`).join(' · ') }}</text>
         </view>
         <view v-for="meal in group.legacy" :key="meal.id" class="meal-block">
@@ -686,6 +685,8 @@ onShow(() => {
 </template>
 
 <style>
+.training-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:12px;align-items:start}.training-card-grid>.weekly-training{margin:0;padding:14px;min-width:0}.dated-training{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px}.dated-training>.section-title,.dated-training>.muted{grid-column:1/-1}.dated-training>.list-row{background:#fffaf5;border:1px solid #f0dfd0;border-radius:14px;padding:12px;margin:0;min-width:0}
+.meal-category-image{width:56px;height:56px;border-radius:12px;flex-shrink:0}.cal-meals{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:12px}.cal-meals>.row,.cal-meals>text{grid-column:1/-1}.cal-meals>.meal-block{padding:14px;border:1px solid #f0dfd0;border-radius:16px;background:#fffaf5;min-width:0}
 .plan-coach-input {
   height: 72px;
   margin-top: 10px;
@@ -772,7 +773,7 @@ onShow(() => {
 .cal-row {
   display: grid;
   gap: 6px;
-  grid-template-columns: repeat(14, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   margin-top: 12px;
 }
 .cal-day {
@@ -1001,4 +1002,10 @@ onShow(() => {
 }
 .plan-scroll-content { padding: 2px 2px 10px; }
 .plan-scroll-hint { display: block; margin: 0 8px 8px; }
+.meal-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 12px; align-items: start; }
+.meal-card-grid .weekly-meals { margin: 0; padding: 14px; min-width: 0; border-radius: 16px; }
+.weekly-meals .meal-block { padding: 9px 0; margin: 0; }
+.weekly-meals .row { flex-wrap: wrap; gap: 4px; }
+.weekly-meals .list-meta { overflow-wrap: anywhere; }
+.meals-scroll { height: auto; max-height: 65vh; min-height: 0; }
 </style>

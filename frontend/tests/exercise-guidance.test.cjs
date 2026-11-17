@@ -1,0 +1,37 @@
+const {test}=require('node:test'), assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),ts=require('typescript');
+const guidance=JSON.parse(fs.readFileSync('../backend/app/domain/exercise_guidance.json','utf8'));
+const calls=[];
+const ctx={exports:{},require:path=>({default:path.includes('guidance_catalog') ? JSON.parse(fs.readFileSync('../backend/app/domain/exercise_guidance_catalog.json','utf8')) : guidance}),uni:{showModal:opts=>calls.push(opts),showToast:opts=>calls.push(opts)},open:()=>{}};
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/styles/exerciseDb.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,ctx);
+test('wall sit has local guidance without a false upstream squat match',()=>{
+ assert.equal(ctx.exports.hasExerciseGuidance('靠墙静蹲'),true);
+ assert.equal(ctx.exports.exerciseSearchTerm('靠墙静蹲'), '');
+ ctx.exports.openExerciseGuidance('靠墙静蹲');assert.match(calls.at(-1).content,/背部贴墙/);assert.equal(calls.at(-1).showCancel,false);
+});
+test('back extension has correct guidance and upstream search name',()=>{
+ assert.equal(ctx.exports.exerciseSearchTerm('山羊挺身'),'Hyperextensions (Back Extensions)');
+ ctx.exports.openExerciseGuidance('山羊挺身');assert.match(calls.at(-1).content,/不要超过直线/);
+ assert.equal(ctx.exports.exerciseSearchTerm('俯卧撑'),'Pushups');
+ assert.equal(ctx.exports.exerciseSearchTerm('臀桥'),'Butt Lift (Bridge)');
+});
+test('clipboard confirmation follows actual completion',()=>{
+ let pending;
+ ctx.uni.setClipboardData=opts=>{pending=opts};
+ ctx.exports.openExerciseDbTerm('Plank');
+ assert.doesNotMatch(calls.at(-1).title,/已复制/);
+ pending.success();assert.match(calls.at(-1).title,/已复制动作名称，请粘贴搜索/);
+ ctx.exports.openExerciseDbTerm('Plank');pending.fail();assert.match(calls.at(-1).title,/复制失败/);
+});
+test('opening local guidance also copies the action name and confirms only on success',()=>{
+ let pending;
+ ctx.uni.setClipboardData=opts=>{pending=opts};
+ ctx.exports.openExerciseGuidance('靠墙静蹲');
+ assert.equal(pending.data,'靠墙静蹲');
+ pending.success();assert.match(calls.at(-1).title,/已复制动作名称，请粘贴搜索/);
+});
+test('catalog exact matching never maps unknown variants to a generic exercise',()=>{
+ assert.equal(ctx.exports.exerciseSearchTerm('弹力带死虫式'),'');
+ assert.equal(ctx.exports.hasExerciseGuidance('弹力带死虫式'),false);
+ assert.equal(ctx.exports.hasExerciseGuidance('Plank'),true);
+ ctx.exports.openExerciseGuidance('Plank');assert.match(calls.at(-1).content,/forearms/);
+});

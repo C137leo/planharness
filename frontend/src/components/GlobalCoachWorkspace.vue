@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useWorkspaceResize } from '../composables/workspaceResize'
 import StableScroll from './StableScroll.vue'
 import PlanDraftPreview from './PlanDraftPreview.vue'
 import { currentAccountId } from '../api/accountStorage'
@@ -79,6 +80,8 @@ const emit = defineEmits<{
   (e: 'openProgress'): void
 }>()
 
+const panelResize = useWorkspaceResize(() => props.mode)
+watch(() => props.visible, () => panelResize.stop())
 const isOpen = computed(() => props.mode === 'inline' || props.visible)
 const messages = coachWorkspaceMessages
 const input = ref('')
@@ -1317,7 +1320,9 @@ defineExpose({
 <template>
   <view v-if="isOpen">
     <view v-if="mode !== 'inline'" class="workspace-mask" @click="close" />
-    <view :id="workspaceDomId" class="workspace" :class="{ 'workspace-inline': mode === 'inline' }">
+    <view :id="workspaceDomId" class="workspace" :style="panelResize.style.value" :class="{ 'workspace-inline': mode === 'inline', 'workspace-resizing': panelResize.resizing.value }">
+      <view v-if="mode !== 'inline'" class="workspace-resize-handle" role="separator" aria-label="调整教练面板高度，方向键可调整" aria-orientation="horizontal" :aria-valuenow="panelResize.height.value" tabindex="0" @pointerdown="panelResize.start" @touchstart="panelResize.touchStart" @touchmove.stop.prevent="panelResize.touchMove" @touchend="panelResize.stop" @touchcancel="panelResize.stop" @keydown="panelResize.keyboard"><text>拖动调整高度</text></view>
+      <view v-if="mode === 'inline'" class="workspace-resize-handle inline-resize-handle" role="separator" aria-label="调整教练面板高度，方向键可调整" aria-orientation="horizontal" :aria-valuenow="panelResize.height.value" tabindex="0" @pointerdown="panelResize.start" @touchstart="panelResize.touchStart" @touchmove.stop.prevent="panelResize.touchMove" @touchend="panelResize.stop" @touchcancel="panelResize.stop" @keydown="panelResize.keyboard"><text>拖动调整高度</text></view>
       <!-- 顶栏 -->
       <view class="workspace-head">
         <view class="workspace-brand">
@@ -3237,4 +3242,9 @@ defineExpose({
     text-align: left;
   }
 }
+.workspace-resize-handle { flex: 0 0 22px; display: flex; align-items: center; justify-content: center; cursor: ns-resize; touch-action: none; user-select: none; color: #927e70; font-size: 10px; background: #fff5ec; }
+.workspace-resize-handle:focus-visible { outline: 2px solid #e2552b; outline-offset: -2px; }
+.inline-resize-handle { order: 10; }
+.workspace-resizing { user-select: none; }
+.workspace-head, .workspace-composer { flex-shrink: 0; }
 </style>

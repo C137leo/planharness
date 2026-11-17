@@ -6,7 +6,7 @@
  */
 import { ref, watch } from 'vue'
 import { api, ApiError, type KnowledgeAnswer, type KnowledgeCitation } from '../api'
-import { exerciseSearchTerm, openExerciseDbTerm } from '../styles/exerciseDb'
+import { exerciseSearchTerm, openExerciseDbTerm, exerciseGuidance, openExerciseGuidance } from '../styles/exerciseDb'
 
 const props = defineProps<{
   visible: boolean
@@ -82,6 +82,7 @@ function openSource(url: string) {
 
       <template v-else-if="data">
         <view class="knowledge-answer">{{ data.answer }}</view>
+        <text v-if="exerciseGuidance(question)" class="link" @click="openExerciseGuidance(question)">查看动作指导 →</text>
 
         <view v-if="data.citations.length" class="block">
           <view class="section-title">依据</view>

@@ -1,3 +1,6 @@
+import guidanceCatalog from '../../../backend/app/domain/exercise_guidance_catalog.json'
+import guidance from '../../../backend/app/domain/exercise_guidance.json'
+
 /**
  * 动作 → free-exercise-db 搜索词。
  *
@@ -22,8 +25,8 @@ export const EXERCISE_DB_TERMS: Array<[string, string]> = [
   ['坐姿绳索划船', 'Seated Cable Row'],
   ['侧平板支撑', 'Side Bridge'],
   ['平板支撑', 'Plank'],
-  ['俯卧撑', 'Push-up'],
-  ['臀桥', 'Glute Bridge'],
+  ['俯卧撑', 'Pushups'],
+  ['臀桥', 'Butt Lift (Bridge)'],
   ['臀推', 'Hip Thrust'],
   ['箭步蹲', 'Lunge'],
   ['弓步', 'Lunge'],
@@ -51,7 +54,51 @@ export const EXERCISE_DB_TERMS: Array<[string, string]> = [
   ['练肩', 'Shoulder Press'],
 ]
 
+const catalogEntries = Object.entries(guidanceCatalog)
+function catalogMatch(text: string) {
+  const normalized = text.trim().replace(/\s*的?动作要领$/, '').trim().toLowerCase()
+  return catalogEntries.find(([ref, item]) => [ref, item.name_zh, item.name_en].some(label => label.toLowerCase() === normalized))?.[1]
+}
+
+export function exerciseGuidance(text: string) {
+  const normalized = (text || '').toLowerCase()
+  const local = guidance.find(item => item.aliases.some(alias => alias.toLowerCase() === normalized.trim().replace(/\s*的?动作要领$/, '').trim()))
+  if (local) return local
+  const match = catalogMatch(text)
+  if (!match || !('instructions' in match)) return undefined
+  return { title: `${match.name_zh}的动作要领（英文原文）`, content: match.instructions.join('\n'), source_title: 'free-exercise-db', search_term: match.search_term }
+}
+
+export function hasExerciseGuidance(text: string): boolean {
+  return !!exerciseGuidance(text) || !!exerciseSearchTerm(text)
+}
+
+export function openExerciseGuidance(text: string): void {
+  const item = exerciseGuidance(text)
+  if (!item) {
+    openExerciseDbTerm(exerciseSearchTerm(text))
+    return
+  }
+  const term = item.search_term || text.trim().replace(/\s*的?动作要领$/, '')
+  if (copyExerciseTerm(term)) {
+    uni.showToast({ title: '已复制动作名称，请粘贴搜索', icon: 'none', duration: 2500 })
+  }
+  uni.showModal({
+    title: item.title,
+    content: `${item.content}\n\n依据：${item.source_title}`,
+    showCancel: !!item.search_term,
+    confirmText: item.search_term ? '查看动作库' : '知道了',
+    success: result => {
+      if (result.confirm && item.search_term) openExerciseDbTerm(item.search_term)
+    },
+  })
+}
+
 export function exerciseSearchTerm(text: string): string {
+  const local = exerciseGuidance(text)
+  if (local) return local.search_term
+  if (catalogMatch(text)) return ''
+
   let best: { index: number; length: number; en: string } | null = null
   for (const [zh, en] of EXERCISE_DB_TERMS) {
     const index = (text || '').indexOf(zh)
@@ -85,8 +132,13 @@ export function copyExerciseTerm(term: string): boolean {
     }
   }
   if (typeof uni !== 'undefined' && typeof uni.setClipboardData === 'function') {
-    uni.setClipboardData({ data: term })
-    return true
+    uni.setClipboardData({
+      data: term,
+      success: () => uni.showToast({ title: '已复制动作名称，请粘贴搜索', icon: 'none', duration: 2500 }),
+      fail: () => uni.showToast({ title: `复制失败，请手动搜索：${term}`, icon: 'none', duration: 3000 }),
+    })
+    // 异步复制尚未完成，不提前声称成功。
+    return false
   }
   return false
 }
@@ -101,7 +153,7 @@ export function openExerciseDbTerm(term: string): void {
     location.href = EXERCISE_DB_URL
   }
   uni.showToast({
-    title: copied ? `已复制 ${term}，去动作库粘贴` : `搜索：${term}`,
+    title: copied ? `已复制动作名称，请粘贴搜索：${term}` : `搜索：${term}`,
     icon: 'none',
     duration: 2500,
   })

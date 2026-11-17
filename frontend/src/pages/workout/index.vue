@@ -405,7 +405,7 @@ onUnmounted(stopRest)
         </view>
         <view v-if="currentItem" class="train-head">
           <view class="thumb train-thumb">
-            <image class="thumb-img" :src="thumbOf(currentItem)" mode="aspectFill" />
+            <image v-if="thumbOf(currentItem)" class="thumb-img" :src="thumbOf(currentItem)" mode="aspectFill" /><text v-else class="list-meta">训练</text>
           </view>
           <view class="train-titles">
             <text class="train-name">{{ actionLabel(currentItem) }}</text>
@@ -454,22 +454,25 @@ onUnmounted(stopRest)
             <input v-model.number="setWeight" class="input" type="number" placeholder="例如 8" />
           </view>
         </view>
-        <view v-if="currentItem && !showRest" class="btn-row">
-          <view class="btn-sm primary train-set-btn" @click="completeSet">
+        <view class="workout-controls">
+        <view v-if="currentItem && !showRest" class="workout-primary-action">
+          <button class="btn-sm primary train-set-btn" :disabled="busy" @click="completeSet">
             {{ busy ? '记录中…' : `完成第 ${(currentItem.completed_sets || 0) + 1} 组` }}
-          </view>
+          </button>
+          <text class="workout-control-hint">完成后记录本组，再进入休息</text>
         </view>
-        <view v-if="currentItem" class="btn-row">
-          <view class="btn-sm" @click="skipAction">跳过</view>
-          <view class="btn-sm" @click="replaceMenu">换动作</view>
-          <view class="btn-sm" @click="openGuidance">动作要领</view>
-          <view class="btn-sm" @click="togglePause">
+        <view v-if="currentItem" class="workout-tool-grid" aria-label="训练辅助操作">
+          <button class="btn-sm" :disabled="busy" @click="openGuidance">动作要领</button>
+          <button class="btn-sm" :disabled="busy" @click="replaceMenu">换个动作</button>
+          <button class="btn-sm" :disabled="busy" @click="togglePause">
             {{ session.status === 'paused' ? '继续' : '暂停' }}
-          </view>
+          </button>
+          <button class="btn-sm" :disabled="busy" @click="skipAction">跳过动作</button>
         </view>
-        <view class="btn-row">
-          <view class="btn-sm primary" @click="openFinish">结束并反馈</view>
-          <view class="btn-sm" @click="openCoach('', false)">问教练</view>
+        <view class="workout-session-actions">
+          <button class="btn-sm workout-coach-action" :disabled="busy" @click="openCoach('', false)">有问题，问教练 ↗</button>
+          <button class="btn-sm workout-finish-action" :disabled="busy" @click="openFinish">结束并反馈</button>
+        </view>
         </view>
       </view>
 
@@ -483,7 +486,7 @@ onUnmounted(stopRest)
         <view v-for="item in session.items" :key="item.id" class="list-row train-item" :class="item.status">
           <view class="list-body">
             <view class="thumb train-mini-thumb">
-              <image class="thumb-img" :src="thumbOf(item)" mode="aspectFill" />
+              <image v-if="thumbOf(item)" class="thumb-img" :src="thumbOf(item)" mode="aspectFill" /><text v-else class="list-meta">训练</text>
             </view>
             <view class="list-main">
               <text class="list-title">{{ actionLabel(item) }}</text>
@@ -646,6 +649,17 @@ onUnmounted(stopRest)
   margin-top: 12px;
   padding: 14px;
 }
+.workout-controls{display:flex;flex-direction:column;gap:16px;margin-top:20px;padding-top:18px;border-top:1px solid var(--line-soft)}
+.workout-primary-action{display:grid;grid-template-columns:minmax(180px,1fr) minmax(120px,.65fr);gap:16px;align-items:center}
+.workout-control-hint{font-size:12px;color:var(--muted);line-height:1.6}
+.workout-controls button{margin:0;box-sizing:border-box;display:flex;align-items:center;justify-content:center;min-height:44px;line-height:1.45;cursor:pointer;white-space:normal}
+.workout-controls .train-set-btn{width:100%}.workout-controls button::after{border:0}.workout-controls button[disabled]{opacity:.5}
+.workout-tool-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.workout-tool-grid .btn-sm{border-radius:12px;background:#fffaf6;padding:11px 8px;font-size:13px}
+.workout-session-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:16px;border-top:1px solid var(--line-soft)}
+.workout-session-actions .workout-coach-action{background:transparent;border-color:transparent;color:var(--muted);padding-left:0}
+.workout-session-actions .workout-finish-action{background:transparent;color:#a54c31;border-color:#ead7ca;border-radius:12px}
+@media(max-width:600px){.workout-primary-action{grid-template-columns:1fr;gap:7px}.workout-control-hint{text-align:center;font-size:11px}.workout-tool-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.workout-session-actions{align-items:stretch}.workout-session-actions>button{flex:1;font-size:12px}.workout-controls{gap:14px}.workout-session-actions .workout-coach-action{padding-left:8px}}
 .rest-label {
   color: var(--primary-deep);
   font-size: 12px;

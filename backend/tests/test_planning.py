@@ -67,6 +67,7 @@ def test_generate_plan_creates_next_version(tmp_path) -> None:
         env="dev",
         database_url=f"sqlite:///{tmp_path}/test.db",
         secret_key="test-secret-0123456789abcdef0123456789",
+        demo_login_enabled=True,
     )
     app = create_app(settings)
     with TestClient(app) as client:

@@ -1,0 +1,54 @@
+[
+  {
+    "id": "wall-sit-cue",
+    "action_ref": "wall-sit",
+    "title": "靠墙静蹲的动作要领",
+    "aliases": [
+      "靠墙静蹲",
+      "靠墙蹲",
+      "Wall Sit",
+      "wall-sit"
+    ],
+    "body_part": "legs",
+    "topic": "technique",
+    "content": "背部贴墙，双脚向前迈开约与髋同宽；缓慢沿墙下滑到可控制且无痛的屈膝位置，保持脚掌踩稳、膝盖朝向脚尖。保持静止并自然呼吸，不必强求大腿水平；结束时用脚掌发力，沿墙缓慢站起。出现疼痛或头晕应停止。",
+    "source_title": "Ascension Patient Library · Wall Sit",
+    "source_url": "https://phl.ascension.org/wellness/fitness/how-do-wall-sit-exercise",
+    "search_term": "",
+    "tags": [
+      "靠墙静蹲",
+      "靠墙蹲",
+      "Wall Sit",
+      "wall-sit",
+      "动作",
+      "动作要领"
+    ]
+  },
+  {
+    "id": "back-extension-cue",
+    "action_ref": "back-extension",
+    "title": "山羊挺身的动作要领",
+    "aliases": [
+      "山羊挺身",
+      "背部挺身",
+      "罗马椅挺身",
+      "Back Extension",
+      "back-extension"
+    ],
+    "body_part": "back",
+    "topic": "technique",
+    "content": "使用稳固的挺身凳，脚踝固定在脚垫下，将上垫调到大腿上部，给髋部留出屈曲空间；双臂交叉于胸前。保持背部平直，从髋部缓慢前倾，到仍能保持背部平直的幅度即可，再有控制地抬回身体成直线。不要超过直线向后反弓，也不要甩动借力；出现疼痛应停止。",
+    "source_title": "free-exercise-db · Hyperextensions (Back Extensions)",
+    "source_url": "https://github.com/yuhonas/free-exercise-db/blob/main/exercises/Hyperextensions_Back_Extensions.json",
+    "search_term": "Hyperextensions (Back Extensions)",
+    "tags": [
+      "山羊挺身",
+      "背部挺身",
+      "罗马椅挺身",
+      "Back Extension",
+      "back-extension",
+      "动作",
+      "动作要领"
+    ]
+  }
+]

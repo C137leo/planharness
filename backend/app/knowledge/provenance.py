@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 # 只收机构/指南站点：博客、营销号、内容农场一律不收
 ALLOWED_HOSTS = {
+    "phl.ascension.org",  # Patient Library：靠墙静蹲的具体动作指导
     "www.cnsoc.org", "cnsoc.org",
     "www.acsm.org", "acsm.org",
     "www.nhs.uk", "nhs.uk",

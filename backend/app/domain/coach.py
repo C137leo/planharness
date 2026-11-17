@@ -208,9 +208,13 @@ def create_draft(
         if goal_contract.preserve_actions:
             proposal.payload['days'] = copy.deepcopy(parent.payload.get('days') or [])
         slots = set(goal_contract.preserve_meal_slots)
+        selected_meals = {identity for substitution in goal_contract.meal_substitutions
+                          for identity in substitution.selected_meals}
         proposal.payload['meals'] = sorted(
-            [copy.deepcopy(m) for m in parent.payload.get('meals', []) if m['slot'] in slots] +
-            [m for m in proposal.payload.get('meals', []) if m['slot'] not in slots],
+            [copy.deepcopy(m) for m in parent.payload.get('meals', [])
+             if m['slot'] in slots or (m['day_index'], m['slot']) in selected_meals] +
+            [m for m in proposal.payload.get('meals', [])
+             if m['slot'] not in slots and (m['day_index'], m['slot']) not in selected_meals],
             key=lambda m: (m.get('day_index', 1), MEAL_ORDER.get(m['slot'], 9)))
 
     # 第一次生成时模型也可能反问"要不要加背部动作"，但这句需求我们能执行：
@@ -258,6 +262,9 @@ def create_draft(
         }]
     # 模型负责提议，这里负责把提议压回用户真实条件（器械/时长/伤病/餐食）。
     # 评审 P-003 的根因是 skill 只给 equipment_filter 边界、没有事后校验。
+    if not parent_draft_id and not (goal_contract and goal_contract.selected_action_refs):
+        from app.domain.guided_selection import prefer_guided_actions
+        prefer_guided_actions(proposal.payload, profile, memory, instruction=instruction)
     if goal_contract is not None:
         from app.agent.initial_requirements import prepare
         prepare(proposal.payload, goal_contract, profile)
@@ -356,7 +363,7 @@ def add_feedback(
         from app.agent.business_snapshot import profile_data
         if client is None or not client.available():
             raise PatchValidationError(['这份草案包含已核对的目标约束，请连接教练后修改，不能跳过约束核对。'])
-        goal_contract = extract_goal(client, text, saved_contract, profile_data(db, user), [])
+        goal_contract = extract_goal(client, text, saved_contract, profile_data(db, user), [], current_meals=parent.payload.get("meals", []))
         return create_draft(db, user, instruction, parent_draft_id=parent.id, bridge=bridge,
                             client=client, interpret_instruction=False, goal_contract=goal_contract)
     memory = load_memory_context(db, user)

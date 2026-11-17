@@ -1,12 +1,11 @@
 /**
  * 动作缩略图：优先用具体动作图，其次退回身体部位插画。
  *
- * 当前有 6 张部位图 + 7 张动作图（引体/死虫/哑铃卧推/硬拉/行走弓步/腿举/坐姿划船）。
- * demo 阶段不做器械级严格匹配：同一动作模式的变体（弹力带/哑铃/单腿/绳索）
- * 复用同一张图，例如 dead-bug / banded-dead-bug 都先用死虫图，
- * deadlift 系列都用硬拉图，row 系列都用划船图。
- * 映射顺序：先按 action_ref 精确匹配，再按 ref 模式匹配，最后看 meta。
+ * exerciseImages.json 只收录已存在的逐动作生成图，优先按动作 ID 精确匹配。
+ * 旧模板别名先转为目录 ID；未知动作不再用身体部位图冒充专属动作图。
  */
+
+import exerciseImages from './exerciseImages.json'
 
 export type ThumbKey =
   | 'legs'
@@ -39,86 +38,6 @@ export const THUMBS: Record<ThumbKey, string> = {
   seatedRow: '/static/ex/seated-row.jpg',
 }
 
-const MODE_TO_THUMB: Record<string, ThumbKey> = {
-  knee_dominant: 'legs',
-  hip_dominant: 'hip',
-  horizontal_push: 'chest',
-  vertical_push: 'chest',
-  horizontal_pull: 'back',
-  vertical_pull: 'back',
-  core: 'core',
-  cardio: 'legs',
-  mobility: 'stretch',
-}
-
-const MUSCLE_TO_THUMB: Record<string, ThumbKey> = {
-  quads: 'legs',
-  glutes: 'hip',
-  hamstrings: 'hip',
-  'lower back': 'hip',
-  chest: 'chest',
-  shoulders: 'chest',
-  back: 'back',
-  lats: 'back',
-  core: 'core',
-  cardio: 'legs',
-  mobility: 'stretch',
-}
-
-// 模板计划（没有 meta）用 ref 兜底。
-// 先放明确 ref；同模式变体交给下面的 REF_PATTERNS，避免为每个动作枚举一遍。
-const REF_TO_THUMB: Record<string, ThumbKey> = {
-  'pull-up': 'pullUp',
-  pull_up: 'pullUp',
-  pullup: 'pullUp',
-  'dead-bug': 'deadBug',
-  dead_bug: 'deadBug',
-  'dumbbell-bench-press': 'dumbbellBenchPress',
-  dumbbell_bench_press: 'dumbbellBenchPress',
-  deadlift: 'deadlift',
-  'walking-lunge': 'walkingLunge',
-  walking_lunge: 'walkingLunge',
-  lunge: 'walkingLunge',
-  'forward-lunge': 'walkingLunge',
-  'barbell-lunge': 'walkingLunge',
-  'dumbbell-lunges': 'walkingLunge',
-  'leg-press': 'legPress',
-  leg_press: 'legPress',
-  'seated-row': 'seatedRow',
-  seated_row: 'seatedRow',
-  'seated-cable-row': 'seatedRow',
-  'cable-row': 'seatedRow',
-  squat: 'legs',
-  goblet_squat: 'legs',
-  bodyweight_squat: 'legs',
-  squat_template: 'legs',
-  pushup: 'chest',
-  push_up: 'chest',
-  bench_press: 'chest',
-  row: 'seatedRow',
-  backpack_row: 'seatedRow',
-  glute_bridge: 'hip',
-  hip_thrust: 'hip',
-  plank: 'core',
-  crunch: 'core',
-  stretch: 'stretch',
-  full_body_stretch: 'stretch',
-  'full-body-stretch': 'stretch',
-  brisk_walk: 'legs',
-  easy_walk: 'legs',
-}
-
-// 模式匹配：demo 允许"同动作模式共用一张图"。
-// 注意 row 要用分隔符边界，避免把 throw 里的 row 也吃掉。
-const REF_PATTERNS: Array<[RegExp, ThumbKey]> = [
-  [/(?:^|[-_])dead[-_]?bug(?:$|[-_])/, 'deadBug'],
-  [/(?:^|[-_])deadlift(?:$|[-_])/, 'deadlift'],
-  [/(?:^|[-_])row(?:$|[-_])/, 'seatedRow'],
-  [/(?:^|[-_])(?:pull|chin)[-_]?up(?:$|[-_])/, 'pullUp'],
-  [/lunge/, 'walkingLunge'],
-  [/(?:^|[-_])leg[-_]?press(?:$|[-_])/, 'legPress'],
-  [/(?:^|[-_])stretch(?:$|[-_])/, 'stretch'],
-]
 
 export function thumbOf(action: {
   action_ref?: string
@@ -128,24 +47,30 @@ export function thumbOf(action: {
   // meta 有可能是补丁残留（例如休息补丁只改了 duration/meta，没换 action_ref），
   // 用 meta 优先会让"高脚杯深蹲"显示成拉伸图。
   const rawRef = String(action.action_ref || '')
-  const refKey = REF_TO_THUMB[rawRef] || REF_TO_THUMB[rawRef.replace(/-/g, '_').toLowerCase()]
-  if (refKey) return THUMBS[refKey]
-  const normalizedRef = rawRef.replace(/_/g, '-').toLowerCase()
-  for (const [pattern, key] of REF_PATTERNS) {
-    if (pattern.test(normalizedRef)) return THUMBS[key]
-  }
-
-  const meta = action.meta || {}
-  const mode = String(meta.movement_mode || '').toLowerCase()
-  if (mode && MODE_TO_THUMB[mode]) return THUMBS[MODE_TO_THUMB[mode]]
-
-  const muscle = String(meta.primary_muscle || '').toLowerCase()
-  if (muscle && MUSCLE_TO_THUMB[muscle]) return THUMBS[MUSCLE_TO_THUMB[muscle]]
-
-  return THUMBS.legs
+  const aliases: Record<string, string> = {pushup:'push-up',push_up:'push-up',bodyweight_squat:'bodyweight-squat',goblet_squat:'goblet-squat',glute_bridge:'glute-bridge',hip_thrust:'hip-thrust',pullup:'pull-up'}
+  const exactImages: Record<string, string> = exerciseImages
+  const exact = exactImages[aliases[rawRef] || rawRef] || exactImages[rawRef.replace(/_/g, '-').toLowerCase()]
+  if (exact) return exact
+  return ''
 }
 
-/** 训练/餐食统一的缩略图：餐食没有实拍图，继续用 emoji 更直观。 */
+/** 判断餐食动作。 */
 export function isMeal(action: { action_type?: string }): boolean {
   return action.action_type === 'meal'
+}
+
+/** 餐次分类插画，仅作示意，不代表具体菜品或实际份量。 */
+export const MEAL_THUMBS = {
+  breakfast: '/static/meals/breakfast-v2.jpg',
+  lunch: '/static/meals/lunch-v2.jpg',
+  dinner: '/static/meals/dinner-v2.jpg',
+} as const
+
+/** 加餐及未知餐次复用早餐分类图，始终返回有效静态资源。 */
+export function mealThumb(slot?: string | null): string {
+  switch (String(slot || '').trim().toLowerCase().replace(/^meal_/, '')) {
+    case 'lunch': return MEAL_THUMBS.lunch
+    case 'dinner': return MEAL_THUMBS.dinner
+    default: return MEAL_THUMBS.breakfast
+  }
 }

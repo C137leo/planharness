@@ -18,7 +18,7 @@ import KnowledgeSheet from '../../components/KnowledgeSheet.vue'
 import McdOrderSheet from '../../components/McdOrderSheet.vue'
 import { actionLabel, slotLabel } from '../../styles/copy'
 import { displayMealItems } from '../../styles/mealItems'
-import { THUMBS, thumbOf } from '../../styles/thumbs'
+import { THUMBS, thumbOf, mealThumb } from '../../styles/thumbs'
 import { exerciseSearchTerm, openExerciseDbTerm } from '../../styles/exerciseDb'
 import { WEEKDAY_LABELS, isoWeekday, todayStr } from '../../styles/dates'
 
@@ -1084,7 +1084,7 @@ onShow(() => {
           <view v-for="action in training" :key="action.id" class="list-row">
             <view class="list-body">
               <view class="thumb">
-                <image class="thumb-img" :src="thumbOf(action)" mode="aspectFill" />
+                <image v-if="thumbOf(action)" class="thumb-img" :src="thumbOf(action)" mode="aspectFill" /><text v-else class="list-meta">训练</text>
               </view>
               <view class="list-main">
                 <text class="list-title">{{ actionLabel(action) }}</text>
@@ -1141,7 +1141,7 @@ onShow(() => {
           这一版没有餐食记录（可能是早期模板或旧补丁留下的）。点「重新生成整份计划」可以补齐食谱。
         </view>
         <view v-for="meal in meals" :key="meal.slot" class="meal-row">
-          <view class="thumb">{{ mealEmoji(meal.slot) }}</view>
+          <view class="thumb"><image class="thumb-img" :src="mealThumb(meal.slot)" mode="aspectFill" aria-label="餐次分类示意图"/></view>
           <view class="list-main" style="flex: 1">
             <view class="row">
               <text class="list-title">{{ meal.title }}</text>
