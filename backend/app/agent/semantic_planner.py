@@ -4,7 +4,8 @@ from app.agent.binding_contract import BoundPlan, NaturalPendingControl, MixedAu
 from app.agent.business_snapshot import snapshot_public
 from app.agent.capabilities import manifest, capability
 
-SYSTEM = '''明确自报新增过敏优先profile.add_allergies，加入长期限制并自动同步后续食谱，保留已有多项过敏；不能只改今天，也不能因今天没有冲突餐食就拒绝处理整周。未确认移除过敏不能自行删除。不要自动新增加餐；只有用户明确要求才讨论加餐，不能为凑热量添加。
+SYSTEM = '''长期草案与当天安排是不同对象：active_saved_workflow含plan.confirm_*时，用户要求修改计划是在修改该长期草案，用plan.revise_*；不能切到day_plan或meal/workout实际写入。明确新增过敏用profile.add_allergies，系统也会修复仍有效的长期预览，不必另列每天换虾或确认是否排除过敏原。已取消/被替代草案不在本轮可用对象中，不能根据历史对话重新生成确认任务；单纯确认且当前没有有效草案，应说明已取消，不生成新计划。
+明确自报新增过敏优先profile.add_allergies，加入长期限制并自动同步后续食谱，保留已有多项过敏；不能只改今天，也不能因今天没有冲突餐食就拒绝处理整周。未确认移除过敏不能自行删除。不要自动新增加餐；只有用户明确要求才讨论加餐，不能为凑热量添加。
 已有生效计划且用户要求重新生成长期计划时用plan.create_replacement_draft，修改/确认/取消用相应replacement_draft能力；可一键发起预览，不能声称产品不支持整份重建。
 首次计划：day.plan_id为空且用户希望建立第一份长期训练/饮食计划时，使用plan.create_initial_draft绑定profile，instruction保留本轮原话与明确约束。此能力不改档案、不启用；系统生成完整训练与饮食草案，确认后才plan.confirm_initial_draft。不是day_plan.create_revision，不要求已有计划。只读/假设/咨询不用生成。已有首份草案可plan.cancel_initial_draft；修改要求用plan.revise_initial_draft保持原约束再生成预览，不能直接确认旧草案。
 你是 AI 健身教练的语义规划器。context_catalog是可按需加载的真实能力；能力尚未在当前菜单中不等于不支持。整场时长、动作数量与跨餐预览应先load_context(day_revision=true)取得真实契约，不得仅因局部工具缺少时长参数就拒绝。面向用户只用中文对象名、数量和操作结果，不展示UUID、程序字段或工具参数键；内部引用由系统处理。ui_capabilities是现有页面功能，不能因工具中没有而否认页面功能。订单报价优先使用expires_at_label展示本地到期时间，不把UTC小时称作用户当地时间；购物预览只读保留无需额外确认，用户未明确购买不得改成submit_order。只读事实以day.recorded_facts中的checkins/workout_logs/meal_logs为准，手工运动不是WorkoutSession，不能因没有会话否认手工记录。profile.goal_note是已保存目标原话，不等于结构化目标字段。可映射到目标、体重、天数、时长、训练时段、地点、动作喜恶、过敏和忌口的结构化长期事实用profile.update；独立背景偏好和备注才用memory.create(kind=long_term)，短期状态必须保留期限，retention_days按用户本地自然日计含今天；例如今天/明天或这周要据date算到对应结束日，不把本周默认等同未来7天；取消已保存备注使用真实active记忆ID调用archive，不继续补齐旧create。canonical记忆是Profile镜像，不可单独memory.archive；取消长期训练时段等应profile.update清空对应字段并预览确认，展示标签随时间字段同步清空。独立备注才用archive。过敏限制保存不等于已核实所有食品配方，尤其外食商品缺少官方过敏原信息时不能承诺绝对安全，明确数据缺口。自然语言、同义词、口语、否定、条件、跨轮引用及对象绑定完全由你负责。
@@ -66,7 +67,8 @@ editing_saved_task若parameters_resolved=false，本轮是在补充saved_questio
 已结束后的补录/纠错用workout.correct_record，绑定该session_item并复制父session.record_revision；actual_sets是该动作实际总组数。最后一组的组号必须从实际completed_sets定位。用户没提供的次数重量不得补成计划值，缺少实际组数时先澄清。不能用history.undo抹掉已发生训练事实。只读查询用workout.read_records并展示真实数据，不凭历史回复猜记录。
 训练记录修订只填用户本轮要改变的字段；没有变化的组数、次数、重量或完成状态应省略，不能扩大纠错范围。面向用户的说明不要展示内部版本哈希、能力字段名或数据库ID。已完成的同一训练结束请求属于已满足目标，不要再列为尚未完成。
 '''
-CONTROL_SYSTEM = '''unresolved_goal_input或unresolved_edits表示最近目标没有成功生成，旧方案不能确认应用。用户要求重试或重述修改时，应new_request并结合保存的未落实要求重新规划；不能把旧草案当成新目标。你只管理一个已保存的待确认计划，不重新做完整意图分类。只输出符合 JSON Schema 的 JSON。
+CONTROL_SYSTEM = '''长期草案与当天安排是不同对象：active_saved_workflow含plan.confirm_*时，用户要求修改计划是在修改该长期草案，用plan.revise_*；不能切到day_plan或meal/workout实际写入。明确新增过敏用profile.add_allergies，系统也会修复仍有效的长期预览，不必另列每天换虾或确认是否排除过敏原。已取消/被替代草案不在本轮可用对象中，不能根据历史对话重新生成确认任务；单纯确认且当前没有有效草案，应说明已取消，不生成新计划。
+unresolved_goal_input或unresolved_edits表示最近目标没有成功生成，旧方案不能确认应用。用户要求重试或重述修改时，应new_request并结合保存的未落实要求重新规划；不能把旧草案当成新目标。你只管理一个已保存的待确认计划，不重新做完整意图分类。只输出符合 JSON Schema 的 JSON。
 pending.stage=clarification表示工具参数缺失，不是等待批准。用户回答缺失参数（例如从方案中选定要保留的项目）必须new_request，edit_task_ids列出正在补全的原任务，new_request_text结合原目标和本轮回答表达完整编辑要求；不能confirm或只设置parameter_resolutions，因为这不会生成真实工具参数。单纯肯定但仍未给缺失内容时clarify，具体询问缺失项。编辑草案和应用草案是不同阶段，用户选好项目只授权更新预览，不授权应用。
 放弃的对象必须结合pending.question和saved_tasks解析。当前任务若是confirm_replan，问题询问放弃旧方案未做部分并制定新目标，用户肯定这一选择应confirm；不能误读成取消新目标或寻找不存在的新草案。用户明确取消重排意图才cancel，不明确时针对旧安排或本次重排具体澄清。
 拒绝立即应用不等于丢弃方案。用户暂缓、保留预览、继续查看而没有放弃方案时用clarify，保存原pending及草案，不能reject/cancel。只有明确不再要这份方案才结束它。
@@ -146,7 +148,9 @@ def _plan(client, text, snapshot, recent, date, server_date, trace, *, source_te
             "context_catalog": [] if snapshot.payload.get('day_revision') else [{"context":"day_revision","load_with":{"day_revision":True},
                 "capabilities":[{"id":c.capability_id,"description":c.description} for c in DAY_CAPABILITIES.values()]}],
             "ui_capabilities": [{"name":"暂停/继续训练", "page":"训练执行页", "agent_callable":False, "guidance":"训练页面有暂停和继续按钮，可以指引用户操作；进度会保存。"}]}
-    #
+    active_workflows=[m['active_saved_workflow'] for m in recent if m.get('active_saved_workflow')]
+    data['active_saved_workflows']=active_workflows
+    data['workflow_rules']='编辑长期草案必须绑定当前initial_plan_draft/replacement_plan_draft，不能切为当天草案。新增过敏优先独立profile.add_allergies，它自动修复有效长期预览；如另有明确训练参数修改，可与单个长期草案create/revise组成先保存过敏再预览的两阶段任务，绝不能同时confirm。'
     parsed = structured_call(client, SYSTEM, data, BoundPlan, trace, "semantic_binding")
     if parsed.snapshot_id!=snapshot.id:
         fixed=structured_call(client,SYSTEM,{**data,'previous_plan':parsed.model_dump(),
@@ -169,6 +173,22 @@ def _plan(client, text, snapshot, recent, date, server_date, trace, *, source_te
         validate_tasks(parsed.tasks, snapshot)
     # 失败后的兜底
     except TaskFailure as original:
+        # A model may confuse a long-term preview with a dated draft, or mix
+        # safety profile updates into a single-lifecycle boundary. Replan once
+        # with the concrete failure; never relax the mutation boundary.
+        if original.stage=='execution_boundary' and len(parsed.tasks)==2 and any(t.capability_id=='profile.add_allergies' for t in parsed.tasks):
+            repaired=structured_call(client,SYSTEM,{**data,'previous_plan':parsed.model_dump(),
+                'validation_error':str(original),
+                'repair_instruction':'按真实工作流重新组织同一用户要求。新增过敏优先单独profile.add_allergies（自动修复长期预览），长期草案修改用plan.revise_*，不能转为当天day_plan或同轮启用。需要额外预览时只允许新增过敏与一个长期create/revise两阶段组合。不得丢失用户明确的训练参数、长期范围或取消要求。无法完整表达则澄清，不执行部分猜测。'},BoundPlan,trace,'workflow_boundary_repair')
+            if repaired.snapshot_id!=snapshot.id:raise original
+            safety=next(t for t in parsed.tasks if t.capability_id=='profile.add_allergies')
+            replacements=[t for t in repaired.tasks if t.capability_id=='profile.add_allergies']
+            allowed={'profile.add_allergies','plan.create_initial_draft','plan.create_replacement_draft','plan.revise_initial_draft','plan.revise_replacement_draft'}
+            if (len(replacements)!=1 or replacements[0].arguments!=safety.arguments or replacements[0].resolution!=safety.resolution
+                    or any(t.capability_id not in allowed for t in repaired.tasks)):
+                raise original
+            validate_tasks(repaired.tasks,snapshot)
+            return repaired
         # Only the model repairs semantic binding; Python never substitutes a day ID.
         if original.stage not in {"target_type", "resolution", "ownership_scope", "dependency","arguments_schema"}:
             raise
@@ -342,7 +362,7 @@ def review_mixed_authorization(client, text, pending, command, trace):
         # Approve only the saved consent stage, never the resulting actual plan.
         command=command.model_copy(update={'action':'confirm','keep_task_ids':list(known),'execute_revision':True})
     if verdict.workflow_action=='edit_preview':
-        preview_ids=[t['task_id'] for t in pending.tasks if t['capability_id'] in {'day_plan.confirm_replan','day_plan.apply_revision','day_plan.update_revision','day_plan.extend_revision'}]
+        preview_ids=[t['task_id'] for t in pending.tasks if t['capability_id'] in {'day_plan.confirm_replan','day_plan.apply_revision','day_plan.update_revision','day_plan.extend_revision','plan.confirm_initial_draft','plan.confirm_replacement_draft'}]
         verdict.modified_task_ids=list(dict.fromkeys([*verdict.modified_task_ids,*preview_ids]))
     if not set(verdict.approved_task_ids) <= known or not set(verdict.modified_task_ids)<=known:
         raise ValueError("invalid_authorization_review_ids")

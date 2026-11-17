@@ -138,10 +138,14 @@ def _preview_profile(profile: Profile, instruction: str, *, interpret_instructio
 
 
 def _promote_ready_initial(db, user, draft):
-    if draft.plan_id is None and draft.status == 'ready':
+    if draft.status == 'ready':
         for old in db.scalars(select(PlanDraft).where(PlanDraft.user_id == user.id,
-                PlanDraft.plan_id.is_(None), PlanDraft.status == 'ready', PlanDraft.id != draft.id)):
+                PlanDraft.plan_id == draft.plan_id, PlanDraft.status == 'ready', PlanDraft.id != draft.id)):
             old.status = 'superseded'
+            from app.models import CoachPendingPlan
+            for pending in db.scalars(select(CoachPendingPlan).where(CoachPendingPlan.user_id==user.id,CoachPendingPlan.status=='pending')):
+                if any(t['resolution'].get('selected_id')==old.id for t in pending.tasks):
+                    pending.status='superseded';pending.version+=1
 
 
 def create_draft(

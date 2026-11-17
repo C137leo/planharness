@@ -1,5 +1,5 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');const ts=require('typescript');
-function load(path){const context={exports:{}};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,context);return context.exports;}
+function load(path){const context={exports:{},require:require('node:module').createRequire(require('node:path').resolve(path))};vm.runInNewContext(ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText,context);return context.exports;}
 const {actionLabel}=load('src/styles/copy.ts');const {displayMealItems}=load('src/styles/mealItems.ts');
 test('backend Chinese name wins and old slug falls back to Chinese',()=>{
  assert.equal(actionLabel({action_ref:'jumping-jack',name:'开合跳'}),'开合跳');

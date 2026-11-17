@@ -117,8 +117,14 @@ def build_snapshot(db, user, thread, dates, *, exercise_catalog=False, history_l
         if obj['type'] == 'day':
             obj['recorded_facts'] = facts[obj['date']]
     from app.agent.initial_plan_runtime import draft_revision
-    for draft in db.scalars(select(PlanDraft).where(PlanDraft.user_id == user.id,
-            PlanDraft.status == 'ready').order_by(PlanDraft.created_at.desc()).limit(5)):
+    seen_plan_families=set()
+    long_term_workflows=[]
+    for draft in db.scalars(select(PlanDraft).where(PlanDraft.user_id == user.id).order_by(PlanDraft.created_at.desc())):
+        if draft.status not in {'ready','confirmed','rejected','superseded'}:continue
+        if draft.plan_id in seen_plan_families:continue
+        seen_plan_families.add(draft.plan_id)
+        long_term_workflows.append({'kind':'replacement' if draft.plan_id else 'initial','status':draft.status})
+        if draft.status!='ready':continue
         objects.append({'id': draft.id, 'type': 'replacement_plan_draft' if draft.plan_id else 'initial_plan_draft', 'name': '长期替换计划草案' if draft.plan_id else '首份训练与饮食计划草案',
                         'etag': draft_revision(draft), 'status': draft.status, 'instruction': draft.instruction,
                         'goal_contract': draft.payload.get('meta', {}).get('goal_contract'),
@@ -167,7 +173,7 @@ def build_snapshot(db, user, thread, dates, *, exercise_catalog=False, history_l
         raise ValueError("duplicate_snapshot_object_id")
     snapshot = CoachBusinessSnapshot(user_id=user.id, thread=thread, revision=digest(state),
                                     payload={"dates": dates, "objects": objects, "exercise_catalog": exercise_catalog,
-                                             "history_limit": history_limit,"day_revision":day_revision,
+                                             "history_limit": history_limit,"day_revision":day_revision,"long_term_workflows":long_term_workflows,
                                              "server_time":dt.datetime.now(dt.timezone.utc).isoformat()})
     db.add(snapshot)
     db.flush()

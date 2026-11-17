@@ -21,13 +21,18 @@ def safe_error(exc):
     from sqlalchemy.exc import SQLAlchemyError
     return '数据保存失败，本次修改未完成。请稍后重试或联系维护人员核对数据库版本。' if isinstance(exc,SQLAlchemyError) else str(exc)
 
+def allergy_preview_batch(tasks):
+    ids=[t.capability_id for t in tasks]
+    return (len(ids)==2 and ids.count('profile.add_allergies')==1 and
+        any(i in {'plan.create_initial_draft','plan.create_replacement_draft','plan.revise_initial_draft','plan.revise_replacement_draft'} for i in ids))
+
 # 验证任务
 def validate_tasks(tasks, snapshot):
     objects = {o["id"]: o for o in snapshot.payload["objects"]}
     task_ids = [t.task_id for t in tasks]
     if len(set(task_ids)) != len(task_ids):
         raise TaskFailure("schema", "任务 ID 重复。")
-    if len(tasks)>1 and any(t.capability_id.startswith(('day_plan.', 'plan.')) for t in tasks):
+    if len(tasks)>1 and any(t.capability_id.startswith(('day_plan.', 'plan.')) for t in tasks) and not allergy_preview_batch(tasks):
         raise TaskFailure('execution_boundary','整日草案每轮只执行一个生命周期任务，先展示差异再单独确认提交。')
     submitted={t.resolution.selected_id for t in tasks if t.capability_id=="commerce.submit_order"}
     edited={t.resolution.selected_id for t in tasks if t.capability_id in {"commerce.revise_order","commerce.cancel_checkout"}}

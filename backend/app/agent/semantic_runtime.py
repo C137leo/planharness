@@ -131,6 +131,34 @@ def execute_plan(db, user, snapshot, tasks, confirmed=False):
     check_cancelled()
     if any(capability(t.capability_id).mutates_state for t in tasks):
         begin_execution()
+    from app.agent.task_executor import allergy_preview_batch
+    if allergy_preview_batch(tasks):
+        safety=next(t for t in tasks if t.capability_id=='profile.add_allergies')
+        preview=next(t for t in tasks if t is not safety).model_copy(deep=True)
+        first=execute_plan(db,user,snapshot,[safety],confirmed=confirmed)
+        if first['overall_status']!='success':return first
+        fresh=build_snapshot(db,user,snapshot.thread,snapshot.payload['dates'])
+        target=next((o for o in fresh.payload['objects'] if o['id']==preview.resolution.selected_id),None)
+        if target and preview.capability_id.startswith('plan.revise_'):
+            preview.arguments['expected_revision']=target['etag']
+        preview.dependencies=[]
+        try:
+            validate_tasks([preview],fresh)
+            second=execute_plan(db,user,fresh,[preview],confirmed=confirmed)
+        except Exception as exc:
+            second={'overall_status':'failed','reply':'预览尚未生成：'+safe_error(exc),'task_results':[],'actions':[]}
+        if second['overall_status'] not in {'success','confirmation_required'}:
+            pending_id=(first.get('pending_confirmation') or {}).get('pending_id')
+            saved=db.get(CoachPendingPlan,pending_id) if pending_id else None
+            if saved and saved.status=='pending':
+                saved.result={**(saved.result or {}),'unresolved_goal_input':preview.arguments.get('instruction',''),
+                    'unresolved_initial_requirements':preview.arguments.get('goal_contract')}
+                saved.version+=1
+                updated=pending_result(saved)
+                second.update(pending_confirmation=updated['pending_confirmation'],actions=updated['actions'],plan_draft=first.get('plan_draft'))
+        return {**second,'overall_status':second['overall_status'] if second['overall_status'] in {'success','confirmation_required'} else 'partial_success',
+            'reply':first['reply']+'\n'+second['reply'],'changes':first.get('changes',[])+second.get('changes',[]),
+            'task_results':first.get('task_results',[])+second.get('task_results',[])}
     lock_user(db, user)
     if digest(business_state(db, user, snapshot.payload["dates"])) != snapshot.revision:
         return {"overall_status": "stale", "reply": "数据已经变化，请重新核对对象和操作范围后再确认。", "task_results": [], "actions": []}
@@ -161,11 +189,15 @@ def execute_plan(db, user, snapshot, tasks, confirmed=False):
         from app.agent.workout_runtime import execute_mixed
         return execute_mixed(db,user,snapshot,tasks,confirmed)
     results = execute_tasks(db, user, snapshot, tasks, confirmed=confirmed)
+    preview_update={}
+    if any(t.capability_id=='profile.add_allergies' for t in tasks) and all(r['status']=='success' for r in results):
+        from app.agent.initial_plan_runtime import refreshed_allergy_preview
+        preview_update=refreshed_allergy_preview(db,user,snapshot)
     n = sum(r["status"] == "success" for r in results)
     status = "success" if n == len(results) else "partial_success" if n else "failed"
     return {"overall_status": status, "task_plan": [t.model_dump() for t in tasks], "task_results": results,
             "reply": "\n".join(r["message"] for r in results),
-            "changes": [r["message"] for r in results if r["status"] == "success" and r.get("execution_id")], "actions": []}
+            "changes": [r["message"] for r in results if r["status"] == "success" and r.get("execution_id")], "actions": [], **preview_update}
 
 
 def apply_control(db, user, thread, command, *, cancel_checkout=True, resume_context=None):
@@ -175,11 +207,13 @@ def apply_control(db, user, thread, command, *, cancel_checkout=True, resume_con
         raise TaskFailure("ownership_scope", "待确认任务不存在或不属于当前会话。")
     if p.status in {"completed", "failed"}:
         return {**p.result, "confirmation_replayed": True}
+    if p.status not in {"pending", "executing"}:
+        return {"overall_status": p.status, "reply": "该待确认任务已结束，未执行新的修改。", "actions": []}
     if ((p.result or {}).get('unresolved_initial_requirements') or (p.result or {}).get('unresolved_edits') or (p.result or {}).get('unresolved_goal_input')) and (command.action == 'confirm' or (command.action == 'revise' and command.execute_revision)):
         response = pending_result(p)
         response['reply'] = '上次要求的修改尚未满足，旧预览没有应用。请继续修改约束或取消草案，不能把旧方案当作新要求确认。'
         return response
-    if p.version != command.version:
+    if p.version != command.version and command.action not in {"cancel", "reject"}:
         raise TaskFailure("version", "待确认任务已经修订，请使用最新版本。")
     if p.status != "pending":
         return {"overall_status": p.status, "reply": "该待确认任务已结束，未执行新的修改。", "actions": []}
@@ -325,6 +359,8 @@ def run(db, user, text, *, page="today", day=None, session_id=None, page_context
     day = day or user_today(db.get(Profile, user.id))
 
     thread = normalize_thread(thread)
+    from app.agent.initial_plan_runtime import reconcile_pending_previews
+    reconcile_pending_previews(db,user,thread)
     db.info["coach_thread"] = thread
     db.info['coach_user_text']=text
     db.info['semantic_client'] = client
@@ -587,6 +623,12 @@ def finish(db, user, text, page, day, thread, result, trace, started, snapshot):
     result["reply"] = public_reply(result.get("reply", ""), snapshot)
     result["latency_ms"], result["trace"] = round((time.monotonic() - started) * 1000), trace
     result["day"] = effective_day(db, user, day, fallback_next=False)
+    if initial_edit_id or editing_id:
+        saved=db.get(CoachPendingPlan,initial_edit_id or editing_id)
+        if saved and saved.status=='pending' and result.get('overall_status') in {'failed','clarification_required','stale'}:
+            refreshed=pending_result(saved)
+            result['pending_confirmation']=refreshed['pending_confirmation']
+            result['actions']=refreshed['actions']
     result["context_used"] = {"snapshot_id": snapshot.id, "revision": snapshot.revision} if snapshot else {}
     row = AgentRun(user_id=user.id, kind="coach_semantic_binding", mode="agent", status=result["overall_status"],
         input={"text": text, "page": page, "date": str(day), "thread": thread, "context": result["context_used"], "confirmation": db.info.get("runtime_confirmation")},
